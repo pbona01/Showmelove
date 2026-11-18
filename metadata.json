@@ -1,0 +1,6 @@
+{
+  "name": "Showmelove",
+  "description": "Send animated 3D digital gifts with personal voice notes and real-world cash value through a shareable link.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

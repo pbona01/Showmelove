@@ -1,0 +1,124 @@
+export type GiftArtworkId = 'little-heart' | 'rose' | 'teddy-hug' | 'gift-box';
+
+export type GiftAnimationType = 'pulse' | 'bloom' | 'wave' | 'confetti-open';
+
+export type CollectionId = 'evergreen' | 'valentines';
+
+export type EmoteOption = 'none' | 'heart-burst' | 'rose-petals' | 'sparkle-hug' | 'party-confetti';
+
+export type UserRole = 'guest' | 'sender' | 'recipient' | 'admin';
+
+export interface DemoUser {
+  id: string;
+  role: UserRole;
+  displayName: string;
+  email: string;
+}
+
+export interface GiftCatalogItem {
+  id: string;
+  artworkId: GiftArtworkId;
+  name: string;
+  tagline: string;
+  defaultPriceNaira: number;
+  collectionId: CollectionId;
+  themeColor: string;
+  accentColor: string;
+  animationType: GiftAnimationType;
+  available: boolean;
+}
+
+export interface GiftSnapshot {
+  catalogId: string;
+  artworkId: GiftArtworkId;
+  name: string;
+  priceNaira: number;
+  animationType: GiftAnimationType;
+  themeColor: string;
+  accentColor: string;
+}
+
+export interface SentGift {
+  id: string;
+  checkoutAttemptId: string;
+  createdAt: string;
+  senderName: string;
+  senderEmail?: string;
+  recipientName: string;
+  recipientEmail: string;
+  promiseText: string;
+  messageText?: string;
+  emote: EmoteOption;
+  amountNaira: number;
+  coinsSpent: number;
+  platformFeeNaira: number;
+  recipientEarningsNaira: number;
+  hasVoiceNote: boolean;
+  voiceNoteSource: 'none' | 'sample' | 'recorded';
+  voiceNoteBlobKey?: string;
+  voiceNoteDurationSec?: number;
+  snapshot: GiftSnapshot;
+  claimedAt?: string;
+  claimedByEmail?: string;
+  isBundledSample?: boolean;
+}
+
+export interface CoinTransaction {
+  id: string;
+  createdAt: string;
+  type: 'purchase' | 'spend' | 'seed';
+  coinsDelta: number;
+  amountNaira: number;
+  description: string;
+  relatedGiftId?: string;
+}
+
+export interface EarningsTransaction {
+  id: string;
+  createdAt: string;
+  type: 'claim' | 'payout_reserve' | 'payout_complete' | 'payout_refund';
+  amountNaira: number;
+  description: string;
+  relatedId?: string;
+}
+
+export interface DemoBankAccount {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export type PayoutStatus = 'pending' | 'completed' | 'failed';
+
+export interface PayoutRequest {
+  id: string;
+  createdAt: string;
+  resolvedAt?: string;
+  recipientEmail: string;
+  amountNaira: number;
+  bankAccount: DemoBankAccount;
+  status: PayoutStatus;
+  failureReason?: string;
+}
+
+export interface WalletState {
+  loveCoinsBalance: number;
+  availableEarningsNaira: number;
+  reservedEarningsNaira: number;
+  coinTransactions: CoinTransaction[];
+  earningsTransactions: EarningsTransaction[];
+}
+
+export interface ShowmeloveStoreState {
+  activeRole: UserRole;
+  signedInEmail: string;
+  signedInName: string;
+  activeSeasonalCollection: CollectionId;
+  seasonalDropEnabled: boolean;
+  catalog: GiftCatalogItem[];
+  gifts: SentGift[];
+  processedCheckoutIds: string[];
+  walletsByEmail: Record<string, WalletState>;
+  payoutRequests: PayoutRequest[];
+  defaultBankAccount: DemoBankAccount;
+}
