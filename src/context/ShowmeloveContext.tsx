@@ -32,6 +32,10 @@ import {
 import { BUNDLED_SAMPLE_GIFT, DEMO_USERS } from '../services/seedData';
 import { showmeloveStorage } from '../services/storage';
 import { audioStorage } from '../services/audioStorage';
+import {
+  fetchSharedGiftFromSupabase,
+  publishGiftToSupabase,
+} from '../services/supabaseBridge';
 
 interface ShowmeloveContextValue {
   state: ShowmeloveStoreState;
@@ -43,6 +47,7 @@ interface ShowmeloveContextValue {
   purchaseLoveCoins: (coins: number) => { ok: boolean; error?: string };
   claimGift: (giftId: string, overrideEmail?: string) => ClaimResult;
   getGiftById: (giftId: string) => SentGift | undefined;
+  resolveGiftAsync: (giftId: string) => Promise<SentGift | undefined>;
   submitWithdrawal: (
     amountNaira: number,
     bankAccount: DemoBankAccount,
@@ -52,6 +57,7 @@ interface ShowmeloveContextValue {
     outcome: 'completed' | 'failed',
     reason?: string,
   ) => { ok: boolean; error?: string };
+  updateDefaultBankAccount: (bankAccount: DemoBankAccount) => void;
   updateCatalogItem: (id: string, patch: Partial<GiftCatalogItem>) => void;
   setSeasonalConfig: (collection: CollectionId, enabled: boolean) => void;
 }
@@ -130,6 +136,9 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
     (draft: ComposeGiftDraft): CheckoutResult => {
       const result = createPaidGiftIdempotent(stateRef.current, draft);
       commitNext(result.nextState);
+      if (result.ok && result.gift && !result.alreadyProcessed) {
+        void publishGiftToSupabase(result.gift);
+      }
       return result;
     },
     [commitNext],
@@ -169,6 +178,26 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
     [state.gifts],
   );
 
+  const resolveGiftAsync = useCallback(
+    async (giftId: string): Promise<SentGift | undefined> => {
+      const local = getGiftById(giftId);
+      if (local) return local;
+      const remote = await fetchSharedGiftFromSupabase(giftId);
+      if (remote) {
+        const prev = stateRef.current;
+        if (!prev.gifts.some((g) => g.id === remote.id)) {
+          commitNext({
+            ...prev,
+            gifts: [remote, ...prev.gifts],
+          });
+        }
+        return remote;
+      }
+      return undefined;
+    },
+    [commitNext, getGiftById],
+  );
+
   const submitWithdrawal = useCallback(
     (amountNaira: number, bankAccount: DemoBankAccount) => {
       const payoutId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -200,6 +229,17 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       );
       commitNext(res.nextState);
       return { ok: res.ok, error: res.error };
+    },
+    [commitNext],
+  );
+
+  const updateDefaultBankAccount = useCallback(
+    (bankAccount: DemoBankAccount) => {
+      const prev = stateRef.current;
+      commitNext({
+        ...prev,
+        defaultBankAccount: { ...bankAccount },
+      });
     },
     [commitNext],
   );
@@ -245,8 +285,10 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       purchaseLoveCoins,
       claimGift,
       getGiftById,
+      resolveGiftAsync,
       submitWithdrawal,
       resolvePayout,
+      updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
     }),
@@ -260,8 +302,10 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       purchaseLoveCoins,
       claimGift,
       getGiftById,
+      resolveGiftAsync,
       submitWithdrawal,
       resolvePayout,
+      updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
     ],

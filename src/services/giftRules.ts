@@ -1,5 +1,6 @@
 import {
   calculateCheckoutSummary,
+  calculateWithdrawalSummary,
   ECONOMY_CONFIG,
   formatCoins,
   formatNaira,
@@ -95,6 +96,14 @@ export function createPaidGiftIdempotent(
     };
   }
 
+  if (!draft.catalogItem.available) {
+    return {
+      ok: false,
+      error: `${draft.catalogItem.name} is currently unavailable. Choose an available gift.`,
+      nextState: state,
+    };
+  }
+
   const amountCheck = validateGiftAmount(draft.amountNaira);
   if (!amountCheck.valid) {
     return { ok: false, error: amountCheck.error, nextState: state };
@@ -125,7 +134,7 @@ export function createPaidGiftIdempotent(
     if (!senderKey) {
       return {
         ok: false,
-        error: 'Sign in as a demo sender to spend Love Coins from your balance.',
+        error: 'Sign in first to spend Love Coins from your balance.',
         nextState: state,
       };
     }
@@ -154,7 +163,6 @@ export function createPaidGiftIdempotent(
       ],
     };
   } else if (draft.paymentMode === 'flutterwave_signed_in' && senderKey) {
-    // Signed-in user buys exact coins via Flutterwave demo and spends them immediately
     const senderWallet = ensureWallet(wallets, senderKey);
     wallets[senderKey] = {
       ...senderWallet,
@@ -174,7 +182,7 @@ export function createPaidGiftIdempotent(
           type: 'purchase',
           coinsDelta: summary.loveCoinsNeeded,
           amountNaira: summary.amountPaidNaira,
-          description: `Flutterwave demo purchase (${formatNaira(summary.amountPaidNaira)})`,
+          description: `Simulated card checkout (${formatNaira(summary.amountPaidNaira)})`,
           relatedGiftId: draft.giftId,
         },
         ...senderWallet.coinTransactions,
@@ -228,10 +236,14 @@ export function buyLoveCoins(
     return { ok: false, error: 'Sign in to buy Love Coins.', nextState: state };
   }
   const roundedCoins = Math.round(coinsAmount);
-  if (roundedCoins < ECONOMY_CONFIG.MIN_GIFT_NAIRA || roundedCoins > 500_000) {
+  if (
+    !Number.isFinite(roundedCoins) ||
+    roundedCoins < ECONOMY_CONFIG.MIN_COIN_PURCHASE ||
+    roundedCoins > ECONOMY_CONFIG.MAX_COIN_PURCHASE
+  ) {
     return {
       ok: false,
-      error: `Enter between ${ECONOMY_CONFIG.MIN_GIFT_NAIRA} and 500,000 Love Coins.`,
+      error: `Enter between ${ECONOMY_CONFIG.MIN_COIN_PURCHASE.toLocaleString('en-NG')} and ${ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')} Love Coins.`,
       nextState: state,
     };
   }
@@ -253,7 +265,7 @@ export function buyLoveCoins(
               type: 'purchase',
               coinsDelta: roundedCoins,
               amountNaira: costNaira,
-              description: `Topped up ${formatCoins(roundedCoins)} via Flutterwave demo`,
+              description: `Bought ${formatCoins(roundedCoins)} (${formatNaira(costNaira)} simulated)`,
             },
             ...wallet.coinTransactions,
           ],
@@ -377,43 +389,59 @@ export function requestWithdrawal(
 ): { ok: boolean; error?: string; payout?: PayoutRequest; nextState: ShowmeloveStoreState } {
   const key = normalizeEmail(recipientEmail);
   if (!key) {
-    return { ok: false, error: 'Sign in as a recipient to withdraw earnings.', nextState: state };
+    return { ok: false, error: 'Sign in as a recipient to withdraw rewards.', nextState: state };
   }
 
   const rounded = Math.round(amountNaira);
-  if (!Number.isFinite(rounded) || rounded < 100) {
-    return { ok: false, error: 'Minimum demo withdrawal is ₦100.', nextState: state };
+  if (!Number.isFinite(rounded) || rounded < ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA) {
+    return {
+      ok: false,
+      error: `Minimum withdrawal is ${formatNaira(ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA)}.`,
+      nextState: state,
+    };
   }
 
   const wallet = ensureWallet(state.walletsByEmail, key);
   if (rounded > wallet.availableEarningsNaira) {
     return {
       ok: false,
-      error: `Amount exceeds your available earnings (${formatNaira(wallet.availableEarningsNaira)}).`,
+      error: `Amount exceeds your available Gifted Rewards (${formatNaira(wallet.availableEarningsNaira)}).`,
       nextState: state,
     };
   }
+
+  if (!bankAccount.bankName.trim() || !bankAccount.accountNumber.trim() || !bankAccount.accountName.trim()) {
+    return {
+      ok: false,
+      error: 'Link or enter a complete bank account first.',
+      nextState: state,
+    };
+  }
+
+  const summary = calculateWithdrawalSummary(rounded);
 
   const payout: PayoutRequest = {
     id: payoutId,
     createdAt,
     recipientEmail: key,
-    amountNaira: rounded,
+    amountNaira: summary.grossAmountNaira,
+    feeNaira: summary.payoutFeeNaira,
+    netAmountNaira: summary.netReceivedNaira,
     bankAccount: { ...bankAccount },
     status: 'pending',
   };
 
   const nextWallet: WalletState = {
     ...wallet,
-    availableEarningsNaira: wallet.availableEarningsNaira - rounded,
-    reservedEarningsNaira: wallet.reservedEarningsNaira + rounded,
+    availableEarningsNaira: wallet.availableEarningsNaira - summary.grossAmountNaira,
+    reservedEarningsNaira: wallet.reservedEarningsNaira + summary.grossAmountNaira,
     earningsTransactions: [
       {
         id: `etx_res_${payoutId}`,
         createdAt,
         type: 'payout_reserve',
-        amountNaira: -rounded,
-        description: `Reserved for demo payout to ${bankAccount.bankName} (${bankAccount.accountNumber})`,
+        amountNaira: -summary.grossAmountNaira,
+        description: `Pending withdrawal to ${bankAccount.bankName} (${bankAccount.accountNumber})`,
         relatedId: payoutId,
       },
       ...wallet.earningsTransactions,
@@ -425,6 +453,7 @@ export function requestWithdrawal(
     payout,
     nextState: {
       ...state,
+      defaultBankAccount: { ...bankAccount },
       payoutRequests: [payout, ...state.payoutRequests],
       walletsByEmail: {
         ...state.walletsByEmail,
@@ -459,7 +488,10 @@ export function resolveWithdrawal(
     ...payout,
     status: outcome,
     resolvedAt,
-    failureReason: outcome === 'failed' ? failureReason || 'Simulated bank transfer declined' : undefined,
+    failureReason:
+      outcome === 'failed'
+        ? failureReason || 'Simulated bank transfer declined'
+        : undefined,
   };
 
   const nextPayouts = [...state.payoutRequests];
@@ -476,7 +508,7 @@ export function resolveWithdrawal(
               createdAt: resolvedAt,
               type: 'payout_complete',
               amountNaira: 0,
-              description: `Demo payout settled to ${payout.bankAccount.bankName} (${formatNaira(payout.amountNaira)})`,
+              description: `Paid to ${payout.bankAccount.bankName} (${formatNaira(payout.netAmountNaira)})`,
               relatedId: payoutId,
             },
             ...wallet.earningsTransactions,
@@ -492,7 +524,7 @@ export function resolveWithdrawal(
               createdAt: resolvedAt,
               type: 'payout_refund',
               amountNaira: payout.amountNaira,
-              description: `Demo payout failed — returned ${formatNaira(payout.amountNaira)} to available earnings`,
+              description: `Withdrawal failed — returned ${formatNaira(payout.amountNaira)} to Gifted Rewards`,
               relatedId: payoutId,
             },
             ...wallet.earningsTransactions,

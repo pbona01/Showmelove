@@ -83,6 +83,7 @@ export interface EarningsTransaction {
 }
 
 export interface DemoBankAccount {
+  id?: string;
   bankName: string;
   accountNumber: string;
   accountName: string;
@@ -96,6 +97,8 @@ export interface PayoutRequest {
   resolvedAt?: string;
   recipientEmail: string;
   amountNaira: number;
+  feeNaira: number;
+  netAmountNaira: number;
   bankAccount: DemoBankAccount;
   status: PayoutStatus;
   failureReason?: string;

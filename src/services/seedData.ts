@@ -1,3 +1,4 @@
+import { calculateCheckoutSummary } from '../config/economy';
 import type {
   DemoBankAccount,
   DemoUser,
@@ -28,21 +29,32 @@ export const DEMO_USERS: Record<'sender' | 'recipient' | 'admin', DemoUser> = {
 };
 
 export const DEMO_DEFAULT_BANK: DemoBankAccount = {
-  bankName: 'GTBank Nigeria (Demo)',
+  id: 'bank_gtb_ada',
+  bankName: 'GTBank Nigeria',
   accountNumber: '0123456789',
   accountName: 'Adaeze Okafor',
 };
+
+export const DEMO_BANK_PRESETS: DemoBankAccount[] = [
+  DEMO_DEFAULT_BANK,
+  {
+    id: 'bank_access_ada',
+    bankName: 'Access Bank Nigeria',
+    accountNumber: '0045819203',
+    accountName: 'Adaeze Okafor',
+  },
+];
 
 export const INITIAL_CATALOG: GiftCatalogItem[] = [
   {
     id: 'gift_little_heart',
     artworkId: 'little-heart',
     name: 'Little Heart',
-    tagline: 'A warm pulsing heart for everyday appreciation.',
+    tagline: 'Mini hearts gather around our mascot into a glowing heart.',
     defaultPriceNaira: 1000,
     collectionId: 'evergreen',
-    themeColor: '#E62E45',
-    accentColor: '#FFE4E8',
+    themeColor: '#FF176C',
+    accentColor: '#4A1830',
     animationType: 'pulse',
     available: true,
   },
@@ -50,11 +62,11 @@ export const INITIAL_CATALOG: GiftCatalogItem[] = [
     id: 'gift_rose',
     artworkId: 'rose',
     name: 'Velvet Rose',
-    tagline: 'A glossy crimson bloom that unfolds on screen.',
+    tagline: 'A crimson bud rises and blooms petal by petal across the stage.',
     defaultPriceNaira: 2500,
     collectionId: 'valentines',
-    themeColor: '#D9264E',
-    accentColor: '#FCE7F3',
+    themeColor: '#FF2D78',
+    accentColor: '#3C1630',
     animationType: 'bloom',
     available: true,
   },
@@ -62,27 +74,31 @@ export const INITIAL_CATALOG: GiftCatalogItem[] = [
     id: 'gift_teddy_hug',
     artworkId: 'teddy-hug',
     name: 'Teddy Hug',
-    tagline: 'A cheerful plush companion that opens its arms for a hug.',
+    tagline: 'A bouncy teddy opens its arms wide to send a glowing heart.',
     defaultPriceNaira: 5000,
     collectionId: 'evergreen',
-    themeColor: '#B86B43',
-    accentColor: '#FBEFE3',
+    themeColor: '#D97B48',
+    accentColor: '#33222A',
     animationType: 'wave',
     available: true,
   },
   {
     id: 'gift_box',
     artworkId: 'gift-box',
-    name: 'Celebration Gift Box',
-    tagline: 'A satin-ribboned box that pops open with confetti.',
+    name: 'Celebration Box',
+    tagline: 'A purple-lit satin gift box opens with ribbons and confetti.',
     defaultPriceNaira: 10000,
     collectionId: 'valentines',
-    themeColor: '#E62E45',
-    accentColor: '#FEF3C7',
+    themeColor: '#A855F7',
+    accentColor: '#2B1B46',
     animationType: 'confetti-open',
     available: true,
   },
 ];
+
+const sampleCheckout = calculateCheckoutSummary(5000);
+const roseCheckout = calculateCheckoutSummary(2500);
+const teddyCheckout = calculateCheckoutSummary(5000);
 
 /**
  * Bundled sample reveal URL (/gift/sample) that works on every deployment
@@ -99,10 +115,10 @@ export const BUNDLED_SAMPLE_GIFT: SentGift = {
   promiseText: "Dinner's on me this weekend — pick any spot in Victoria Island.",
   messageText: 'Thank you for always showing up when it matters most.',
   emote: 'party-confetti',
-  amountNaira: 5000,
-  coinsSpent: 5000,
-  platformFeeNaira: 0,
-  recipientEarningsNaira: 5000,
+  amountNaira: sampleCheckout.amountPaidNaira,
+  coinsSpent: sampleCheckout.loveCoinsNeeded,
+  platformFeeNaira: sampleCheckout.platformFeeNaira,
+  recipientEarningsNaira: sampleCheckout.recipientEarningsNaira,
   hasVoiceNote: true,
   voiceNoteSource: 'sample',
   voiceNoteDurationSec: 5,
@@ -110,11 +126,11 @@ export const BUNDLED_SAMPLE_GIFT: SentGift = {
   snapshot: {
     catalogId: 'gift_box',
     artworkId: 'gift-box',
-    name: 'Celebration Gift Box',
+    name: 'Celebration Box',
     priceNaira: 5000,
     animationType: 'confetti-open',
-    themeColor: '#E62E45',
-    accentColor: '#FDE68A',
+    themeColor: '#A855F7',
+    accentColor: '#2B1B46',
   },
 };
 
@@ -134,10 +150,10 @@ export function createInitialStoreState(): ShowmeloveStoreState {
       promiseText: 'Coffee and pastries on Friday morning!',
       messageText: 'Congrats on shipping the new campaign!',
       emote: 'rose-petals',
-      amountNaira: 2500,
-      coinsSpent: 2500,
-      platformFeeNaira: 0,
-      recipientEarningsNaira: 2500,
+      amountNaira: roseCheckout.amountPaidNaira,
+      coinsSpent: roseCheckout.loveCoinsNeeded,
+      platformFeeNaira: roseCheckout.platformFeeNaira,
+      recipientEarningsNaira: roseCheckout.recipientEarningsNaira,
       hasVoiceNote: true,
       voiceNoteSource: 'sample',
       voiceNoteDurationSec: 5,
@@ -149,8 +165,8 @@ export function createInitialStoreState(): ShowmeloveStoreState {
         name: 'Velvet Rose',
         priceNaira: 2500,
         animationType: 'bloom',
-        themeColor: '#D9264E',
-        accentColor: '#FFD6DF',
+        themeColor: '#FF2D78',
+        accentColor: '#3C1630',
       },
     },
     {
@@ -164,10 +180,10 @@ export function createInitialStoreState(): ShowmeloveStoreState {
       promiseText: 'Uber rides on me all week.',
       messageText: 'Stay safe out there!',
       emote: 'sparkle-hug',
-      amountNaira: 5000,
-      coinsSpent: 5000,
-      platformFeeNaira: 0,
-      recipientEarningsNaira: 5000,
+      amountNaira: teddyCheckout.amountPaidNaira,
+      coinsSpent: teddyCheckout.loveCoinsNeeded,
+      platformFeeNaira: teddyCheckout.platformFeeNaira,
+      recipientEarningsNaira: teddyCheckout.recipientEarningsNaira,
       hasVoiceNote: false,
       voiceNoteSource: 'none',
       claimedAt: '2026-11-10T10:30:00.000Z',
@@ -178,16 +194,19 @@ export function createInitialStoreState(): ShowmeloveStoreState {
         name: 'Teddy Hug',
         priceNaira: 5000,
         animationType: 'wave',
-        themeColor: '#B86B43',
-        accentColor: '#FFE8DA',
+        themeColor: '#D97B48',
+        accentColor: '#33222A',
       },
     },
   ];
 
+  const adaezeClaimedTotal =
+    roseCheckout.recipientEarningsNaira + teddyCheckout.recipientEarningsNaira;
+
   return {
-    activeRole: 'guest',
-    signedInEmail: '',
-    signedInName: 'Guest',
+    activeRole: 'recipient',
+    signedInEmail: DEMO_USERS.recipient.email,
+    signedInName: DEMO_USERS.recipient.displayName,
     activeSeasonalCollection: 'valentines',
     seasonalDropEnabled: true,
     catalog: INITIAL_CATALOG.map((item) => ({ ...item })),
@@ -220,17 +239,17 @@ export function createInitialStoreState(): ShowmeloveStoreState {
         earningsTransactions: [],
       },
       [DEMO_USERS.recipient.email]: {
-        loveCoinsBalance: 2000,
-        availableEarningsNaira: 7500,
+        loveCoinsBalance: 4000,
+        availableEarningsNaira: adaezeClaimedTotal,
         reservedEarningsNaira: 0,
         coinTransactions: [
           {
             id: 'ctx_rec_seed_01',
             createdAt: '2026-11-08T12:00:00.000Z',
             type: 'seed',
-            coinsDelta: 2000,
-            amountNaira: 2000,
-            description: 'Welcome Love Coins (demo)',
+            coinsDelta: 4000,
+            amountNaira: 4000,
+            description: 'Welcome Love Coin balance (demo)',
           },
         ],
         earningsTransactions: [
@@ -238,7 +257,7 @@ export function createInitialStoreState(): ShowmeloveStoreState {
             id: 'etx_seed_02',
             createdAt: '2026-11-12T18:22:00.000Z',
             type: 'claim',
-            amountNaira: 2500,
+            amountNaira: roseCheckout.recipientEarningsNaira,
             description: 'Claimed Velvet Rose from Kemi',
             relatedId: 'sml_seed_rose_02',
           },
@@ -246,7 +265,7 @@ export function createInitialStoreState(): ShowmeloveStoreState {
             id: 'etx_seed_03',
             createdAt: '2026-11-10T10:30:00.000Z',
             type: 'claim',
-            amountNaira: 5000,
+            amountNaira: teddyCheckout.recipientEarningsNaira,
             description: 'Claimed Teddy Hug from Tunde',
             relatedId: 'sml_seed_teddy_03',
           },

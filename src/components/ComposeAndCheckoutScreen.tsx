@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -18,12 +18,14 @@ import {
 import {
   calculateCheckoutSummary,
   ECONOMY_CONFIG,
+  formatCoinCount,
   formatCoins,
   formatNaira,
   validateGiftAmount,
 } from '../config/economy';
 import { EMOTE_LABELS } from '../assets/lottie/animations';
 import { useShowmelove } from '../context/ShowmeloveContext';
+import { isSupabaseConfigured } from '../services/supabaseBridge';
 import type { EmoteOption, SentGift } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
 import { GiftRevealExperience } from './GiftRevealExperience';
@@ -31,7 +33,6 @@ import { VoiceNoteRecorder, type VoiceNoteValue } from './VoiceNoteRecorder';
 import {
   Button,
   InputField,
-  PriceLabel,
   PromisePaperCard,
   TactileGiftCard,
 } from './ui/DesignSystem';
@@ -53,7 +54,7 @@ const PROMISE_IDEAS = [
 const PRESET_AMOUNTS = [1000, 2500, 5000, 10000];
 
 type ComposerStep = 'choose' | 'personalize' | 'review';
-type FlutterwaveStatus = 'idle' | 'processing' | 'failed';
+type CheckoutProcessingState = 'idle' | 'processing' | 'failed';
 
 export function ComposeAndCheckoutScreen({
   initialGiftCatalogId,
@@ -89,7 +90,11 @@ export function ComposeAndCheckoutScreen({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUnfoldKey, setPreviewUnfoldKey] = useState(0);
 
-  // Stable attempt ID per compose->checkout session prevents duplicate paid gifts
+  // Scroll & keyboard focus management between composer steps
+  const stepSectionRef = useRef<HTMLElement | null>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const didMountRef = useRef(false);
+
   const [checkoutAttemptId, setCheckoutAttemptId] = useState(
     () => `chk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
   );
@@ -97,9 +102,21 @@ export function ComposeAndCheckoutScreen({
   const [paymentSource, setPaymentSource] = useState<'flutterwave' | 'coin_balance'>(
     'flutterwave',
   );
-  const [fwStatus, setFwStatus] = useState<FlutterwaveStatus>('idle');
+  const [fwStatus, setFwStatus] = useState<CheckoutProcessingState>('idle');
   const [fwError, setFwError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    const rafId = window.requestAnimationFrame(() => {
+      stepSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      stepHeadingRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [step, createdGift]);
 
   const parsedAmount = Number(amountInput);
   const amountValidation = validateGiftAmount(parsedAmount);
@@ -111,6 +128,10 @@ export function ComposeAndCheckoutScreen({
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const hasEnoughCoins =
     isSignedIn && currentWallet.loveCoinsBalance >= summary.loveCoinsNeeded;
+  const coinShortfall = Math.max(
+    0,
+    summary.loveCoinsNeeded - currentWallet.loveCoinsBalance,
+  );
 
   const handleSelectGift = (giftId: string) => {
     setSelectedCatalogId(giftId);
@@ -123,7 +144,7 @@ export function ComposeAndCheckoutScreen({
 
   const validateStepOne = (): boolean => {
     if (!selectedItem.available) {
-      setFormError('This gift is currently unavailable. Please choose another gift.');
+      setFormError('This gift is currently paused by admin. Pick another gift.');
       return false;
     }
     if (!amountValidation.valid) {
@@ -146,7 +167,7 @@ export function ComposeAndCheckoutScreen({
     }
     const email = recipientEmail.trim().toLowerCase();
     if (!email || !email.includes('@') || !email.includes('.')) {
-      setFormError('Enter a valid recipient email so they can claim their earnings.');
+      setFormError('Enter a valid recipient email so they can claim their rewards.');
       return false;
     }
     if (!promiseText.trim()) {
@@ -178,9 +199,7 @@ export function ComposeAndCheckoutScreen({
   const finalizeGiftOrder = (
     mode: 'flutterwave_guest' | 'coin_balance' | 'flutterwave_signed_in',
   ) => {
-    if (createdGift) {
-      return;
-    }
+    if (createdGift) return;
 
     const giftId = `sml_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     const res = submitCheckout({
@@ -235,7 +254,7 @@ export function ComposeAndCheckoutScreen({
     window.setTimeout(() => {
       setFwStatus('failed');
       setFwError(
-        'Demo card authorization declined (simulated failure). No Love Coins were charged and no gift was created.',
+        'Demo payment authorization declined. No Love Coins were spent and no gift was created.',
       );
     }, 300);
   };
@@ -319,6 +338,8 @@ export function ComposeAndCheckoutScreen({
     { id: 'review', num: '3', label: 'Review' },
   ];
 
+  const hasUnavailableGifts = state.catalog.some((g) => !g.available);
+
   return (
     <div className="max-w-5xl mx-auto pb-16 space-y-6">
       {/* Top Bar: Back + 3-Step Indicator */}
@@ -336,7 +357,7 @@ export function ComposeAndCheckoutScreen({
               onBackHome();
             }
           }}
-          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-white border border-[#171314]/10 text-sm font-medium text-[#171314] inline-flex items-center gap-2 hover:bg-[#FFF0F2] transition-colors whitespace-nowrap shrink-0 self-start"
+          className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--bg-raised)] transition-colors whitespace-nowrap shrink-0 self-start"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>
@@ -353,7 +374,7 @@ export function ComposeAndCheckoutScreen({
         {/* Explicit 3-Step Indicator */}
         <nav
           aria-label="Gift composer steps"
-          className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-[#F6EDE4] border border-[#171314]/8 w-full sm:w-auto"
+          className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] w-full sm:w-auto"
         >
           {stepMeta.map((s) => {
             const active = step === s.id;
@@ -372,10 +393,10 @@ export function ComposeAndCheckoutScreen({
                 }}
                 className={`min-h-[38px] px-2.5 sm:px-3.5 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-colors whitespace-nowrap ${
                   active
-                    ? 'bg-white text-[#171314] shadow-sm'
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                     : canClick
-                      ? 'text-[#5E5255] hover:text-[#171314]'
-                      : 'text-[#5E5255]/60 cursor-default'
+                      ? 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      : 'text-[var(--text-secondary)]/55 cursor-default'
                 }`}
               >
                 {s.num}. {s.label}
@@ -385,22 +406,29 @@ export function ComposeAndCheckoutScreen({
         </nav>
       </div>
 
-      {/* Main 2-Column Desktop / Single-Column Mobile Composer Layout */}
+      {/* Main 2-Column Desktop / Single-Column Mobile Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Active Step */}
         <div className="lg:col-span-7 space-y-5">
           {step === 'choose' && (
-            <section className="rounded-3xl bg-white border border-[#171314]/8 p-5 sm:p-6 space-y-6 shadow-sm">
+            <section
+              ref={stepSectionRef}
+              className="scroll-mt-20 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-6 shadow-sm"
+            >
               <div>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#171314]">
-                  Choose a gift
+                <h1
+                  ref={stepHeadingRef}
+                  tabIndex={-1}
+                  className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] focus:outline-none"
+                >
+                  Choose an animated gift
                 </h1>
-                <p className="text-sm text-[#5E5255] mt-1">
-                  Pick a 3D animated gift and set the naira value they can claim.
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
+                  Pick a gift and choose the coin value your recipient can claim in naira.
                 </p>
               </div>
 
-              {/* 4-State Tactile Gift Grid */}
+              {/* Gift Selection Grid */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {state.catalog.map((item) => (
                   <TactileGiftCard
@@ -414,16 +442,22 @@ export function ComposeAndCheckoutScreen({
                 ))}
               </div>
 
+              {hasUnavailableGifts && (
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Gifts marked &ldquo;Currently paused by admin&rdquo; cannot be selected until re-enabled.
+                </p>
+              )}
+
               {/* Preset Amount Buttons + Custom Input */}
-              <div className="space-y-3 pt-2 border-t border-[#171314]/8">
+              <div className="space-y-3 pt-2 border-t border-[var(--border-subtle)]">
                 <div className="flex items-baseline justify-between gap-2">
                   <label
                     htmlFor="custom-amount-input"
-                    className="font-display text-base font-semibold text-[#171314]"
+                    className="text-base font-semibold text-[var(--text-primary)]"
                   >
-                    Gift amount
+                    Gift value
                   </label>
-                  <span className="text-xs text-[#5E5255] tabular-nums">
+                  <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                     {formatNaira(ECONOMY_CONFIG.MIN_GIFT_NAIRA)} –{' '}
                     {formatNaira(ECONOMY_CONFIG.MAX_GIFT_NAIRA)}
                   </span>
@@ -442,8 +476,8 @@ export function ComposeAndCheckoutScreen({
                         }}
                         className={`min-h-[42px] px-2 py-2 rounded-xl border text-xs sm:text-sm font-semibold tabular-nums transition-colors ${
                           isActive
-                            ? 'bg-[#FFF0F2] border-[#E62E45] text-[#E62E45]'
-                            : 'bg-[#FDF8F3] border-[#171314]/12 text-[#171314] hover:bg-white'
+                            ? 'bg-[#FFEAF2] dark:bg-[#2F1426] border-[#DF0756] dark:border-[#FF176C] text-[#DF0756] dark:text-[#FF7AA8]'
+                            : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#8439D5]/45'
                         }`}
                       >
                         {formatNaira(preset)}
@@ -463,16 +497,16 @@ export function ComposeAndCheckoutScreen({
                   onChange={(e) => setAmountInput(e.target.value)}
                   className="font-semibold tabular-nums"
                   error={!amountValidation.valid ? amountValidation.error : undefined}
-                  hint={`Equals ${formatCoins(summary.loveCoinsNeeded)} · Recipient keeps ${formatNaira(summary.recipientEarningsNaira)}`}
+                  hint={`Costs ${formatCoinCount(summary.loveCoinsNeeded)} · Recipient keeps ${formatNaira(summary.recipientEarningsNaira)} (${summary.creatorSharePercent}% after ${summary.platformFeePercent}% demo fee)`}
                 />
               </div>
 
               {formError && (
                 <div
                   role="alert"
-                  className="rounded-xl bg-[#FFF0F2] border border-[#E62E45]/25 px-3.5 py-2.5 text-xs font-medium text-[#171314] flex items-start gap-2"
+                  className="rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/30 dark:border-[#FF176C]/35 px-3.5 py-2.5 text-xs font-medium text-[var(--text-primary)] flex items-start gap-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-[#E62E45] shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C] shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
               )}
@@ -491,17 +525,23 @@ export function ComposeAndCheckoutScreen({
           )}
 
           {step === 'personalize' && (
-            <section className="rounded-3xl bg-white border border-[#171314]/8 p-5 sm:p-6 space-y-5 shadow-sm">
+            <section
+              ref={stepSectionRef}
+              className="scroll-mt-20 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-5 shadow-sm"
+            >
               <div>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#171314]">
+                <h1
+                  ref={stepHeadingRef}
+                  tabIndex={-1}
+                  className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] focus:outline-none"
+                >
                   Make it personal
                 </h1>
-                <p className="text-sm text-[#5E5255] mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   Write your Digital Promise Card and add a personal voice note.
                 </p>
               </div>
 
-              {/* Names & Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputField
                   id="sender-name-input"
@@ -531,16 +571,16 @@ export function ComposeAndCheckoutScreen({
                 hint="Used only to verify the claimer. Never included in public gift links."
               />
 
-              {/* Tactile Promise Card Editor */}
-              <div className="promise-paper promise-paper-fold rounded-2xl border border-[#171314]/12 p-4 sm:p-5 space-y-3">
+              {/* Digital Promise Card Editor */}
+              <div className="promise-paper promise-paper-fold rounded-2xl border border-[var(--border-subtle)] p-4 sm:p-5 space-y-3">
                 <div className="flex items-center justify-between gap-2 pr-6">
                   <label
                     htmlFor="promise-input"
-                    className="font-display text-sm font-semibold text-[#171314]"
+                    className="text-sm font-semibold text-[var(--text-primary)]"
                   >
                     Digital Promise Card
                   </label>
-                  <span className="text-[11px] text-[#5E5255] tabular-nums">
+                  <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                     {promiseText.length}/140
                   </span>
                 </div>
@@ -552,7 +592,7 @@ export function ComposeAndCheckoutScreen({
                   value={promiseText}
                   onChange={(e) => setPromiseText(e.target.value)}
                   placeholder="Dinner's on me this weekend."
-                  className="w-full rounded-xl border border-[#171314]/12 bg-white/85 px-3.5 py-2.5 font-display text-base font-semibold text-[#171314] placeholder:text-[#5E5255]/60 focus:outline-none focus:ring-2 focus:ring-[#E62E45]/30 resize-none"
+                  className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3.5 py-2.5 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/65 focus:outline-none focus:ring-2 focus:ring-[#DF0756]/35 dark:focus:ring-[#FF176C]/40 resize-none"
                 />
 
                 <div className="flex flex-wrap gap-1.5">
@@ -561,7 +601,7 @@ export function ComposeAndCheckoutScreen({
                       key={idea}
                       type="button"
                       onClick={() => setPromiseText(idea)}
-                      className="px-2.5 py-1 rounded-lg bg-[#FFF0F2] text-xs font-medium text-[#171314] hover:bg-[#FFD6DD] transition-colors text-left"
+                      className="px-2.5 py-1 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:border-[#8439D5]/45 transition-colors text-left"
                     >
                       {idea}
                     </button>
@@ -573,7 +613,7 @@ export function ComposeAndCheckoutScreen({
                 <div className="space-y-1.5">
                   <label
                     htmlFor="optional-message-input"
-                    className="block text-sm font-medium text-[#171314]"
+                    className="block text-sm font-medium text-[var(--text-primary)]"
                   >
                     Optional note
                   </label>
@@ -583,14 +623,14 @@ export function ComposeAndCheckoutScreen({
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder="Add a warm note (optional)"
-                    className="w-full px-3.5 py-2 rounded-xl border border-[#171314]/15 bg-[#FDF8F3] text-sm text-[#171314] focus:outline-none focus:ring-2 focus:ring-[#E62E45]/30"
+                    className="w-full px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#DF0756]/35 dark:focus:ring-[#FF176C]/40"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label
                     htmlFor="emote-select"
-                    className="block text-sm font-medium text-[#171314]"
+                    className="block text-sm font-medium text-[var(--text-primary)]"
                   >
                     Reveal emote burst
                   </label>
@@ -598,7 +638,7 @@ export function ComposeAndCheckoutScreen({
                     id="emote-select"
                     value={emote}
                     onChange={(e) => setEmote(e.target.value as EmoteOption)}
-                    className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[#171314]/15 bg-[#FDF8F3] text-sm text-[#171314] focus:outline-none focus:ring-2 focus:ring-[#E62E45]/30"
+                    className="w-full min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#DF0756]/35 dark:focus:ring-[#FF176C]/40"
                   >
                     {(Object.keys(EMOTE_LABELS) as EmoteOption[]).map((key) => (
                       <option key={key} value={key}>
@@ -614,9 +654,9 @@ export function ComposeAndCheckoutScreen({
               {formError && (
                 <div
                   role="alert"
-                  className="rounded-xl bg-[#FFF0F2] border border-[#E62E45]/25 px-3.5 py-2.5 text-xs font-medium text-[#171314] flex items-start gap-2"
+                  className="rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/30 dark:border-[#FF176C]/35 px-3.5 py-2.5 text-xs font-medium text-[var(--text-primary)] flex items-start gap-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-[#E62E45] shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C] shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
               )}
@@ -647,52 +687,63 @@ export function ComposeAndCheckoutScreen({
           )}
 
           {step === 'review' && !createdGift && (
-            <section className="rounded-3xl bg-white border border-[#171314]/8 p-5 sm:p-7 space-y-6 shadow-sm">
+            <section
+              ref={stepSectionRef}
+              className="scroll-mt-20 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-7 space-y-6 shadow-sm"
+            >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-[#E62E45]">
-                    Demo checkout · No real payment collected
+                  <p className="text-xs font-semibold text-[#DF0756] dark:text-[#FF176C]">
+                    Simulated checkout · No real payment collected
                   </p>
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#171314] mt-1">
+                  <h1
+                    ref={stepHeadingRef}
+                    tabIndex={-1}
+                    className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] mt-1 focus:outline-none"
+                  >
                     Review &amp; send gift
                   </h1>
                 </div>
-                <ShieldCheck className="w-6 h-6 text-[#171314] shrink-0" />
+                <ShieldCheck className="w-6 h-6 text-[var(--text-primary)] shrink-0" />
               </div>
 
-              {/* Compact Order Summary */}
-              <div className="rounded-2xl bg-[#FDF8F3] border border-[#171314]/8 p-4 space-y-2 text-sm">
+              {/* Order Summary with 20% Demo Platform Fee Math */}
+              <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#5E5255]">Gift</span>
-                  <span className="font-semibold text-[#171314] text-right">
+                  <span className="text-[var(--text-secondary)]">Gift</span>
+                  <span className="font-semibold text-[var(--text-primary)] text-right">
                     {selectedItem.name} for {recipientName}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#5E5255]">Amount paid</span>
-                  <span className="font-semibold tabular-nums text-[#171314]">
-                    {formatNaira(summary.amountPaidNaira)}
+                  <span className="text-[var(--text-secondary)]">Love Coins spent</span>
+                  <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                    {formatCoins(summary.loveCoinsNeeded)} ({formatNaira(summary.amountPaidNaira)})
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#5E5255]">Love Coins spent</span>
-                  <span className="font-semibold tabular-nums text-[#171314]">
-                    {formatCoins(summary.loveCoinsNeeded)}
+                  <span className="text-[var(--text-secondary)]">
+                    Platform fee ({summary.platformFeePercent}% demo)
+                  </span>
+                  <span className="font-medium tabular-nums text-[var(--text-secondary)]">
+                    -{formatNaira(summary.platformFeeNaira)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#171314]/8">
-                  <span className="font-semibold text-[#171314]">
-                    Recipient earnings ({summary.feePercentLabel})
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    Recipient Gifted Rewards ({summary.creatorSharePercent}%)
                   </span>
-                  <span className="font-display text-lg font-bold tabular-nums text-[#E62E45]">
+                  <span className="text-lg font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
                     {formatNaira(summary.recipientEarningsNaira)}
                   </span>
                 </div>
               </div>
 
-              {/* Payment Method */}
+              {/* Payment Option */}
               <div className="space-y-3">
-                <p className="text-sm font-semibold text-[#171314]">Payment option</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  Payment method
+                </p>
 
                 {isSignedIn ? (
                   <div className="space-y-2.5">
@@ -702,22 +753,24 @@ export function ComposeAndCheckoutScreen({
                       onClick={() => setPaymentSource('coin_balance')}
                       className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-colors ${
                         paymentSource === 'coin_balance'
-                          ? 'border-[#E62E45] bg-[#FFF0F2]'
+                          ? 'border-[#DF0756] dark:border-[#FF176C] bg-[#FFEAF2] dark:bg-[#2B1726]'
                           : hasEnoughCoins
-                            ? 'border-[#171314]/12 bg-white hover:bg-[#FDF8F3]'
-                            : 'border-[#171314]/8 bg-[#F6EDE4]/50 opacity-60 cursor-not-allowed'
+                            ? 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#8439D5]/45'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] opacity-60 cursor-not-allowed'
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-semibold text-[#171314]">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">
                           Spend from Love Coins balance
                         </p>
-                        <p className="text-xs text-[#5E5255] tabular-nums">
+                        <p className="text-xs text-[var(--text-secondary)] tabular-nums">
                           Balance: {formatCoins(currentWallet.loveCoinsBalance)}
-                          {!hasEnoughCoins ? ' (insufficient)' : ''}
+                          {!hasEnoughCoins
+                            ? ` · Need ${formatCoinCount(coinShortfall)} more`
+                            : ''}
                         </p>
                       </div>
-                      <Coins className="w-5 h-5 text-[#E62E45] shrink-0" />
+                      <Coins className="w-5 h-5 text-[#DF0756] dark:text-[#FF176C] shrink-0" />
                     </button>
 
                     <button
@@ -725,68 +778,68 @@ export function ComposeAndCheckoutScreen({
                       onClick={() => setPaymentSource('flutterwave')}
                       className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-colors ${
                         paymentSource === 'flutterwave'
-                          ? 'border-[#E62E45] bg-[#FFF0F2]'
-                          : 'border-[#171314]/12 bg-white hover:bg-[#FDF8F3]'
+                          ? 'border-[#DF0756] dark:border-[#FF176C] bg-[#FFEAF2] dark:bg-[#2B1726]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#8439D5]/45'
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-semibold text-[#171314]">
-                          Buy &amp; spend exact Love Coins via Flutterwave demo
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">
+                          Instant simulated card payment ({formatNaira(summary.amountPaidNaira)})
                         </p>
-                        <p className="text-xs text-[#5E5255]">
-                          Keeps your existing Love Coin balance untouched
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Buys &amp; sends exact Love Coins without lowering your existing wallet balance
                         </p>
                       </div>
-                      <Lock className="w-5 h-5 text-[#171314] shrink-0" />
+                      <Lock className="w-5 h-5 text-[var(--text-primary)] shrink-0" />
                     </button>
 
                     {!hasEnoughCoins && (
                       <button
                         type="button"
                         onClick={onGoToCoins}
-                        className="text-xs font-semibold text-[#E62E45] hover:underline"
+                        className="text-xs font-semibold text-[#DF0756] dark:text-[#FF176C] hover:underline"
                       >
-                        Need more coins? Top up Love Coins wallet →
+                        Top up Love Coins in Buy Coins →
                       </button>
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-[#171314]/10 bg-[#FFF0F2]/65 p-4 text-sm text-[#171314]">
-                    <p className="font-semibold">Continue as guest</p>
-                    <p className="text-xs text-[#5E5255] mt-1 leading-relaxed">
-                      No account required. Guest checkout buys{' '}
-                      <span className="font-semibold text-[#171314]">
-                        {formatCoins(summary.loveCoinsNeeded)}
-                      </span>{' '}
-                      for {formatNaira(summary.amountPaidNaira)} and sends this gift in one step.
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 text-sm text-[var(--text-primary)]">
+                    <p className="font-semibold">Guest checkout active</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">
+                      No account required. Guest checkout simulates paying{' '}
+                      <strong className="text-[var(--text-primary)]">
+                        {formatNaira(summary.amountPaidNaira)}
+                      </strong>{' '}
+                      ({formatCoins(summary.loveCoinsNeeded)}) and generates the recipient&apos;s shareable link immediately. (Coin balance spend is unavailable as guest.)
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Stable non-jumping Flutterwave demo checkout container */}
-              <div className="rounded-2xl border border-[#171314]/10 bg-[#FDF8F3]/60 p-4 space-y-3 min-h-[176px] flex flex-col justify-between">
-                <div className="min-h-[54px] flex items-center">
+              {/* Stable Checkout Container */}
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 space-y-3 min-h-[172px] flex flex-col justify-between">
+                <div className="min-h-[52px] flex items-center">
                   {fwError ? (
                     <div
                       role="alert"
-                      className="w-full rounded-xl bg-[#FFF0F2] border border-[#E62E45]/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                      className="w-full rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/35 dark:border-[#FF176C]/40 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                     >
-                      <p className="text-xs font-medium text-[#171314]">{fwError}</p>
-                      <button
-                        type="button"
+                      <p className="text-xs font-medium text-[var(--text-primary)]">{fwError}</p>
+                      <Button
+                        variant="dark"
+                        size="sm"
                         onClick={handleSimulateSuccess}
-                        className="min-h-[36px] px-3 py-1.5 rounded-lg bg-[#171314] text-white text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#2c2527] whitespace-nowrap shrink-0 self-start sm:self-center"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         <span>Retry</span>
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <p className="text-xs text-[#5E5255]">
+                    <p className="text-xs text-[var(--text-secondary)]">
                       {fwStatus === 'processing'
-                        ? 'Authorizing demo transaction…'
-                        : 'Test either a confirmed payment or a simulated card failure without leaving this step.'}
+                        ? 'Authorizing simulated transaction…'
+                        : 'Confirm simulated payment or test a declined transaction without leaving this step.'}
                     </p>
                   )}
                 </div>
@@ -801,10 +854,10 @@ export function ComposeAndCheckoutScreen({
                     data-testid="fw-demo-success-btn"
                   >
                     {fwStatus === 'processing'
-                      ? 'Processing demo payment…'
+                      ? 'Processing…'
                       : paymentSource === 'coin_balance' && isSignedIn
                         ? `Confirm & spend ${formatCoins(summary.loveCoinsNeeded)}`
-                        : `Pay ${formatNaira(summary.amountPaidNaira)} (Flutterwave Demo)`}
+                        : `Pay ${formatNaira(summary.amountPaidNaira)} (Simulated)`}
                   </Button>
 
                   <Button
@@ -823,37 +876,44 @@ export function ComposeAndCheckoutScreen({
           )}
 
           {step === 'review' && createdGift && (
-            <section className="rounded-3xl bg-white border border-[#171314]/8 p-5 sm:p-7 space-y-6 shadow-sm">
+            <section
+              ref={stepSectionRef}
+              className="scroll-mt-20 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-7 space-y-6 shadow-sm"
+            >
               <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-700" />
+                <div className="w-11 h-11 rounded-2xl bg-[#E6F6EF] dark:bg-[#0D3326] border border-[#087F56]/25 dark:border-[#24C888]/30 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-[#087F56] dark:text-[#24C888]" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-emerald-800">
+                  <p className="text-xs font-medium text-[#087F56] dark:text-[#24C888]">
                     Gift ready · Single order created
                   </p>
-                  <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#171314] mt-0.5">
+                  <h1
+                    ref={stepHeadingRef}
+                    tabIndex={-1}
+                    className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] mt-0.5 focus:outline-none"
+                  >
                     Share with {createdGift.recipientName}
                   </h1>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-[#FDF8F3] border border-[#171314]/8 p-4 space-y-2 text-sm">
+              <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#5E5255]">Gift</span>
-                  <span className="font-semibold text-[#171314]">
+                  <span className="text-[var(--text-secondary)]">Gift</span>
+                  <span className="font-semibold text-[var(--text-primary)]">
                     {createdGift.snapshot.name} · {formatNaira(createdGift.amountNaira)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#5E5255]">Love Coins spent</span>
-                  <span className="tabular-nums font-medium text-[#171314]">
+                  <span className="text-[var(--text-secondary)]">Love Coins spent</span>
+                  <span className="tabular-nums font-medium text-[var(--text-primary)]">
                     {formatCoins(createdGift.coinsSpent)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#5E5255]">Recipient earnings</span>
-                  <span className="tabular-nums font-bold text-[#E62E45]">
+                  <span className="text-[var(--text-secondary)]">Recipient Gifted Rewards</span>
+                  <span className="tabular-nums font-bold text-[#087F56] dark:text-[#24C888]">
                     {formatNaira(createdGift.recipientEarningsNaira)}
                   </span>
                 </div>
@@ -863,9 +923,9 @@ export function ComposeAndCheckoutScreen({
               <div className="space-y-2">
                 <label
                   htmlFor="public-share-link"
-                  className="block text-xs font-semibold text-[#5E5255]"
+                  className="block text-xs font-semibold text-[var(--text-secondary)]"
                 >
-                  Public gift link (no emails or private data)
+                  Shareable gift link (private email omitted)
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <input
@@ -874,7 +934,7 @@ export function ComposeAndCheckoutScreen({
                     readOnly
                     value={shareUrl}
                     data-testid="share-gift-url-input"
-                    className="flex-1 min-h-[44px] px-3.5 py-2 rounded-xl border border-[#171314]/15 bg-[#FDF8F3] text-xs font-mono text-[#171314]"
+                    className="flex-1 min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-xs font-mono text-[var(--text-primary)]"
                   />
                   <Button
                     variant="dark"
@@ -883,7 +943,7 @@ export function ComposeAndCheckoutScreen({
                     data-testid="copy-gift-link-btn"
                   >
                     {copiedLink ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-4 h-4 text-[#24C888]" />
                     ) : (
                       <Copy className="w-4 h-4" />
                     )}
@@ -892,7 +952,7 @@ export function ComposeAndCheckoutScreen({
                 </div>
               </div>
 
-              {/* Share on WhatsApp & Open Recipient View */}
+              {/* Open Recipient View & WhatsApp Share */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Button
                   variant="primary"
@@ -908,29 +968,34 @@ export function ComposeAndCheckoutScreen({
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="min-h-[50px] px-5 py-3 rounded-2xl border border-[#171314]/14 bg-white text-[#171314] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:bg-[#FFF0F2] transition-colors whitespace-nowrap"
+                  className="min-h-[50px] px-5 py-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:border-[#24C888]/50 transition-colors whitespace-nowrap"
                 >
-                  <MessageCircle className="w-4 h-4 text-emerald-600" />
+                  <MessageCircle className="w-4 h-4 text-[#087F56] dark:text-[#24C888]" />
                   <span>Share on WhatsApp</span>
                 </a>
               </div>
 
-              <div className="rounded-2xl bg-[#FFF0F2] border border-[#E62E45]/15 p-3.5 text-xs text-[#5E5255] leading-relaxed">
-                <strong className="text-[#171314]">Demo storage note:</strong> Newly created gift links and recordings live in this browser&apos;s storage. The sample link (<code>/gift/sample</code>) works everywhere.
+              <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5 text-xs text-[var(--text-secondary)] leading-relaxed">
+                <strong className="text-[var(--text-primary)]">
+                  {isSupabaseConfigured ? 'Cross-device sync:' : 'Local demo storage:'}
+                </strong>{' '}
+                {isSupabaseConfigured
+                  ? 'Gift metadata synced for cross-device link opening. Local voice recordings require Supabase Storage configuration to stream across devices.'
+                  : 'Created gift links and voice recordings are saved in this browser only. Configure Supabase credentials to share new links across devices, or share /gift/sample anywhere.'}
               </div>
 
-              <div className="pt-2 border-t border-[#171314]/8 flex items-center justify-between gap-4">
+              <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-4">
                 <button
                   type="button"
                   onClick={handleSendAnother}
-                  className="text-sm font-semibold text-[#171314] hover:text-[#E62E45] transition-colors"
+                  className="text-sm font-semibold text-[var(--text-primary)] hover:text-[#DF0756] dark:hover:text-[#FF176C] transition-colors"
                 >
                   Send another gift
                 </button>
                 <button
                   type="button"
                   onClick={onBackHome}
-                  className="text-sm font-medium text-[#5E5255] hover:text-[#171314] transition-colors"
+                  className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Return to catalog
                 </button>
@@ -939,38 +1004,40 @@ export function ComposeAndCheckoutScreen({
           )}
         </div>
 
-        {/* Right Column: Compact Live Preview (Always visible on desktop; subtle summary on mobile) */}
+        {/* Right Column: Sticky Live Preview */}
         <aside className="lg:col-span-5 space-y-4 lg:sticky lg:top-20">
-          <div className="rounded-3xl bg-white border border-[#171314]/8 p-5 sm:p-6 space-y-4 shadow-sm">
+          <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 gift-gloss border border-[#171314]/8"
-                  style={{ backgroundColor: selectedItem.accentColor || '#FFF0F2' }}
-                >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-[#F4ECF8] dark:bg-[#241E30] border border-[var(--border-subtle)]">
                   <GiftArtworkSvg artworkId={selectedItem.artworkId} className="w-11 h-11" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] text-[#5E5255]">Live gift preview</p>
-                  <h2 className="font-display text-lg font-bold text-[#171314] truncate">
+                  <p className="text-xs text-[var(--text-secondary)]">Live gift preview</p>
+                  <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">
                     {selectedItem.name}
                   </h2>
                 </div>
               </div>
 
-              <PriceLabel
-                amountNaira={
-                  amountValidation.valid
-                    ? amountValidation.normalized
-                    : selectedItem.defaultPriceNaira
-                }
-                showCoins
-                size="sm"
-                accent
-              />
+              <div className="text-right shrink-0">
+                <p className="text-base font-bold tabular-nums text-[#DF0756] dark:text-[#FF176C]">
+                  {formatCoinCount(
+                    amountValidation.valid
+                      ? amountValidation.normalized
+                      : selectedItem.defaultPriceNaira,
+                  )}
+                </p>
+                <p className="text-xs tabular-nums text-[var(--text-secondary)]">
+                  {formatNaira(
+                    amountValidation.valid
+                      ? amountValidation.normalized
+                      : selectedItem.defaultPriceNaira,
+                  )}
+                </p>
+              </div>
             </div>
 
-            {/* Live Digital Promise Paper Card */}
             <div key={previewUnfoldKey}>
               <PromisePaperCard
                 promiseText={promiseText || "Dinner's on me this weekend."}
@@ -984,7 +1051,7 @@ export function ComposeAndCheckoutScreen({
               />
             </div>
 
-            <div className="flex items-center justify-between gap-2 text-xs text-[#5E5255]">
+            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
               <span>
                 {voiceNote.source === 'none'
                   ? 'No voice note attached yet'
@@ -993,7 +1060,7 @@ export function ComposeAndCheckoutScreen({
               <button
                 type="button"
                 onClick={() => setPreviewUnfoldKey((k) => k + 1)}
-                className="inline-flex items-center gap-1 font-semibold text-[#171314] hover:text-[#E62E45]"
+                className="inline-flex items-center gap-1 font-semibold text-[var(--text-primary)] hover:text-[#DF0756] dark:hover:text-[#FF176C]"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Replay card</span>
@@ -1009,7 +1076,7 @@ export function ComposeAndCheckoutScreen({
                 data-testid="desktop-preview-btn"
               >
                 <Eye className="w-4 h-4" />
-                <span>Preview 3D gift reveal</span>
+                <span>Watch your gift come to life</span>
               </Button>
             </div>
           </div>

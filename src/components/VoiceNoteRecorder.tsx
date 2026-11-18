@@ -262,18 +262,18 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
   const totalDuration = value.durationSec ?? 5;
 
   return (
-    <div className="rounded-2xl border border-[#171314]/10 bg-[#FDF8F3]/60 p-4 space-y-3">
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-sm sm:text-base font-semibold text-[#171314]">
+          <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
             Personal voice note
           </h3>
-          <p className="text-xs text-[#5E5255] mt-0.5">
-            Plays automatically when they tap Open gift · Up to {maxSec}s
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            Plays when they tap Open gift · Up to {maxSec}s
           </p>
         </div>
         {recordingState === 'recording' && (
-          <span className="text-xs font-semibold tabular-nums text-[#E62E45]">
+          <span className="text-xs font-semibold tabular-nums text-[#DF0756] dark:text-[#FF176C]">
             {formatDuration(elapsedSec)} / {formatDuration(maxSec)}
           </span>
         )}
@@ -282,24 +282,24 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
       {micError && (
         <div
           role="alert"
-          className="rounded-xl bg-[#FFF0F2] border border-[#E62E45]/20 px-3 py-2 text-xs text-[#171314]"
+          className="rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/25 px-3 py-2 text-xs text-[var(--text-primary)]"
         >
           {micError}
         </div>
       )}
 
       {recordingState === 'recording' ? (
-        <div className="rounded-xl bg-white border border-[#E62E45]/25 p-3 flex items-center justify-between gap-3">
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[#DF0756]/30 dark:border-[#FF176C]/35 p-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#E62E45] shrink-0" />
-            <span className="text-xs font-medium text-[#171314] truncate">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#DF0756] dark:bg-[#FF176C] shrink-0" />
+            <span className="text-xs font-medium text-[var(--text-primary)] truncate">
               Recording voice note…
             </span>
           </div>
           <button
             type="button"
             onClick={stopRecording}
-            className="min-h-[40px] px-4 py-1.5 rounded-xl bg-[#171314] text-white text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#2c2527] transition-colors whitespace-nowrap shrink-0"
+            className="min-h-[40px] px-4 py-1.5 rounded-xl bg-[#201727] dark:bg-[#FF176C] text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
             <span>Stop</span>
@@ -310,7 +310,7 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
           <button
             type="button"
             onClick={startRecording}
-            className="min-h-[44px] px-4 py-2 rounded-xl bg-[#E62E45] text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-[#CC2238] transition-colors whitespace-nowrap shrink-0"
+            className="min-h-[44px] px-4 py-2 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0"
           >
             <Mic className="w-4 h-4" />
             <span>Record</span>
@@ -318,21 +318,20 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
           <button
             type="button"
             onClick={handleUseSample}
-            className="min-h-[44px] px-4 py-2 rounded-xl border border-[#171314]/12 bg-white text-[#171314] text-sm font-medium inline-flex items-center gap-2 hover:bg-[#FFF0F2] transition-colors whitespace-nowrap shrink-0"
+            className="min-h-[44px] px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] text-sm font-medium inline-flex items-center gap-2 hover:border-[#8439D5]/45 transition-colors whitespace-nowrap shrink-0"
           >
-            <Volume2 className="w-4 h-4 text-[#E62E45]" />
+            <Volume2 className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C]" />
             <span>Use sample voice note</span>
           </button>
         </div>
       ) : (
-        <div className="rounded-xl bg-white border border-[#171314]/10 p-3 space-y-2.5">
-          {/* Compact Waveform / Progress Bar */}
+        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 space-y-2.5">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handlePlayToggle}
               aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
-              className="w-10 h-10 rounded-xl bg-[#171314] text-white flex items-center justify-center shrink-0 hover:bg-[#2c2527] transition-colors"
+              className="w-10 h-10 rounded-xl bg-[#DF0756] dark:bg-[#FF176C] text-white flex items-center justify-center shrink-0 transition-colors"
             >
               {isPlaying ? (
                 <Pause className="w-4 h-4 fill-current" />
@@ -354,29 +353,31 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
                     <span
                       key={idx}
                       className={`flex-1 rounded-full transition-colors ${
-                        active ? 'bg-[#E62E45]' : 'bg-[#171314]/18'
+                        active
+                          ? 'bg-[#DF0756] dark:bg-[#FF176C]'
+                          : 'bg-[var(--text-secondary)]/25'
                       }`}
                       style={{ height: `${height}%` }}
                     />
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-[#5E5255]">
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
                 <span className="truncate">
                   {value.source === 'sample' ? 'Sample voice note' : 'Recorded voice note'}
                 </span>
-                <span className="tabular-nums font-medium text-[#171314]">
+                <span className="tabular-nums font-medium text-[var(--text-primary)]">
                   {formatDuration(totalDuration)}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#171314]/8">
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
             <button
               type="button"
               onClick={handlePlayToggle}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[#FDF8F3] border border-[#171314]/10 text-[#171314] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#FFF0F2] transition-colors"
+              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5"
             >
               {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
               <span>{isPlaying ? 'Pause' : 'Play'}</span>
@@ -384,7 +385,7 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
             <button
               type="button"
               onClick={startRecording}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[#FDF8F3] border border-[#171314]/10 text-[#171314] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#FFF0F2] transition-colors"
+              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Record again</span>
@@ -392,7 +393,7 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
             <button
               type="button"
               onClick={handleDelete}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg text-[#E62E45] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[#FFF0F2] transition-colors ml-auto"
+              className="min-h-[38px] px-3 py-1.5 rounded-lg text-[#DF0756] dark:text-[#FF7AA8] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[var(--bg-raised)] ml-auto"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete</span>

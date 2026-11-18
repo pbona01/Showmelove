@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateCheckoutSummary,
+  calculateWithdrawalSummary,
+  COIN_PACKAGES,
   ECONOMY_CONFIG,
   validateGiftAmount,
 } from '../config/economy';
@@ -14,17 +16,30 @@ import {
   resolveWithdrawal,
 } from './giftRules';
 
-test('economy config validates bounds and computes summary accurately', () => {
+test('economy config validates bounds and computes 20% demo fee summary accurately', () => {
   assert.equal(validateGiftAmount(99).valid, false);
   assert.equal(validateGiftAmount(100).valid, true);
   assert.equal(validateGiftAmount(100_000).valid, true);
   assert.equal(validateGiftAmount(100_001).valid, false);
 
-  const summary = calculateCheckoutSummary(5000);
-  assert.equal(summary.amountPaidNaira, 5000);
-  assert.equal(summary.loveCoinsNeeded, Math.ceil(5000 / ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN));
-  assert.equal(summary.platformFeeNaira, 0);
-  assert.equal(summary.recipientEarningsNaira, 5000);
+  assert.equal(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN, 1);
+  assert.equal(ECONOMY_CONFIG.PLATFORM_FEE_BPS, 2000);
+
+  // Reference example: 1,000-coin gift produces ₦800 in recipient rewards (20% fee)
+  const refSummary = calculateCheckoutSummary(1000);
+  assert.equal(refSummary.amountPaidNaira, 1000);
+  assert.equal(refSummary.loveCoinsNeeded, 1000);
+  assert.equal(refSummary.platformFeeNaira, 200);
+  assert.equal(refSummary.recipientEarningsNaira, 800);
+  assert.equal(refSummary.platformFeePercent, 20);
+  assert.equal(refSummary.creatorSharePercent, 80);
+
+  // Coin packages match reference tiers
+  assert.deepEqual(
+    COIN_PACKAGES.map((p) => p.coins),
+    [100, 500, 1000, 5000, 10000],
+  );
+  assert.equal(COIN_PACKAGES.find((p) => p.popular)?.coins, 500);
 });
 
 test('checkout is idempotent on double-click or refresh with same checkoutAttemptId', () => {
@@ -52,6 +67,8 @@ test('checkout is idempotent on double-click or refresh with same checkoutAttemp
   assert.equal(first.ok, true);
   assert.equal(first.alreadyProcessed, undefined);
   assert.equal(first.nextState.gifts.length, initial.gifts.length + 1);
+  assert.equal(first.gift?.recipientEarningsNaira, 3600);
+  assert.equal(first.gift?.platformFeeNaira, 900);
 
   const duplicate = createPaidGiftIdempotent(first.nextState, draft);
   assert.equal(duplicate.ok, true);
@@ -59,9 +76,35 @@ test('checkout is idempotent on double-click or refresh with same checkoutAttemp
   assert.equal(duplicate.nextState.gifts.length, first.nextState.gifts.length);
 });
 
+test('unavailable gifts are rejected cleanly at checkout', () => {
+  const initial = createInitialStoreState();
+  const unavailableItem = { ...initial.catalog[0], available: false };
+
+  const blocked = createPaidGiftIdempotent(initial, {
+    checkoutAttemptId: 'chk_unavailable_1',
+    giftId: 'sml_unavailable_1',
+    createdAt: '2026-11-16T10:00:00.000Z',
+    catalogItem: unavailableItem,
+    senderName: 'Tunde',
+    recipientName: 'Adaeze',
+    recipientEmail: 'ada@showmelove.ng',
+    promiseText: 'Hi',
+    emote: 'heart-burst',
+    amountNaira: 1000,
+    hasVoiceNote: false,
+    voiceNoteSource: 'none',
+    paymentMode: 'flutterwave_guest',
+  });
+
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.error || '', /unavailable/i);
+});
+
 test('claiming verifies recipient email, handles wrong recipient, and prevents double credit', () => {
   const initial = createInitialStoreState();
   const beforeEarnings = initial.walletsByEmail['ada@showmelove.ng'].availableEarningsNaira;
+  const sampleGiftRewards = initial.gifts.find((g) => g.id === 'sample')!.recipientEarningsNaira;
+  assert.equal(sampleGiftRewards, 4000); // 5,000 coins - 20% fee = ₦4,000
 
   const wrongUser = claimGiftIdempotent(
     initial,
@@ -86,7 +129,7 @@ test('claiming verifies recipient email, handles wrong recipient, and prevents d
   assert.equal(firstClaim.status, 'claimed_now');
   assert.equal(
     firstClaim.nextState.walletsByEmail['ada@showmelove.ng'].availableEarningsNaira,
-    beforeEarnings + 5000,
+    beforeEarnings + sampleGiftRewards,
   );
 
   const secondClaim = claimGiftIdempotent(
@@ -99,14 +142,18 @@ test('claiming verifies recipient email, handles wrong recipient, and prevents d
   assert.equal(secondClaim.status, 'already_claimed');
   assert.equal(
     secondClaim.nextState.walletsByEmail['ada@showmelove.ng'].availableEarningsNaira,
-    beforeEarnings + 5000,
+    beforeEarnings + sampleGiftRewards,
   );
 });
 
-test('withdrawal reserves funds, clears reservation on completion, and refunds on failure', () => {
+test('withdrawal calculates net summary, reserves funds, clears on completion, and refunds on failure', () => {
   const initial = createInitialStoreState();
   const email = 'ada@showmelove.ng';
-  const startAvailable = initial.walletsByEmail[email].availableEarningsNaira; // 7500
+  const startAvailable = initial.walletsByEmail[email].availableEarningsNaira; // 6000
+
+  const withdrawSummary = calculateWithdrawalSummary(2000);
+  assert.equal(withdrawSummary.grossAmountNaira, 2000);
+  assert.equal(withdrawSummary.netReceivedNaira, 2000 - withdrawSummary.payoutFeeNaira);
 
   const overLimit = requestWithdrawal(
     initial,
@@ -121,14 +168,15 @@ test('withdrawal reserves funds, clears reservation on completion, and refunds o
   const req = requestWithdrawal(
     initial,
     email,
-    3000,
+    2500,
     DEMO_DEFAULT_BANK,
     'pay_1',
     '2026-11-16T12:01:00.000Z',
   );
   assert.equal(req.ok, true);
-  assert.equal(req.nextState.walletsByEmail[email].availableEarningsNaira, startAvailable - 3000);
-  assert.equal(req.nextState.walletsByEmail[email].reservedEarningsNaira, 3000);
+  assert.equal(req.payout?.netAmountNaira, calculateWithdrawalSummary(2500).netReceivedNaira);
+  assert.equal(req.nextState.walletsByEmail[email].availableEarningsNaira, startAvailable - 2500);
+  assert.equal(req.nextState.walletsByEmail[email].reservedEarningsNaira, 2500);
 
   const failed = resolveWithdrawal(
     req.nextState,
@@ -143,7 +191,7 @@ test('withdrawal reserves funds, clears reservation on completion, and refunds o
   const req2 = requestWithdrawal(
     failed.nextState,
     email,
-    2500,
+    2000,
     DEMO_DEFAULT_BANK,
     'pay_2',
     '2026-11-16T12:03:00.000Z',
@@ -155,7 +203,7 @@ test('withdrawal reserves funds, clears reservation on completion, and refunds o
     '2026-11-16T12:04:00.000Z',
   );
   assert.equal(completed.ok, true);
-  assert.equal(completed.nextState.walletsByEmail[email].availableEarningsNaira, startAvailable - 2500);
+  assert.equal(completed.nextState.walletsByEmail[email].availableEarningsNaira, startAvailable - 2000);
   assert.equal(completed.nextState.walletsByEmail[email].reservedEarningsNaira, 0);
 });
 

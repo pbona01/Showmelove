@@ -7,71 +7,93 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-const SHOWMELOVE_COLORS = ['#E62E45', '#FF5F78', '#F59E0B', '#FFD6DD', '#10B981'];
+const SHOWMELOVE_COLORS = ['#FF176C', '#A855F7', '#F59E0B', '#24C888', '#FFD6EA'];
+const pendingTimers = new Set<number>();
 
 /**
- * Snappy TikTok Live-style center burst when the gift lands and opens.
+ * Immediately clears active confetti particles and cancels scheduled side bursts.
+ * Called whenever exiting or unmounting the Reveal screen so confetti never
+ * lingers over Inbox or Wallet.
+ */
+export function stopAllConfetti() {
+  if (typeof window === 'undefined') return;
+  pendingTimers.forEach((id) => window.clearTimeout(id));
+  pendingTimers.clear();
+  try {
+    if (typeof confetti.reset === 'function') {
+      confetti.reset();
+    }
+  } catch {
+    // Ignore reset errors in non-canvas environments
+  }
+}
+
+/**
+ * TikTok Live-style burst confined to the gift reveal payoff.
  */
 export function fireGiftPayoffBurst(themeColor?: string) {
   if (typeof window === 'undefined' || prefersReducedMotion()) return;
   const colors = themeColor
-    ? [themeColor, '#E62E45', '#F59E0B', '#FFD6DD']
+    ? [themeColor, '#FF176C', '#A855F7', '#F59E0B']
     : SHOWMELOVE_COLORS;
 
   void confetti({
-    particleCount: 42,
+    particleCount: 44,
     spread: 68,
     startVelocity: 38,
-    scalar: 0.9,
-    ticks: 130,
-    origin: { x: 0.5, y: 0.36 },
+    scalar: 0.92,
+    ticks: 115,
+    origin: { x: 0.5, y: 0.38 },
     colors,
-    zIndex: 120,
+    zIndex: 45,
     disableForReducedMotion: true,
   });
 }
 
 /**
- * Full multi-cannon confetti explosion triggered automatically upon successful gift claim.
+ * Confetti celebration triggered upon successful gift claim inside Reveal.
  */
 export function fireClaimCelebrationExplosion() {
   if (typeof window === 'undefined' || prefersReducedMotion()) return;
 
-  // Immediate center explosion
   void confetti({
-    particleCount: 85,
-    spread: 95,
-    startVelocity: 48,
-    gravity: 0.95,
-    scalar: 1.05,
-    ticks: 210,
-    origin: { x: 0.5, y: 0.58 },
+    particleCount: 72,
+    spread: 92,
+    startVelocity: 46,
+    gravity: 0.98,
+    scalar: 1.0,
+    ticks: 160,
+    origin: { x: 0.5, y: 0.56 },
     colors: SHOWMELOVE_COLORS,
-    zIndex: 120,
+    zIndex: 45,
     disableForReducedMotion: true,
   });
 
-  // Left & right side cannons 140ms later for unmistakable celebration
-  window.setTimeout(() => {
+  const timerId = window.setTimeout(() => {
+    pendingTimers.delete(timerId);
     void confetti({
-      particleCount: 48,
+      particleCount: 38,
       angle: 60,
-      spread: 62,
-      startVelocity: 44,
-      origin: { x: 0.08, y: 0.68 },
+      spread: 58,
+      startVelocity: 42,
+      ticks: 140,
+      origin: { x: 0.12, y: 0.68 },
       colors: SHOWMELOVE_COLORS,
-      zIndex: 120,
+      zIndex: 45,
       disableForReducedMotion: true,
     });
     void confetti({
-      particleCount: 48,
+      particleCount: 38,
       angle: 120,
-      spread: 62,
-      startVelocity: 44,
-      origin: { x: 0.92, y: 0.68 },
+      spread: 58,
+      startVelocity: 42,
+      ticks: 140,
+      origin: { x: 0.88, y: 0.68 },
       colors: SHOWMELOVE_COLORS,
-      zIndex: 120,
+      zIndex: 45,
       disableForReducedMotion: true,
     });
-  }, 140);
+  }, 150);
+
+  pendingTimers.add(timerId);
 }
