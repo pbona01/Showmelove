@@ -12,13 +12,57 @@ import type {
   GiftCatalogItem,
   GiftSnapshot,
   PayoutRequest,
+  PromiseCardStyle,
   SentGift,
   ShowmeloveStoreState,
+  UserRole,
   WalletState,
 } from '../types/showmelove';
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+export type SentGiftLinkStatus = 'Unclaimed' | 'Revealed' | 'Claimed';
+
+export function getSentGiftStatus(gift: SentGift): SentGiftLinkStatus {
+  if (gift.claimedAt) return 'Claimed';
+  if (gift.revealedAt) return 'Revealed';
+  return 'Unclaimed';
+}
+
+export function markGiftRevealed(
+  state: ShowmeloveStoreState,
+  giftId: string,
+  revealedAt: string,
+): ShowmeloveStoreState {
+  const index = state.gifts.findIndex((g) => g.id === giftId);
+  if (index === -1) return state;
+  const target = state.gifts[index];
+  if (target.revealedAt) return state;
+
+  const nextGifts = [...state.gifts];
+  nextGifts[index] = {
+    ...target,
+    revealedAt,
+  };
+  return {
+    ...state,
+    gifts: nextGifts,
+  };
+}
+
+export function getSentGiftsForViewer(
+  gifts: SentGift[],
+  activeRole: UserRole,
+  signedInEmail: string,
+): SentGift[] {
+  const isSignedIn = activeRole !== 'guest' && Boolean(signedInEmail.trim());
+  if (!isSignedIn) {
+    return gifts.filter((g) => !g.senderEmail && !g.isBundledSample);
+  }
+  const normalized = normalizeEmail(signedInEmail);
+  return gifts.filter((g) => g.senderEmail && normalizeEmail(g.senderEmail) === normalized);
 }
 
 export function ensureWallet(
@@ -62,6 +106,7 @@ export interface ComposeGiftDraft {
   recipientName: string;
   recipientEmail: string;
   promiseText: string;
+  promiseCardStyle?: PromiseCardStyle;
   messageText?: string;
   emote: EmoteOption;
   amountNaira: number;
@@ -199,6 +244,7 @@ export function createPaidGiftIdempotent(
     recipientName: draft.recipientName.trim(),
     recipientEmail,
     promiseText: draft.promiseText.trim() || 'A little love from me to you.',
+    promiseCardStyle: draft.promiseCardStyle ?? 'silk-crimson',
     messageText: draft.messageText?.trim() || undefined,
     emote: draft.emote,
     amountNaira: summary.amountPaidNaira,

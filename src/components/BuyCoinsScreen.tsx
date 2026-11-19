@@ -133,14 +133,14 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
       </div>
 
       {/* Reference Pink-Purple Banner */}
-      <section className="love-coin-surface rounded-3xl border border-[#DF0756]/20 dark:border-white/10 p-5 sm:p-6 flex items-center justify-between gap-4 overflow-hidden">
+      <section className="love-coin-surface rounded-[28px] border border-[#E10B5C]/20 dark:border-white/10 p-5 sm:p-6 flex items-center justify-between gap-4 overflow-hidden shadow-sm">
         <div className="flex items-center gap-4">
-          <PurpleGiftBoxSvg className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
+          <PurpleGiftBoxSvg className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
           <div>
-            <p className="text-base sm:text-lg font-bold text-[#201727] dark:text-[#FAF8FC] leading-snug">
+            <p className="text-base sm:text-lg font-bold text-[#1A1322] dark:text-[#FAF8FC] leading-snug">
               Get more Love Coin and spread more love
             </p>
-            <p className="text-xs text-[#6F6478] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
+            <p className="text-xs text-[#6B5F78] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
               1 Love Coin = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)} · Simulated checkout
             </p>
           </div>
@@ -160,7 +160,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Package List matching Reference Screen 3 */}
-        <section className="lg:col-span-7 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 sm:p-5 space-y-2.5">
+        <section className="lg:col-span-7 apple-card rounded-[28px] p-4 sm:p-5 space-y-2.5">
           {COIN_PACKAGES.map((pkg) => {
             const isSelected = !isCustomMode && selectedCoins === pkg.coins;
             return (
@@ -288,7 +288,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
         </section>
 
         {/* Payment Summary & Simulated Checkout Status */}
-        <aside className="lg:col-span-5 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-4">
+        <aside className="lg:col-span-5 apple-card rounded-[28px] p-5 sm:p-6 space-y-4">
           <div className="space-y-1">
             <p className="text-xs font-semibold text-[#8439D5] dark:text-[#A855F7]">
               Simulated checkout · No real card charged

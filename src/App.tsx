@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Gift, Inbox, Loader2, Wallet } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Gift, Home, Loader2, Send, User } from 'lucide-react';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
-import { HomeScreen } from './components/HomeScreen';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
 import { InboxAndWalletScreen } from './components/InboxAndWalletScreen';
 import { WalletScreen } from './components/WalletScreen';
 import { BalanceInfoScreen } from './components/BalanceInfoScreen';
 import { BuyCoinsScreen } from './components/BuyCoinsScreen';
 import { WithdrawScreen } from './components/WithdrawScreen';
+import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { DemoControlsPanel } from './components/DemoControlsPanel';
@@ -23,6 +24,7 @@ type AppRoute =
   | { page: 'balance-info' }
   | { page: 'buy-coins' }
   | { page: 'withdraw' }
+  | { page: 'profile' }
   | { page: 'admin' }
   | { page: 'reveal'; giftId: string };
 
@@ -46,6 +48,7 @@ function parseLocationRoute(): AppRoute {
   if (path === '/balance-info') return { page: 'balance-info' };
   if (path === '/buy-coins') return { page: 'buy-coins' };
   if (path === '/withdraw') return { page: 'withdraw' };
+  if (path === '/profile' || path === '/settings') return { page: 'profile' };
   if (path === '/admin') return { page: 'admin' };
 
   return { page: 'home' };
@@ -69,6 +72,8 @@ function routeToPath(route: AppRoute): string {
       return '/buy-coins';
     case 'withdraw':
       return '/withdraw';
+    case 'profile':
+      return '/profile';
     case 'admin':
       return '/admin';
     case 'reveal':
@@ -107,8 +112,8 @@ function RevealRouteView({
   if (checkingRemote && !syncGift) {
     return (
       <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] flex items-center justify-center px-4">
-        <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-8 text-center space-y-3 shadow-sm">
-          <Loader2 className="w-7 h-7 animate-spin text-[#DF0756] dark:text-[#FF176C] mx-auto" />
+        <div className="apple-card rounded-[28px] p-8 text-center space-y-3">
+          <Loader2 className="w-7 h-7 animate-spin text-[#E10B5C] dark:text-[#FF2E7E] mx-auto" />
           <p className="text-sm font-medium text-[var(--text-secondary)]">
             Opening your gift link…
           </p>
@@ -120,7 +125,7 @@ function RevealRouteView({
   if (!syncGift) {
     return (
       <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] flex items-center justify-center px-4">
-        <div className="max-w-md w-full rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-8 text-center space-y-4 shadow-sm">
+        <div className="max-w-md w-full apple-card rounded-[28px] p-8 text-center space-y-4">
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
             Gift link not found
           </h1>
@@ -134,7 +139,7 @@ function RevealRouteView({
                 window.history.pushState({}, '', `/gift/${BUNDLED_SAMPLE_GIFT.id}`);
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="min-h-[44px] px-4 py-2 rounded-2xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-sm font-semibold transition-colors"
+              className="min-h-[44px] px-4 py-2 rounded-2xl cta-pink-surface text-white text-sm font-semibold transition-all"
             >
               Open sample reveal
             </button>
@@ -162,6 +167,11 @@ function RevealRouteView({
 
 function ShowmeloveShell() {
   const [route, setRoute] = useState<AppRoute>(() => parseLocationRoute());
+  const { state } = useShowmelove();
+
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   const navigate = useCallback((next: AppRoute) => {
     if (next.page !== 'reveal') {
@@ -200,19 +210,31 @@ function ShowmeloveShell() {
     );
   }
 
-  const isGiftsTab = route.page === 'home' || route.page === 'send';
-  const isInboxTab = route.page === 'inbox';
-  const isWalletTab =
+  const isHomeTab =
+    route.page === 'home' ||
     route.page === 'wallet' ||
     route.page === 'balance-info' ||
     route.page === 'buy-coins' ||
     route.page === 'withdraw';
+  const isSendTab = route.page === 'send';
+  const isInboxTab = route.page === 'inbox';
+  const isProfileTab = route.page === 'profile' || route.page === 'admin';
+
+  // Count unopened gifts for the signed-in user to show a subtle dot on Inbox
+  const signedInEmail = state.signedInEmail.toLowerCase();
+  const hasUnopenedInbox =
+    state.activeRole !== 'guest' &&
+    Boolean(signedInEmail) &&
+    state.gifts.some(
+      (g) =>
+        g.recipientEmail.toLowerCase() === signedInEmail && !g.claimedAt,
+    );
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] flex flex-col transition-colors">
       {/* Compact Three-Zone Top Bar (56px height) */}
-      <header className="sticky top-0 z-30 h-14 bg-[var(--bg-page)]/95 border-b border-[var(--border-subtle)]">
-        <div className="max-w-6xl mx-auto h-full px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
+      <header className="sticky top-0 z-30 h-14 bg-[var(--nav-glass)] backdrop-blur-xl border-b border-[var(--border-subtle)]">
+        <div className="max-w-5xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Zone 1: Brand Wordmark */}
           <a
             href="/"
@@ -220,78 +242,60 @@ function ShowmeloveShell() {
               e.preventDefault();
               navigate({ page: 'home' });
             }}
-            className="inline-flex items-center gap-1.5 sm:gap-2 font-bold text-base sm:text-xl tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-xl tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
-            <LoveCoinHeartSvg className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
-            <span>Showmelove</span>
+            <LoveCoinHeartSvg className="w-7 h-7 shrink-0" />
+            <span>
+              Showme
+              <span className="text-[#E10B5C] dark:text-[#FF2E7E]">love</span>
+            </span>
           </a>
 
           {/* Zone 2: Desktop Navigation */}
           <nav
             aria-label="Primary"
-            className="hidden md:flex items-center gap-6 text-sm font-medium text-[var(--text-secondary)]"
+            className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-[var(--bg-raised)]/80 border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-secondary)]"
           >
-            <a
-              href="/"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate({ page: 'home' });
-              }}
-              className={`hover:text-[var(--text-primary)] transition-colors whitespace-nowrap shrink-0 ${
-                route.page === 'home'
-                  ? 'text-[var(--text-primary)] font-semibold underline underline-offset-4 decoration-[#DF0756] dark:decoration-[#FF176C]'
-                  : ''
-              }`}
-            >
-              Gifts
-            </a>
-            <a
-              href="/inbox"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate({ page: 'inbox' });
-              }}
-              className={`hover:text-[var(--text-primary)] transition-colors whitespace-nowrap shrink-0 ${
-                route.page === 'inbox'
-                  ? 'text-[var(--text-primary)] font-semibold underline underline-offset-4 decoration-[#DF0756] dark:decoration-[#FF176C]'
-                  : ''
-              }`}
-            >
-              Inbox
-            </a>
-            <a
-              href="/wallet"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate({ page: 'wallet' });
-              }}
-              className={`hover:text-[var(--text-primary)] transition-colors whitespace-nowrap shrink-0 ${
-                isWalletTab
-                  ? 'text-[var(--text-primary)] font-semibold underline underline-offset-4 decoration-[#DF0756] dark:decoration-[#FF176C]'
-                  : ''
-              }`}
-            >
-              Wallet
-            </a>
-            <a
-              href="/gift/sample"
-              onClick={(e) => {
-                e.preventDefault();
-                navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id });
-              }}
-              className="hover:text-[var(--text-primary)] transition-colors whitespace-nowrap shrink-0"
-            >
-              Sample Reveal
-            </a>
+            {[
+              { id: 'home', label: 'Home', active: isHomeTab, href: '/', route: { page: 'home' as const } },
+              { id: 'send', label: 'Send', active: isSendTab, href: '/send', route: { page: 'send' as const } },
+              { id: 'inbox', label: 'Inbox', active: isInboxTab, href: '/inbox', route: { page: 'inbox' as const } },
+              { id: 'profile', label: 'Profile', active: isProfileTab, href: '/profile', route: { page: 'profile' as const } },
+            ].map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(item.route);
+                }}
+                className={`relative px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap shrink-0 ${
+                  item.active
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                    : 'hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {item.label}
+                {item.id === 'inbox' && hasUnopenedInbox && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-[#E10B5C] dark:bg-[#FF2E7E] ml-1.5 align-middle"
+                  />
+                )}
+              </a>
+            ))}
           </nav>
 
-          {/* Zone 3: Send CTA + Account/Theme Popover */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <DemoControlsPanel onNavigateAdmin={() => navigate({ page: 'admin' })} />
+          {/* Zone 3: Account Popover (sm+) + Single Primary CTA */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:block">
+              <DemoControlsPanel onNavigateAdmin={() => navigate({ page: 'admin' })} />
+            </div>
             <button
               type="button"
               onClick={() => navigate({ page: 'send' })}
-              className="min-h-[38px] sm:min-h-[40px] px-2.5 sm:px-4 py-1.5 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
+              data-testid="topbar-send-gift-btn"
+              className="min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-4 py-1.5 rounded-xl cta-pink-surface text-white text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0"
             >
               Send a gift
             </button>
@@ -299,120 +303,158 @@ function ShowmeloveShell() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-20 md:pb-10">
-        {route.page === 'home' && (
-          <HomeScreen
-            onStartSend={(giftCatalogId) => navigate({ page: 'send', giftCatalogId })}
-            onTrySampleReveal={() =>
-              navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
-            }
-          />
-        )}
+      {/* Main Content with Subtle Framer Motion Route Transitions */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-24 md:pb-12">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={route.page}
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' }}
+          >
+            {(route.page === 'home' || route.page === 'wallet') && (
+              <WalletScreen
+                onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
+                onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
+                onOpenWithdraw={() => navigate({ page: 'withdraw' })}
+                onOpenSendGift={(giftCatalogId) =>
+                  navigate({ page: 'send', giftCatalogId })
+                }
+                onOpenInbox={() => navigate({ page: 'inbox' })}
+                onOpenProfile={() => navigate({ page: 'profile' })}
+                onTrySampleReveal={() =>
+                  navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
+                }
+              />
+            )}
 
-        {route.page === 'send' && (
-          <ComposeAndCheckoutScreen
-            initialGiftCatalogId={route.giftCatalogId}
-            onBackHome={() => navigate({ page: 'home' })}
-            onOpenGiftLink={(giftId) => navigate({ page: 'reveal', giftId })}
-            onGoToCoins={() => navigate({ page: 'buy-coins' })}
-          />
-        )}
+            {route.page === 'send' && (
+              <ComposeAndCheckoutScreen
+                initialGiftCatalogId={route.giftCatalogId}
+                onBackHome={() => navigate({ page: 'home' })}
+                onOpenGiftLink={(giftId) => navigate({ page: 'reveal', giftId })}
+                onGoToCoins={() => navigate({ page: 'buy-coins' })}
+              />
+            )}
 
-        {route.page === 'inbox' && (
-          <InboxAndWalletScreen
-            onOpenGift={(giftId) => navigate({ page: 'reveal', giftId })}
-            onGoToWallet={() => navigate({ page: 'wallet' })}
-            onGoToWithdraw={() => navigate({ page: 'withdraw' })}
-            onSendGift={() => navigate({ page: 'send' })}
-            onTrySampleReveal={() =>
-              navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
-            }
-          />
-        )}
+            {route.page === 'inbox' && (
+              <InboxAndWalletScreen
+                onOpenGift={(giftId) => navigate({ page: 'reveal', giftId })}
+                onGoToWallet={() => navigate({ page: 'home' })}
+                onGoToWithdraw={() => navigate({ page: 'withdraw' })}
+                onSendGift={() => navigate({ page: 'send' })}
+                onTrySampleReveal={() =>
+                  navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
+                }
+              />
+            )}
 
-        {route.page === 'wallet' && (
-          <WalletScreen
-            onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
-            onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
-            onOpenWithdraw={() => navigate({ page: 'withdraw' })}
-            onOpenSendGift={() => navigate({ page: 'send' })}
-            onOpenInbox={() => navigate({ page: 'inbox' })}
-          />
-        )}
+            {route.page === 'balance-info' && (
+              <BalanceInfoScreen
+                onBack={() => navigate({ page: 'home' })}
+                onBuyCoins={() => navigate({ page: 'buy-coins' })}
+                onWithdraw={() => navigate({ page: 'withdraw' })}
+              />
+            )}
 
-        {route.page === 'balance-info' && (
-          <BalanceInfoScreen
-            onBack={() => navigate({ page: 'wallet' })}
-            onBuyCoins={() => navigate({ page: 'buy-coins' })}
-            onWithdraw={() => navigate({ page: 'withdraw' })}
-          />
-        )}
+            {route.page === 'buy-coins' && (
+              <BuyCoinsScreen
+                onBack={() => navigate({ page: 'home' })}
+                onGoToSendGift={() => navigate({ page: 'send' })}
+              />
+            )}
 
-        {route.page === 'buy-coins' && (
-          <BuyCoinsScreen
-            onBack={() => navigate({ page: 'wallet' })}
-            onGoToSendGift={() => navigate({ page: 'send' })}
-          />
-        )}
+            {route.page === 'withdraw' && (
+              <WithdrawScreen
+                onBack={() => navigate({ page: 'home' })}
+                onSendGift={() => navigate({ page: 'send' })}
+                onOpenInbox={() => navigate({ page: 'inbox' })}
+              />
+            )}
 
-        {route.page === 'withdraw' && (
-          <WithdrawScreen
-            onBack={() => navigate({ page: 'wallet' })}
-            onSendGift={() => navigate({ page: 'send' })}
-            onOpenInbox={() => navigate({ page: 'inbox' })}
-          />
-        )}
+            {route.page === 'profile' && (
+              <ProfileSettingsScreen
+                onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
+                onOpenAdmin={() => navigate({ page: 'admin' })}
+                onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
+                onOpenWithdraw={() => navigate({ page: 'withdraw' })}
+              />
+            )}
 
-        {route.page === 'admin' && <AdminScreen />}
+            {route.page === 'admin' && <AdminScreen />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      {/* Compact 3-Tab Mobile Bottom Navigation (56px height, total sticky chrome 112px <= 13.3% of 844px) */}
+      {/* Glassmorphic 4-Tab Mobile Bottom Bar matching Mockup 05 (Home / Send / Inbox / Profile) */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-14 bg-[var(--bg-card)] border-t border-[var(--border-subtle)] grid grid-cols-3 items-center pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-[var(--nav-glass)] backdrop-blur-xl border-t border-[var(--border-subtle)] grid grid-cols-4 items-center px-2 pb-safe"
       >
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'home' })}
-          data-testid="mobile-nav-gifts"
-          className={`h-full flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
-            isGiftsTab
-              ? 'text-[#DF0756] dark:text-[#FF176C]'
-              : 'text-[var(--text-secondary)]'
-          }`}
-        >
-          <Gift className="w-4 h-4" />
-          <span>Gifts</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'inbox' })}
-          data-testid="mobile-nav-inbox"
-          className={`h-full flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
-            isInboxTab
-              ? 'text-[#DF0756] dark:text-[#FF176C]'
-              : 'text-[var(--text-secondary)]'
-          }`}
-        >
-          <Inbox className="w-4 h-4" />
-          <span>Inbox</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate({ page: 'wallet' })}
-          data-testid="mobile-nav-wallet"
-          className={`h-full flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
-            isWalletTab
-              ? 'text-[#DF0756] dark:text-[#FF176C]'
-              : 'text-[var(--text-secondary)]'
-          }`}
-        >
-          <Wallet className="w-4 h-4" />
-          <span>Wallet</span>
-        </button>
+        {[
+          {
+            id: 'home',
+            testId: 'mobile-nav-home',
+            label: 'Home',
+            icon: Home,
+            active: isHomeTab,
+            onClick: () => navigate({ page: 'home' }),
+          },
+          {
+            id: 'send',
+            testId: 'mobile-nav-send',
+            label: 'Send',
+            icon: Send,
+            active: isSendTab,
+            onClick: () => navigate({ page: 'send' }),
+          },
+          {
+            id: 'inbox',
+            testId: 'mobile-nav-inbox',
+            label: 'Inbox',
+            icon: Gift,
+            active: isInboxTab,
+            badge: hasUnopenedInbox,
+            onClick: () => navigate({ page: 'inbox' }),
+          },
+          {
+            id: 'profile',
+            testId: 'mobile-nav-profile',
+            label: 'Profile',
+            icon: User,
+            active: isProfileTab,
+            onClick: () => navigate({ page: 'profile' }),
+          },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={tab.onClick}
+              data-testid={tab.testId}
+              className="h-full flex items-center justify-center"
+            >
+              <span
+                className={`relative flex flex-col items-center justify-center gap-0.5 px-3.5 py-1.5 rounded-2xl text-[11px] font-semibold transition-all ${
+                  tab.active
+                    ? 'bg-[#FFEAF2] dark:bg-[#2A183D] text-[#E10B5C] dark:text-[#FF5B9A] shadow-sm'
+                    : 'text-[var(--text-secondary)]'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#E10B5C] dark:bg-[#FF2E7E]"
+                  />
+                )}
+              </span>
+            </button>
+          );
+        })}
       </nav>
     </div>
   );

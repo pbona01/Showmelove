@@ -4,36 +4,57 @@
 @theme {
   --font-display: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif-card: "Fraunces", Georgia, Cambria, serif;
 }
 
 :root {
-  --bg-page: #FAF7FB;
+  --bg-page: #F9F6FB;
   --bg-card: #FFFFFF;
-  --bg-raised: #F1EBF4;
-  --text-primary: #201727;
-  --text-secondary: #6F6478;
-  --border-subtle: rgba(32, 23, 39, 0.1);
-  --accent-primary: #DF0756;
-  --accent-primary-hover: #C00549;
+  --bg-raised: #F2ECF6;
+  --bg-elevated: #FAF7FC;
+  --text-primary: #18111F;
+  --text-secondary: #685D74;
+  --border-subtle: rgba(24, 17, 31, 0.09);
+  --border-strong: rgba(24, 17, 31, 0.16);
+  --accent-primary: #E10B5C;
+  --accent-primary-hover: #C2074E;
   --accent-purple: #8439D5;
   --accent-success: #087F56;
-  --love-coin-gradient: linear-gradient(135deg, #FFE4EE 0%, #F7D4EC 52%, #EBDDFB 100%);
-  --rewards-glow-bg: radial-gradient(circle at 82% 55%, rgba(132, 57, 213, 0.22) 0%, rgba(132, 57, 213, 0.04) 55%, rgba(255, 255, 255, 0) 100%);
+  --love-coin-gradient:
+    radial-gradient(circle at 86% 18%, rgba(255, 23, 108, 0.24) 0%, transparent 56%),
+    radial-gradient(circle at 12% 84%, rgba(168, 85, 247, 0.18) 0%, transparent 58%),
+    linear-gradient(135deg, #FFE4EF 0%, #F9D8ED 52%, #EDE0FB 100%);
+  --rewards-glow-bg:
+    radial-gradient(circle at 86% 24%, rgba(132, 57, 213, 0.24) 0%, transparent 56%),
+    radial-gradient(circle at 14% 88%, rgba(225, 11, 92, 0.12) 0%, transparent 56%),
+    linear-gradient(135deg, #F6EEFF 0%, #EFE2FF 56%, #F9EBF8 100%);
+  --cta-pink-gradient: linear-gradient(135deg, #FF287C 0%, #E10B5C 100%);
+  --nav-glass: rgba(255, 255, 255, 0.86);
 }
 
 html.dark {
-  --bg-page: #09080D;
-  --bg-card: #19161F;
-  --bg-raised: #25212E;
+  --bg-page: #08070C;
+  --bg-card: #15121B;
+  --bg-raised: #1F1B28;
+  --bg-elevated: #282334;
   --text-primary: #FAF8FC;
-  --text-secondary: #B8AFBF;
-  --border-subtle: rgba(250, 248, 252, 0.1);
+  --text-secondary: #ACA3B8;
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --accent-primary: #FF176C;
   --accent-primary-hover: #E0105D;
   --accent-purple: #A855F7;
   --accent-success: #24C888;
-  --love-coin-gradient: linear-gradient(135deg, #691038 0%, #3E1236 50%, #241634 100%);
-  --rewards-glow-bg: radial-gradient(circle at 82% 55%, rgba(168, 85, 247, 0.34) 0%, rgba(168, 85, 247, 0.08) 54%, rgba(25, 22, 31, 0) 100%);
+  --love-coin-gradient:
+    radial-gradient(circle at 86% 18%, rgba(255, 36, 130, 0.62) 0%, transparent 56%),
+    radial-gradient(circle at 16% 85%, rgba(147, 51, 234, 0.42) 0%, transparent 60%),
+    linear-gradient(135deg, #2B102E 0%, #580F44 52%, #7D0F52 100%);
+  --rewards-glow-bg:
+    radial-gradient(circle at 84% 28%, rgba(168, 85, 247, 0.56) 0%, transparent 58%),
+    radial-gradient(circle at 12% 85%, rgba(255, 23, 108, 0.24) 0%, transparent 55%),
+    linear-gradient(135deg, #271342 0%, #441670 55%, #24103B 100%);
+  --cta-pink-gradient: linear-gradient(135deg, #FF3888 0%, #FF126B 55%, #D9095B 100%);
+  --nav-glass: rgba(16, 13, 22, 0.86);
 }
 
 @layer base {
@@ -46,8 +67,12 @@ html.dark {
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
   }
+}
+
+.font-serif-card {
+  font-family: var(--font-serif-card);
 }
 
 .tabular-nums {
@@ -59,8 +84,25 @@ html.dark {
 }
 
 .rewards-glow-surface {
+  background: var(--rewards-glow-bg);
+}
+
+.cta-pink-surface {
+  background: var(--cta-pink-gradient);
+}
+
+.apple-card {
   background-color: var(--bg-card);
-  background-image: var(--rewards-glow-bg);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    0 10px 30px -16px rgba(24, 17, 31, 0.14),
+    0 1px 3px rgba(24, 17, 31, 0.05);
+}
+
+html.dark .apple-card {
+  box-shadow:
+    0 18px 40px -18px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .glossy-card {
@@ -73,68 +115,72 @@ html.dark {
 
 html.dark .glossy-card {
   box-shadow:
-    0 16px 36px -14px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 18px 40px -14px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.gift-gloss {
+/* Promise Card 5 Selectable Visual Themes matching Mockup 03 */
+.promise-style-silk-crimson {
+  background:
+    radial-gradient(ellipse at 85% 95%, rgba(255, 58, 145, 0.55) 0%, transparent 56%),
+    radial-gradient(ellipse at 18% 12%, rgba(225, 11, 92, 0.45) 0%, transparent 60%),
+    linear-gradient(135deg, #3A0724 0%, #6D0C41 52%, #2B071B 100%);
+  color: #FAF8FC;
+}
+
+.promise-style-royal-plum {
+  background:
+    radial-gradient(ellipse at 82% 85%, rgba(192, 132, 252, 0.52) 0%, transparent 56%),
+    radial-gradient(ellipse at 15% 20%, rgba(126, 34, 206, 0.45) 0%, transparent 60%),
+    linear-gradient(135deg, #210B3B 0%, #4C167F 55%, #1A082E 100%);
+  color: #FAF8FC;
+}
+
+.promise-style-midnight-indigo {
+  background:
+    radial-gradient(ellipse at 84% 82%, rgba(99, 102, 241, 0.5) 0%, transparent 58%),
+    radial-gradient(ellipse at 16% 18%, rgba(56, 189, 248, 0.28) 0%, transparent 55%),
+    linear-gradient(135deg, #10132C 0%, #1E2559 55%, #0D1025 100%);
+  color: #FAF8FC;
+}
+
+.promise-style-rose-velvet {
+  background:
+    radial-gradient(ellipse at 84% 88%, rgba(244, 114, 182, 0.52) 0%, transparent 58%),
+    radial-gradient(ellipse at 14% 16%, rgba(251, 207, 232, 0.34) 0%, transparent 52%),
+    linear-gradient(135deg, #52233E 0%, #8A3F64 52%, #3D1A2E 100%);
+  color: #FAF8FC;
+}
+
+.promise-style-parchment-ribbon {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(255, 23, 108, 0.14) 0%, transparent 48%),
+    linear-gradient(145deg, #FFF7EF 0%, #FCE9DF 58%, #F8DFD6 100%);
+  color: #261422;
+}
+
+/* Soft silk light streak accent on dark promise cards */
+.promise-silk-sheen {
   position: relative;
   overflow: hidden;
 }
 
-.gift-gloss::after {
+.promise-silk-sheen::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 48%);
+  background:
+    linear-gradient(125deg, transparent 36%, rgba(255, 255, 255, 0.14) 50%, transparent 64%);
   pointer-events: none;
 }
 
-/* Soft paper card texture with subtle grain + clean dual-theme legibility */
-.promise-paper {
-  position: relative;
-  background-color: #FFFDF9;
-  background-image:
-    radial-gradient(rgba(32, 23, 39, 0.035) 1px, transparent 0),
-    linear-gradient(180deg, rgba(255, 248, 252, 0.72) 0%, rgba(247, 239, 250, 0.94) 100%);
-  background-size: 14px 14px, 100% 100%;
-  box-shadow:
-    0 10px 26px -12px rgba(32, 23, 39, 0.12),
-    0 1px 3px rgba(32, 23, 39, 0.05);
+/* Subtle drop-shadow for transparent 3D product PNGs */
+.asset-drop-shadow {
+  filter: drop-shadow(0 12px 18px rgba(10, 5, 18, 0.34));
 }
 
-html.dark .promise-paper {
-  background-color: #211C2B;
-  background-image:
-    radial-gradient(rgba(250, 248, 252, 0.04) 1px, transparent 0),
-    linear-gradient(180deg, rgba(41, 35, 53, 0.96) 0%, rgba(30, 25, 40, 0.98) 100%);
-  box-shadow:
-    0 12px 28px -12px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-/* Folded corner dog-ear in top-right */
-.promise-paper-fold {
-  position: relative;
-  clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
-}
-
-.promise-paper-fold::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 26px;
-  height: 26px;
-  background: linear-gradient(225deg, transparent 49%, #E9DAEE 50%, #F7EFF9 100%);
-  box-shadow: -2px 2px 4px rgba(32, 23, 39, 0.08);
-  border-bottom-left-radius: 4px;
-  pointer-events: none;
-}
-
-html.dark .promise-paper-fold::before {
-  background: linear-gradient(225deg, transparent 49%, #342B44 50%, #2B2338 100%);
-  box-shadow: -2px 2px 4px rgba(0, 0, 0, 0.35);
+html:not(.dark) .asset-drop-shadow {
+  filter: drop-shadow(0 10px 16px rgba(32, 16, 48, 0.18));
 }
 
 .pb-safe {

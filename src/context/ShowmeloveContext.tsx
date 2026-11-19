@@ -22,6 +22,7 @@ import {
   claimGiftIdempotent,
   createPaidGiftIdempotent,
   ensureWallet,
+  markGiftRevealed as applyMarkGiftRevealed,
   normalizeEmail,
   requestWithdrawal,
   resolveWithdrawal,
@@ -45,6 +46,7 @@ interface ShowmeloveContextValue {
   resetDemo: () => Promise<void>;
   submitCheckout: (draft: ComposeGiftDraft) => CheckoutResult;
   purchaseLoveCoins: (coins: number) => { ok: boolean; error?: string };
+  markGiftRevealed: (giftId: string) => void;
   claimGift: (giftId: string, overrideEmail?: string) => ClaimResult;
   getGiftById: (giftId: string) => SentGift | undefined;
   resolveGiftAsync: (giftId: string) => Promise<SentGift | undefined>;
@@ -152,6 +154,18 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       const res = buyLoveCoins(prev, prev.signedInEmail, coins, txId, now);
       commitNext(res.nextState);
       return { ok: res.ok, error: res.error };
+    },
+    [commitNext],
+  );
+
+  const markGiftRevealed = useCallback(
+    (giftId: string) => {
+      const now = new Date().toISOString();
+      const prev = stateRef.current;
+      const next = applyMarkGiftRevealed(prev, giftId, now);
+      if (next !== prev) {
+        commitNext(next);
+      }
     },
     [commitNext],
   );
@@ -283,6 +297,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       resetDemo,
       submitCheckout,
       purchaseLoveCoins,
+      markGiftRevealed,
       claimGift,
       getGiftById,
       resolveGiftAsync,
@@ -300,6 +315,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       resetDemo,
       submitCheckout,
       purchaseLoveCoins,
+      markGiftRevealed,
       claimGift,
       getGiftById,
       resolveGiftAsync,

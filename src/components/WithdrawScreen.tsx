@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -6,7 +7,11 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
-  Info,
+  Coins,
+  Lock,
+  Receipt,
+  Send,
+  Wallet as WalletIcon,
   XCircle,
 } from 'lucide-react';
 import {
@@ -23,6 +28,12 @@ interface WithdrawScreenProps {
   onBack: () => void;
   onSendGift?: () => void;
   onOpenInbox?: () => void;
+}
+
+function maskAccountNumber(accountNumber: string): string {
+  const digits = accountNumber.trim();
+  if (digits.length <= 4) return digits;
+  return `•••• ${digits.slice(-4)}`;
 }
 
 export function WithdrawScreen({
@@ -52,7 +63,12 @@ export function WithdrawScreen({
   const [accountName, setAccountName] = useState(state.defaultBankAccount.accountName);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusBanner, setStatusBanner] = useState<string | null>(null);
+  const [successReceipt, setSuccessReceipt] = useState<{
+    amountNaira: number;
+    netNaira: number;
+    bankName: string;
+    maskedAccount: string;
+  } | null>(null);
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const normalizedEmail = state.signedInEmail.trim().toLowerCase();
@@ -71,7 +87,7 @@ export function WithdrawScreen({
 
   const handleOpenConfirmation = () => {
     setError(null);
-    setStatusBanner(null);
+    setSuccessReceipt(null);
 
     if (!isSignedIn) {
       setError('Sign in as a recipient first to withdraw Gifted Rewards.');
@@ -89,7 +105,7 @@ export function WithdrawScreen({
     }
     if (parsedAmount > currentWallet.availableEarningsNaira) {
       setError(
-        `Amount exceeds your Available to Withdraw balance (${formatNaira(currentWallet.availableEarningsNaira)}).`,
+        `Amount exceeds your Available to withdraw balance (${formatNaira(currentWallet.availableEarningsNaira)}).`,
       );
       return;
     }
@@ -113,9 +129,12 @@ export function WithdrawScreen({
       return;
     }
     setConfirming(false);
-    setStatusBanner(
-      `Withdrawal of ${formatNaira(parsedAmount)} requested (Pending) and reserved from Available to Withdraw.`,
-    );
+    setSuccessReceipt({
+      amountNaira: summary.grossAmountNaira,
+      netNaira: summary.netReceivedNaira,
+      bankName: bankName.trim(),
+      maskedAccount: maskAccountNumber(accountNumber),
+    });
   };
 
   const handleSaveBankDetails = () => {
@@ -134,14 +153,14 @@ export function WithdrawScreen({
 
   return (
     <div className="max-w-4xl mx-auto pb-12 space-y-6">
-      {/* Header matching Reference Screen 4 */}
+      {/* Header matching Mockup 06 */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBack}
             aria-label="Back to Wallet"
-            className="min-h-[44px] min-w-[44px] rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-raised)] transition-colors"
+            className="min-h-[42px] min-w-[42px] rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -151,17 +170,17 @@ export function WithdrawScreen({
         </div>
 
         <span className="text-xs font-medium text-[var(--text-secondary)] hidden sm:inline">
-          Simulated bank transfer
+          Nigerian bank payout (demo)
         </span>
       </div>
 
       {!isSignedIn ? (
-        <section className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-6 sm:p-8 space-y-4">
+        <section className="apple-card rounded-[28px] p-6 sm:p-8 space-y-4">
           <h2 className="text-xl font-bold text-[var(--text-primary)]">
             Sign in to withdraw Gifted Rewards
           </h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Switch to the seeded demo recipient account to test bank linking, Pending, Paid, and Failed payouts.
+            Switch to the seeded demo recipient account to test bank linking and Pending, Paid, and Failed payouts.
           </p>
           <Button variant="primary" size="md" onClick={() => switchRole('recipient')}>
             Sign in as Adaeze (Recipient)
@@ -169,55 +188,52 @@ export function WithdrawScreen({
         </section>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Reference Withdraw Rewards Card + Form */}
+          {/* Left Column: Mockup 06 Withdraw Rewards Flow */}
           <div className="lg:col-span-6 space-y-5">
-            {/* Reference Purple-Lit Available to Withdraw Card */}
-            <section className="rewards-glow-surface rounded-3xl border border-[#8439D5]/25 dark:border-[#A855F7]/30 p-5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0">
-                <PurpleGiftBoxSvg className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-[var(--text-secondary)]">
-                    Available to Withdraw
+            {/* Purple-Lit Available to Withdraw Hero Card matching Mockup 06 */}
+            <section className="rewards-glow-surface rounded-[28px] border border-[#8439D5]/30 dark:border-[#A855F7]/35 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-[0_20px_44px_-22px_rgba(168,85,247,0.42)]">
+              <div className="space-y-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-[#5B21B6] dark:text-[#E9D5FF]">
+                  Available to withdraw
+                </p>
+                <p
+                  className="text-3xl sm:text-[40px] font-bold tabular-nums text-[#20111D] dark:text-white leading-none"
+                  data-testid="withdraw-available-balance"
+                >
+                  {formatNaira(currentWallet.availableEarningsNaira)}
+                </p>
+                {currentWallet.reservedEarningsNaira > 0 && (
+                  <p className="text-xs tabular-nums text-[#5B21B6] dark:text-[#E9D5FF] pt-1">
+                    Pending payout: {formatNaira(currentWallet.reservedEarningsNaira)}
                   </p>
-                  <p
-                    className="text-3xl sm:text-4xl font-bold tabular-nums text-[var(--text-primary)] leading-tight mt-0.5"
-                    data-testid="withdraw-available-balance"
-                  >
-                    {formatNaira(currentWallet.availableEarningsNaira)}
-                  </p>
-                  {currentWallet.reservedEarningsNaira > 0 && (
-                    <p className="text-xs tabular-nums text-[var(--text-secondary)] mt-1">
-                      Pending payout: {formatNaira(currentWallet.reservedEarningsNaira)}
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
-              <ChevronRight className="w-5 h-5 text-[var(--text-secondary)] shrink-0 hidden sm:block" />
+              <PurpleGiftBoxSvg className="w-20 h-20 sm:w-24 sm:h-24 shrink-0" />
             </section>
 
-            {/* Withdrawal Method */}
-            <section className="space-y-2.5">
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">
-                Withdrawal Method
+            {/* Withdrawal Method Card matching Mockup 06 */}
+            <section className="space-y-2">
+              <h2 className="text-sm font-bold text-[var(--text-primary)] px-1">
+                Withdrawal method
               </h2>
               <button
                 type="button"
                 onClick={() => setBankSheetOpen(true)}
                 data-testid="withdraw-bank-method-btn"
-                className="w-full text-left rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex items-center justify-between gap-3 hover:border-[#8439D5]/50 dark:hover:border-[#A855F7]/50 transition-colors"
+                className="w-full text-left apple-card rounded-[22px] p-4 flex items-center justify-between gap-3 hover:border-[#8439D5]/50 dark:hover:border-[#A855F7]/55 transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#E3F1FD] dark:bg-[#19283A] flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-[#1D74C6] dark:text-[#52A8FF]" />
+                  <div className="w-11 h-11 rounded-2xl bg-[#F3E8FF] dark:bg-[#2A1942] border border-[#8439D5]/20 dark:border-[#A855F7]/25 flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-[#8439D5] dark:text-[#C084FC]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[var(--text-primary)] truncate">
-                      {bankName || 'Bank Account'}
+                    <p className="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate">
+                      {bankName || 'Link Bank Account'}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)] tabular-nums truncate">
                       {accountNumber
-                        ? `${accountNumber} · ${accountName}`
-                        : 'Link your Nigerian bank account'}
+                        ? `${maskAccountNumber(accountNumber)} · ${accountName}`
+                        : 'Tap to add Nigerian bank account'}
                     </p>
                   </div>
                 </div>
@@ -225,23 +241,34 @@ export function WithdrawScreen({
               </button>
             </section>
 
-            {/* Amount + Summary + Withdraw Now */}
-            <section className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-4">
-              {statusBanner && (
-                <div
+            {/* Amount Input with Inline Max Pill + Payout Breakdown */}
+            <section className="apple-card rounded-[28px] p-5 space-y-4">
+              {successReceipt && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
                   role="status"
-                  className="rounded-2xl bg-[#E6F6EF] dark:bg-[#0D3326] border border-[#087F56]/25 dark:border-[#24C888]/30 p-3.5 text-xs font-medium text-[var(--text-primary)]"
+                  data-testid="withdraw-success-state"
+                  className="rounded-2xl bg-[#E6F6EF] dark:bg-[#0D3326] border border-[#087F56]/30 dark:border-[#24C888]/35 p-4 space-y-2"
                 >
-                  {statusBanner}
-                </div>
+                  <div className="flex items-center gap-2 text-[#087F56] dark:text-[#24C888] font-bold text-sm">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Withdrawal submitted (Pending)</span>
+                  </div>
+                  <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+                    {formatNaira(successReceipt.netNaira)} queued for{' '}
+                    <strong>{successReceipt.bankName}</strong> ({successReceipt.maskedAccount}).
+                    Reserved from Available to withdraw until marked Paid or Failed.
+                  </p>
+                </motion.div>
               )}
 
               {error && (
                 <div
                   role="alert"
-                  className="rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/30 dark:border-[#FF176C]/35 p-3.5 text-xs font-medium text-[var(--text-primary)] flex items-start gap-2"
+                  className="rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#E10B5C]/30 dark:border-[#FF176C]/35 p-3.5 text-xs font-medium text-[var(--text-primary)] flex items-start gap-2"
                 >
-                  <AlertCircle className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C] shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#E10B5C] dark:text-[#FF176C] shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
@@ -258,7 +285,7 @@ export function WithdrawScreen({
                     <button
                       type="button"
                       onClick={onOpenInbox}
-                      className="font-semibold text-[#DF0756] dark:text-[#FF176C] hover:underline"
+                      className="font-semibold text-[#E10B5C] dark:text-[#FF3888] hover:underline cursor-pointer"
                     >
                       Check Inbox for unclaimed gifts →
                     </button>
@@ -269,67 +296,73 @@ export function WithdrawScreen({
               {!confirming ? (
                 <>
                   <div className="space-y-2">
-                    <InputField
-                      id="withdraw-amount"
-                      label="Withdrawal amount (₦)"
-                      type="number"
-                      min={ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA}
-                      max={Math.max(
-                        ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA,
-                        currentWallet.availableEarningsNaira,
+                    <label
+                      htmlFor="withdraw-amount"
+                      className="block text-sm font-bold text-[var(--text-primary)]"
+                    >
+                      Amount
+                    </label>
+                    <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-4 py-2 focus-within:border-[#E10B5C] dark:focus-within:border-[#FF2A85] focus-within:ring-2 focus-within:ring-[#E10B5C]/25">
+                      <span className="text-lg font-bold text-[var(--text-primary)]">₦</span>
+                      <input
+                        id="withdraw-amount"
+                        type="number"
+                        min={ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA}
+                        max={Math.max(
+                          ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA,
+                          currentWallet.availableEarningsNaira,
+                        )}
+                        step={100}
+                        value={amountInput}
+                        onChange={(e) => {
+                          setAmountInput(e.target.value);
+                          setError(null);
+                        }}
+                        className="w-full min-h-[38px] bg-transparent text-lg font-bold tabular-nums text-[var(--text-primary)] focus:outline-none"
+                      />
+                      {canWithdraw && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAmountInput(String(currentWallet.availableEarningsNaira))
+                          }
+                          data-testid="withdraw-max-btn"
+                          className="min-h-[32px] px-3 py-1 rounded-full bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#E10B5C]/30 dark:border-[#FF2A85]/40 text-xs font-bold text-[#E10B5C] dark:text-[#FF66A8] hover:opacity-90 transition-opacity shrink-0 cursor-pointer"
+                        >
+                          Max
+                        </button>
                       )}
-                      step={100}
-                      value={amountInput}
-                      onChange={(e) => {
-                        setAmountInput(e.target.value);
-                        setError(null);
-                      }}
-                      className="font-bold tabular-nums"
-                    />
-                    {canWithdraw && (
-                      <div className="flex items-center gap-2 text-xs">
-                        {[
-                          {
-                            label: 'Half',
-                            val: Math.max(
-                              ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA,
-                              Math.round(currentWallet.availableEarningsNaira / 2),
-                            ),
-                          },
-                          { label: 'Max', val: currentWallet.availableEarningsNaira },
-                        ].map((chip) => (
-                          <button
-                            key={chip.label}
-                            type="button"
-                            onClick={() => setAmountInput(String(chip.val))}
-                            className="px-2.5 py-1 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] font-semibold tabular-nums text-[var(--text-primary)] hover:border-[#8439D5]/45 dark:hover:border-[#A855F7]/45"
-                          >
-                            {chip.label} ({formatNaira(chip.val)})
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Payout Fee & Net Received Breakdown */}
-                  <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5 space-y-1.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">Withdrawal amount</span>
+                  {/* Payout Summary Card matching Mockup 06 */}
+                  <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2.5 text-xs sm:text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                        <Coins className="w-4 h-4" />
+                        <span>Withdrawal amount</span>
+                      </span>
                       <span className="font-semibold tabular-nums text-[var(--text-primary)]">
                         {formatNaira(summary.grossAmountNaira)}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">Payout fee</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
+                        <Receipt className="w-4 h-4" />
+                        <span>Payout fee</span>
+                      </span>
                       <span className="font-semibold tabular-nums text-[var(--text-primary)]">
                         {summary.payoutFeeNaira === 0
                           ? 'Free (₦0)'
-                          : formatNaira(summary.payoutFeeNaira)}
+                          : `-${formatNaira(summary.payoutFeeNaira)}`}
                       </span>
                     </div>
-                    <div className="flex justify-between pt-1.5 border-t border-[var(--border-subtle)] text-sm">
-                      <span className="font-bold text-[var(--text-primary)]">Net to bank</span>
-                      <span className="font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
+                    <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-[var(--border-subtle)]">
+                      <span className="inline-flex items-center gap-2 font-bold text-[var(--text-primary)]">
+                        <WalletIcon className="w-4 h-4 text-[#E10B5C] dark:text-[#FF3888]" />
+                        <span>You receive</span>
+                      </span>
+                      <span className="text-base sm:text-lg font-bold tabular-nums text-[#E10B5C] dark:text-[#FF3888]">
                         {formatNaira(summary.netReceivedNaira)}
                       </span>
                     </div>
@@ -343,30 +376,31 @@ export function WithdrawScreen({
                     onClick={handleOpenConfirmation}
                     data-testid="withdraw-review-btn"
                   >
-                    Withdraw Now
+                    <Send className="w-4 h-4" />
+                    <span>Withdraw now</span>
                   </Button>
 
-                  <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                    <p>{ECONOMY_CONFIG.PAYOUT_PROCESSING_COPY}</p>
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                    <Lock className="w-3.5 h-3.5 shrink-0" />
+                    <p>Secure payout to your bank account. {ECONOMY_CONFIG.PAYOUT_PROCESSING_COPY}</p>
                   </div>
                 </>
               ) : (
-                <div className="rounded-2xl bg-[var(--bg-raised)] border border-[#DF0756]/30 dark:border-[#FF176C]/35 p-4 space-y-4">
+                <div className="rounded-2xl bg-[var(--bg-raised)] border border-[#E10B5C]/30 dark:border-[#FF176C]/35 p-4 space-y-4">
                   <h3 className="text-base font-bold text-[var(--text-primary)]">
                     Confirm withdrawal
                   </h3>
-                  <div className="space-y-1.5 text-sm">
+                  <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-[var(--text-secondary)]">Net payout</span>
-                      <span className="font-bold tabular-nums text-[var(--text-primary)]">
+                      <span className="text-[var(--text-secondary)]">You receive</span>
+                      <span className="font-bold tabular-nums text-[#E10B5C] dark:text-[#FF3888]">
                         {formatNaira(summary.netReceivedNaira)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[var(--text-secondary)]">Bank account</span>
                       <span className="font-medium text-[var(--text-primary)]">
-                        {bankName} · {accountNumber}
+                        {bankName} · {maskAccountNumber(accountNumber)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -400,14 +434,14 @@ export function WithdrawScreen({
             </section>
           </div>
 
-          {/* Right Column: Payout History & Status Simulation */}
-          <section className="lg:col-span-6 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-4">
+          {/* Right Column: Payout History & Status Resolution */}
+          <section className="lg:col-span-6 apple-card rounded-[28px] p-5 sm:p-6 space-y-4">
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)]">
                 Payout history
               </h2>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                Track Pending, Paid, and Failed transfers. Failed payouts return reserved rewards back to Available to Withdraw.
+                Track Pending, Paid, and Failed transfers. Failed payouts return funds back to Available to withdraw.
               </p>
             </div>
 
@@ -435,7 +469,7 @@ export function WithdrawScreen({
                           {formatNaira(payout.netAmountNaira)}
                         </p>
                         <p className="text-xs text-[var(--text-secondary)]">
-                          {payout.bankAccount.bankName} · {payout.bankAccount.accountNumber}
+                          {payout.bankAccount.bankName} · {maskAccountNumber(payout.bankAccount.accountNumber)}
                         </p>
                       </div>
 
@@ -454,15 +488,15 @@ export function WithdrawScreen({
                         )}
                         {payout.status === 'failed' && (
                           <>
-                            <XCircle className="w-3.5 h-3.5 text-[#DF0756] dark:text-[#FF176C]" />
-                            <span className="text-[#DF0756] dark:text-[#FF176C]">Failed</span>
+                            <XCircle className="w-3.5 h-3.5 text-[#E10B5C] dark:text-[#FF3888]" />
+                            <span className="text-[#E10B5C] dark:text-[#FF3888]">Failed</span>
                           </>
                         )}
                       </span>
                     </div>
 
                     {payout.failureReason && (
-                      <p className="text-xs text-[#DF0756] dark:text-[#FF79A8]">
+                      <p className="text-xs text-[#E10B5C] dark:text-[#FF79A8]">
                         {payout.failureReason}
                       </p>
                     )}
@@ -506,7 +540,7 @@ export function WithdrawScreen({
         onClose={() => setBankSheetOpen(false)}
       >
         <p className="text-xs text-[var(--text-secondary)]">
-          Demo payout details are stored locally in this browser. Do not enter real sensitive credentials.
+          Demo payout details are stored locally in this browser.
         </p>
 
         <div className="flex flex-wrap gap-2">
@@ -519,7 +553,7 @@ export function WithdrawScreen({
                 setAccountNumber(preset.accountNumber);
                 setAccountName(preset.accountName);
               }}
-              className="px-3 py-1.5 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:border-[#8439D5]/50"
+              className="px-3 py-1.5 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] hover:border-[#8439D5]/50 cursor-pointer"
             >
               {preset.bankName}
             </button>

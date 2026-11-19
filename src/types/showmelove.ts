@@ -38,6 +38,13 @@ export interface GiftSnapshot {
   accentColor: string;
 }
 
+export type PromiseCardStyle =
+  | 'silk-crimson'
+  | 'royal-plum'
+  | 'midnight-indigo'
+  | 'rose-velvet'
+  | 'parchment-ribbon';
+
 export interface SentGift {
   id: string;
   checkoutAttemptId: string;
@@ -47,6 +54,7 @@ export interface SentGift {
   recipientName: string;
   recipientEmail: string;
   promiseText: string;
+  promiseCardStyle?: PromiseCardStyle;
   messageText?: string;
   emote: EmoteOption;
   amountNaira: number;
@@ -58,6 +66,7 @@ export interface SentGift {
   voiceNoteBlobKey?: string;
   voiceNoteDurationSec?: number;
   snapshot: GiftSnapshot;
+  revealedAt?: string;
   claimedAt?: string;
   claimedByEmail?: string;
   isBundledSample?: boolean;

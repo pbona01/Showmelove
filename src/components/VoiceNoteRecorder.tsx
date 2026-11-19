@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, Pause, Play, RotateCcw, Square, Trash2, Volume2 } from 'lucide-react';
+import { AudioLines, Mic, Pause, Play, RotateCcw, Square, Trash2, Volume2 } from 'lucide-react';
 import { ECONOMY_CONFIG } from '../config/economy';
 import { audioStorage } from '../services/audioStorage';
 import { getBundledSampleVoiceNoteUrl } from '../audio/sampleVoiceNote';
@@ -16,7 +16,7 @@ interface VoiceNoteRecorderProps {
 }
 
 const WAVEFORM_BARS = [
-  28, 48, 72, 42, 86, 60, 38, 76, 92, 54, 44, 80, 64, 34, 68, 88, 52, 40, 74, 58, 46, 82, 50, 32,
+  24, 44, 68, 38, 84, 58, 96, 48, 76, 92, 54, 40, 82, 66, 36, 72, 88, 52, 42, 74, 60, 44, 80, 48, 30, 56, 36,
 ];
 
 function formatDuration(seconds: number): string {
@@ -260,78 +260,125 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
   };
 
   const totalDuration = value.durationSec ?? 5;
+  const activeSeconds =
+    recordingState === 'recording'
+      ? elapsedSec
+      : Math.round((playbackProgress / 100) * totalDuration);
 
   return (
-    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm sm:text-base font-semibold text-[var(--text-primary)]">
-            Personal voice note
+    <div className="rounded-[22px] border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 sm:p-5 space-y-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <AudioLines className="w-4 h-4 text-[#E10B5C] dark:text-[#FF2A85]" />
+          <h3 className="text-sm sm:text-[15px] font-semibold text-[var(--text-primary)]">
+            Add a voice note
           </h3>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Plays when they tap Open gift · Up to {maxSec}s
-          </p>
-        </div>
-        {recordingState === 'recording' && (
-          <span className="text-xs font-semibold tabular-nums text-[#DF0756] dark:text-[#FF176C]">
-            {formatDuration(elapsedSec)} / {formatDuration(maxSec)}
+          <span className="text-xs text-[var(--text-secondary)]">
+            (up to {maxSec}s)
           </span>
-        )}
+        </div>
+        <span className="text-xs font-semibold tabular-nums text-[var(--text-secondary)]">
+          {formatDuration(recordingState === 'recording' ? elapsedSec : value.source !== 'none' ? activeSeconds : 0)}{' '}
+          / {formatDuration(value.source !== 'none' ? totalDuration : maxSec)}
+        </span>
       </div>
 
       {micError && (
         <div
           role="alert"
-          className="rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#DF0756]/25 px-3 py-2 text-xs text-[var(--text-primary)]"
+          className="rounded-xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#E10B5C]/25 px-3 py-2 text-xs text-[var(--text-primary)]"
         >
           {micError}
         </div>
       )}
 
       {recordingState === 'recording' ? (
-        <div className="rounded-xl bg-[var(--bg-card)] border border-[#DF0756]/30 dark:border-[#FF176C]/35 p-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#DF0756] dark:bg-[#FF176C] shrink-0" />
-            <span className="text-xs font-medium text-[var(--text-primary)] truncate">
-              Recording voice note…
-            </span>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={stopRecording}
+              aria-label="Stop recording"
+              className="w-12 h-12 rounded-full cta-pink-surface text-white flex items-center justify-center shrink-0 shadow-[0_0_24px_rgba(255,23,108,0.55)] cursor-pointer"
+            >
+              <Square className="w-4 h-4 fill-current" />
+            </button>
+
+            <div className="flex-1 flex items-center gap-[3px] h-9">
+              {WAVEFORM_BARS.map((height, idx) => (
+                <span
+                  key={idx}
+                  className="flex-1 rounded-full bg-gradient-to-t from-[#E10B5C] to-[#FF66A8] dark:from-[#FF176C] dark:to-[#C084FC]"
+                  style={{ height: `${Math.max(20, (height + ((elapsedSec * 17 + idx * 13) % 35)) % 100)}%` }}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              Stop
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="min-h-[40px] px-4 py-1.5 rounded-xl bg-[#201727] dark:bg-[#FF176C] text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-          >
-            <Square className="w-3.5 h-3.5 fill-current" />
-            <span>Stop</span>
-          </button>
+          <div className="h-1.5 w-full rounded-full bg-[var(--bg-card)] overflow-hidden">
+            <div
+              className="h-full rounded-full cta-pink-surface transition-[width] duration-300"
+              style={{ width: `${Math.min(100, (elapsedSec / maxSec) * 100)}%` }}
+            />
+          </div>
         </div>
       ) : value.source === 'none' ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={startRecording}
-            className="min-h-[44px] px-4 py-2 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0"
-          >
-            <Mic className="w-4 h-4" />
-            <span>Record</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleUseSample}
-            className="min-h-[44px] px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] text-sm font-medium inline-flex items-center gap-2 hover:border-[#8439D5]/45 transition-colors whitespace-nowrap shrink-0"
-          >
-            <Volume2 className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C]" />
-            <span>Use sample voice note</span>
-          </button>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3.5">
+            <button
+              type="button"
+              onClick={startRecording}
+              aria-label="Record voice note"
+              className="w-12 h-12 rounded-full cta-pink-surface text-white flex items-center justify-center shrink-0 shadow-[0_8px_22px_-6px_rgba(255,23,108,0.65)] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
+            >
+              <Mic className="w-5 h-5" />
+            </button>
+
+            <div className="flex-1 flex items-center gap-[3px] h-8 opacity-45">
+              {WAVEFORM_BARS.map((height, idx) => (
+                <span
+                  key={idx}
+                  className="flex-1 rounded-full bg-[var(--text-secondary)]/45"
+                  style={{ height: `${height}%` }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={startRecording}
+              className="min-h-[40px] px-4 py-2 rounded-xl cta-pink-surface text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>Record voice note</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleUseSample}
+              className="min-h-[40px] px-4 py-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[#8439D5]/45 transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-[#E10B5C] dark:text-[#FF2A85]" />
+              <span>Use sample voice note</span>
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 space-y-2.5">
-          <div className="flex items-center gap-3">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3.5">
             <button
               type="button"
               onClick={handlePlayToggle}
               aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
-              className="w-10 h-10 rounded-xl bg-[#DF0756] dark:bg-[#FF176C] text-white flex items-center justify-center shrink-0 transition-colors"
+              className="w-12 h-12 rounded-full cta-pink-surface text-white flex items-center justify-center shrink-0 shadow-[0_8px_22px_-6px_rgba(255,23,108,0.65)] hover:brightness-105 active:scale-95 transition-all cursor-pointer"
             >
               {isPlaying ? (
                 <Pause className="w-4 h-4 fill-current" />
@@ -340,21 +387,21 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
               )}
             </button>
 
-            <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex-1 min-w-0 space-y-2">
               <div
-                className="flex items-end gap-[3px] h-7"
+                className="flex items-center gap-[3px] h-8"
                 aria-label="Voice note waveform"
                 data-testid="voice-note-waveform"
               >
                 {WAVEFORM_BARS.map((height, idx) => {
                   const barPct = ((idx + 1) / WAVEFORM_BARS.length) * 100;
-                  const active = playbackProgress >= barPct;
+                  const active = isPlaying ? playbackProgress >= barPct : idx < 11;
                   return (
                     <span
                       key={idx}
                       className={`flex-1 rounded-full transition-colors ${
                         active
-                          ? 'bg-[#DF0756] dark:bg-[#FF176C]'
+                          ? 'bg-gradient-to-t from-[#E10B5C] to-[#FF66A8] dark:from-[#FF176C] dark:to-[#C084FC]'
                           : 'bg-[var(--text-secondary)]/25'
                       }`}
                       style={{ height: `${height}%` }}
@@ -362,42 +409,37 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                <span className="truncate">
-                  {value.source === 'sample' ? 'Sample voice note' : 'Recorded voice note'}
-                </span>
-                <span className="tabular-nums font-medium text-[var(--text-primary)]">
-                  {formatDuration(totalDuration)}
-                </span>
+              <div className="h-1.5 w-full rounded-full bg-[var(--bg-card)] overflow-hidden">
+                <div
+                  className="h-full rounded-full cta-pink-surface transition-[width] duration-150"
+                  style={{ width: `${isPlaying ? playbackProgress : 38}%` }}
+                />
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
-            <button
-              type="button"
-              onClick={handlePlayToggle}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5"
-            >
-              {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span>{isPlaying ? 'Pause' : 'Play'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={startRecording}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Record again</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="min-h-[38px] px-3 py-1.5 rounded-lg text-[#DF0756] dark:text-[#FF7AA8] text-xs font-semibold inline-flex items-center gap-1.5 hover:bg-[var(--bg-raised)] ml-auto"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete</span>
-            </button>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
+            <span className="text-[11px] font-medium text-[var(--text-secondary)] truncate">
+              {value.source === 'sample' ? 'Sample ready' : 'Recorded'}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={startRecording}
+                className="min-h-[34px] px-2.5 py-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Re-record</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="min-h-[34px] px-2.5 py-1 rounded-xl text-[#E10B5C] dark:text-[#FF7AA8] text-xs font-semibold inline-flex items-center gap-1 hover:bg-[var(--bg-card)] whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

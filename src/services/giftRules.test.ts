@@ -12,6 +12,9 @@ import {
   buyLoveCoins,
   claimGiftIdempotent,
   createPaidGiftIdempotent,
+  getSentGiftsForViewer,
+  getSentGiftStatus,
+  markGiftRevealed,
   requestWithdrawal,
   resolveWithdrawal,
 } from './giftRules';
@@ -69,6 +72,16 @@ test('checkout is idempotent on double-click or refresh with same checkoutAttemp
   assert.equal(first.nextState.gifts.length, initial.gifts.length + 1);
   assert.equal(first.gift?.recipientEarningsNaira, 3600);
   assert.equal(first.gift?.platformFeeNaira, 900);
+  assert.equal(first.gift?.promiseCardStyle, 'silk-crimson');
+
+  const styled = createPaidGiftIdempotent(first.nextState, {
+    ...draft,
+    checkoutAttemptId: 'chk_attempt_styled_456',
+    giftId: 'sml_styled_gift_456',
+    promiseCardStyle: 'royal-plum',
+  });
+  assert.equal(styled.ok, true);
+  assert.equal(styled.gift?.promiseCardStyle, 'royal-plum');
 
   const duplicate = createPaidGiftIdempotent(first.nextState, draft);
   assert.equal(duplicate.ok, true);
@@ -242,5 +255,69 @@ test('signed-in sender can buy Love Coins and spend coin balance', () => {
   assert.equal(
     spent.nextState.walletsByEmail['tunde@showmelove.ng'].loveCoinsBalance,
     18500,
+  );
+});
+
+test('sent gift status transitions from Unclaimed to Revealed to Claimed and filters by viewer', () => {
+  const initial = createInitialStoreState();
+
+  const sampleGift = initial.gifts.find((g) => g.id === 'sample')!;
+  const claimedSeedGift = initial.gifts.find((g) => g.id === 'sml_seed_teddy_03')!;
+
+  assert.equal(getSentGiftStatus(sampleGift), 'Unclaimed');
+  assert.equal(getSentGiftStatus(claimedSeedGift), 'Claimed');
+
+  const revealedState = markGiftRevealed(initial, 'sample', '2026-11-17T10:00:00.000Z');
+  assert.equal(
+    getSentGiftStatus(revealedState.gifts.find((g) => g.id === 'sample')!),
+    'Revealed',
+  );
+  // Idempotent on second call
+  assert.equal(
+    markGiftRevealed(revealedState, 'sample', '2026-11-17T10:05:00.000Z'),
+    revealedState,
+  );
+
+  const claimed = claimGiftIdempotent(
+    revealedState,
+    'sample',
+    'ada@showmelove.ng',
+    '2026-11-17T10:10:00.000Z',
+  );
+  assert.equal(
+    getSentGiftStatus(claimed.nextState.gifts.find((g) => g.id === 'sample')!),
+    'Claimed',
+  );
+
+  // Tunde sees his sent gifts (sample + teddy), Adaeze sees none yet, Guest sees none until creating one
+  const tundeSent = getSentGiftsForViewer(claimed.nextState.gifts, 'sender', 'tunde@showmelove.ng');
+  assert.deepEqual(
+    tundeSent.map((g) => g.id),
+    ['sample', 'sml_seed_teddy_03'],
+  );
+  assert.equal(
+    getSentGiftsForViewer(claimed.nextState.gifts, 'recipient', 'ada@showmelove.ng').length,
+    0,
+  );
+
+  const guestSent = createPaidGiftIdempotent(claimed.nextState, {
+    checkoutAttemptId: 'chk_guest_sent_test',
+    giftId: 'sml_guest_sent_1',
+    createdAt: '2026-11-17T11:00:00.000Z',
+    catalogItem: claimed.nextState.catalog[0],
+    senderName: 'Guest Friend',
+    recipientName: 'Chidi',
+    recipientEmail: 'chidi@example.ng',
+    promiseText: 'Lunch is on me!',
+    emote: 'heart-burst',
+    amountNaira: 1500,
+    hasVoiceNote: false,
+    voiceNoteSource: 'none',
+    paymentMode: 'flutterwave_guest',
+  });
+  const guestVisible = getSentGiftsForViewer(guestSent.nextState.gifts, 'guest', '');
+  assert.deepEqual(
+    guestVisible.map((g) => g.id),
+    ['sml_guest_sent_1'],
   );
 });

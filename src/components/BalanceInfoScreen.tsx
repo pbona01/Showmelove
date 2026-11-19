@@ -38,10 +38,10 @@ export function BalanceInfoScreen({
       </div>
 
       {/* Reference Card 1: Love Coin vs Gifted Rewards */}
-      <section className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)] overflow-hidden">
+      <section className="apple-card rounded-[28px] divide-y divide-[var(--border-subtle)] overflow-hidden">
         <div className="p-5 sm:p-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <LoveCoinHeartSvg className="w-12 h-12 sm:w-14 sm:h-14 shrink-0" />
+            <LoveCoinHeartSvg className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
                 Love Coin
@@ -52,14 +52,14 @@ export function BalanceInfoScreen({
             </div>
           </div>
 
-          <span className="px-3 py-1 rounded-full bg-[#FFEAF2] dark:bg-[#3A162B] text-[#DF0756] dark:text-[#FF7AA8] text-xs font-semibold whitespace-nowrap shrink-0">
+          <span className="px-3 py-1 rounded-full bg-[#FFEAF2] dark:bg-[#3A162B] text-[#E10B5C] dark:text-[#FF7AA8] text-xs font-semibold whitespace-nowrap shrink-0">
             For Gifting
           </span>
         </div>
 
         <div className="p-5 sm:p-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <PurpleGiftBoxSvg className="w-12 h-12 sm:w-14 sm:h-14 shrink-0" />
+            <PurpleGiftBoxSvg className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
                 Gifted Rewards
@@ -82,7 +82,7 @@ export function BalanceInfoScreen({
           About Show Me Love Balance
         </h2>
 
-        <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-5">
+        <div className="apple-card rounded-[28px] p-5 sm:p-6 space-y-5">
           <div className="divide-y divide-[var(--border-subtle)] text-sm sm:text-base">
             <div className="pb-3.5 flex items-center justify-between gap-4">
               <span className="text-[var(--text-secondary)]">1 Love Coin</span>
