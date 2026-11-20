@@ -10,8 +10,10 @@ import {
 import { createInitialStoreState, DEMO_DEFAULT_BANK } from './seedData';
 import {
   buyLoveCoins,
+  canAccessAdminTools,
   claimGiftIdempotent,
   createPaidGiftIdempotent,
+  getDefaultSenderName,
   getSentGiftsForViewer,
   getSentGiftStatus,
   markGiftRevealed,
@@ -320,4 +322,19 @@ test('sent gift status transitions from Unclaimed to Revealed to Claimed and fil
     guestVisible.map((g) => g.id),
     ['sml_guest_sent_1'],
   );
+});
+
+test('promise card sender default never uses signed-in recipient name', () => {
+  assert.equal(getDefaultSenderName('recipient', 'Adaeze Okafor'), '');
+  assert.equal(getDefaultSenderName('guest', ''), '');
+  assert.equal(getDefaultSenderName('admin', 'Showmelove Admin'), '');
+  assert.equal(getDefaultSenderName('sender', 'Tunde Balogun'), 'Tunde Balogun');
+});
+
+test('admin tools are hidden for recipient, sender, and guest unless demo admin flag is on', () => {
+  assert.equal(canAccessAdminTools('recipient', false), false);
+  assert.equal(canAccessAdminTools('sender', false), false);
+  assert.equal(canAccessAdminTools('guest', false), false);
+  assert.equal(canAccessAdminTools('admin', false), true);
+  assert.equal(canAccessAdminTools('recipient', true), true);
 });

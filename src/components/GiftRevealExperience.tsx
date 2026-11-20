@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 import type { SentGift } from '../types/showmelove';
 import { formatNaira } from '../config/economy';
-import { useTheme } from '../context/ThemeContext';
-import { GiftArtworkSvg, LoveCoinHeartSvg } from './GiftArtwork';
+import { GiftArtworkSvg, GoldLoveCoinSvg, LoveCoinHeartSvg } from './GiftArtwork';
 import { LottieEmote } from './LottieEmote';
 import {
   getBundledSampleVoiceNoteUrl,
@@ -46,12 +45,12 @@ interface GiftRevealExperienceProps {
 type RevealStage = 'sealed' | 'revealing' | 'revealed';
 
 const FLOATING_PARTICLES = [
-  { id: 'h1', left: '14%', top: '26%', delay: 0, size: 18, kind: 'heart' as const },
-  { id: 's1', left: '82%', top: '20%', delay: 0.25, size: 16, kind: 'sparkle' as const },
-  { id: 'h2', left: '78%', top: '66%', delay: 0.5, size: 15, kind: 'heart' as const },
-  { id: 's2', left: '18%', top: '68%', delay: 0.15, size: 14, kind: 'sparkle' as const },
-  { id: 'h3', left: '66%', top: '14%', delay: 0.35, size: 14, kind: 'heart' as const },
-  { id: 's3', left: '30%', top: '16%', delay: 0.6, size: 13, kind: 'sparkle' as const },
+  { id: 'h1', left: '14%', top: '26%', delay: 0, size: 17, kind: 'heart' as const },
+  { id: 's1', left: '82%', top: '22%', delay: 0.25, size: 15, kind: 'sparkle' as const },
+  { id: 'h2', left: '78%', top: '68%', delay: 0.5, size: 14, kind: 'heart' as const },
+  { id: 's2', left: '18%', top: '68%', delay: 0.15, size: 13, kind: 'sparkle' as const },
+  { id: 'h3', left: '66%', top: '14%', delay: 0.35, size: 13, kind: 'heart' as const },
+  { id: 's3', left: '30%', top: '16%', delay: 0.6, size: 12, kind: 'sparkle' as const },
 ];
 
 function formatAudioClock(sec: number): string {
@@ -67,17 +66,27 @@ export function GiftRevealExperience({
   onExit,
   onGoToInbox,
 }: GiftRevealExperienceProps) {
-  const { state, claimGift, markGiftRevealed, signInDemoEmail, getGiftById } =
-    useShowmelove();
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  const {
+    state,
+    currentWallet,
+    claimGift,
+    markGiftRevealed,
+    signInDemoEmail,
+    getGiftById,
+  } = useShowmelove();
 
   const [stage, setStage] = useState<RevealStage>('sealed');
   const [playKey, setPlayKey] = useState(0);
   const [payoffActive, setPayoffActive] = useState(false);
+  const [rewardFlyActive, setRewardFlyActive] = useState(false);
   const [claimBurstCount, setClaimBurstCount] = useState(0);
   const [muted, setMuted] = useState(false);
   const [sharedCopied, setSharedCopied] = useState(false);
+
+  // Animated recipient balance counter
+  const targetBalance = currentWallet.availableEarningsNaira;
+  const [displayedBalance, setDisplayedBalance] = useState(targetBalance);
+  const displayedBalanceRef = useRef(targetBalance);
 
   // Voice note state
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -104,6 +113,43 @@ export function GiftRevealExperience({
   const reducedMotion =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  const latestGift = getGiftById(gift.id) ?? gift;
+  const isClaimed = Boolean(latestGift.claimedAt);
+  const isIntendedRecipientSignedIn =
+    !isPreview &&
+    state.activeRole !== 'guest' &&
+    Boolean(state.signedInEmail) &&
+    state.signedInEmail.trim().toLowerCase() === gift.recipientEmail.trim().toLowerCase();
+
+  // Animate balance count-up smoothly whenever rewards balance increases
+  useEffect(() => {
+    const startVal = displayedBalanceRef.current;
+    if (startVal === targetBalance) return;
+    if (reducedMotion) {
+      displayedBalanceRef.current = targetBalance;
+      setDisplayedBalance(targetBalance);
+      return;
+    }
+
+    const durationMs = 700;
+    const startTime = performance.now();
+    let raf = 0;
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startTime) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = Math.round(startVal + (targetBalance - startVal) * eased);
+      displayedBalanceRef.current = val;
+      setDisplayedBalance(val);
+      if (t < 1) {
+        raf = window.requestAnimationFrame(step);
+      }
+    };
+
+    raf = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(raf);
+  }, [targetBalance, reducedMotion]);
 
   const clearRevealTimers = useCallback(() => {
     if (payoffTimerRef.current) window.clearTimeout(payoffTimerRef.current);
@@ -234,29 +280,64 @@ export function GiftRevealExperience({
     }
   };
 
-  // Snappy TikTok Live-inspired choreography (fast 0.55s payoff burst, 1.55s card settle)
+  // Auto-credit idempotently on open if signed in as intended recipient & unclaimed
+  const autoClaimOnOpenIfEligible = useCallback(() => {
+    if (isPreview || !isIntendedRecipientSignedIn || isClaimed) return;
+    const res = claimGift(gift.id, state.signedInEmail);
+    if (res.status === 'claimed_now') {
+      if (!reducedMotion) {
+        fireClaimCelebrationExplosion();
+      }
+      setClaimBurstCount((c) => c + 1);
+      setClaimFeedback({
+        type: 'success',
+        message: `${formatNaira(gift.recipientEarningsNaira)} added to your rewards balance.`,
+      });
+      setClaimPanelOpen(false);
+    }
+  }, [
+    claimGift,
+    gift.id,
+    gift.recipientEarningsNaira,
+    isClaimed,
+    isIntendedRecipientSignedIn,
+    isPreview,
+    reducedMotion,
+    state.signedInEmail,
+  ]);
+
   const triggerRevealChoreography = useCallback(() => {
     clearRevealTimers();
     setPayoffActive(false);
+    setRewardFlyActive(false);
     setStage('revealing');
     setPlayKey((k) => k + 1);
 
     if (reducedMotion) {
       setPayoffActive(true);
+      setRewardFlyActive(true);
+      autoClaimOnOpenIfEligible();
       setStage('revealed');
       return;
     }
 
     payoffTimerRef.current = window.setTimeout(() => {
       setPayoffActive(true);
+      setRewardFlyActive(true);
       playSoftPayoffChime(mutedRef.current);
       fireGiftPayoffBurst(gift.snapshot.themeColor);
-    }, 520);
+      autoClaimOnOpenIfEligible();
+    }, 480);
 
     settleTimerRef.current = window.setTimeout(() => {
       setStage('revealed');
-    }, 1550);
-  }, [clearRevealTimers, gift.snapshot.themeColor, reducedMotion]);
+    }, 1450);
+  }, [
+    autoClaimOnOpenIfEligible,
+    clearRevealTimers,
+    gift.snapshot.themeColor,
+    reducedMotion,
+  ]);
 
   const handleOpenGift = () => {
     startVoiceNoteFromTap();
@@ -273,7 +354,11 @@ export function GiftRevealExperience({
     clearRevealTimers();
     if (!payoffActive) {
       setPayoffActive(true);
-      fireGiftPayoffBurst(gift.snapshot.themeColor);
+      setRewardFlyActive(true);
+      if (!reducedMotion) {
+        fireGiftPayoffBurst(gift.snapshot.themeColor);
+      }
+      autoClaimOnOpenIfEligible();
     }
     setStage('revealed');
   };
@@ -293,7 +378,7 @@ export function GiftRevealExperience({
       : `${window.location.origin}/gift/${encodeURIComponent(gift.id)}`;
     void navigator.clipboard?.writeText(url).catch(() => undefined);
     setSharedCopied(true);
-    window.setTimeout(() => setSharedCopied(false), 2000);
+    window.setTimeout(() => setSharedCopied(false), 2200);
   };
 
   const handleExitReveal = () => {
@@ -321,17 +406,20 @@ export function GiftRevealExperience({
 
     const res = claimGift(gift.id, emailToUse.trim());
     if (res.status === 'claimed_now') {
-      fireClaimCelebrationExplosion();
+      if (!reducedMotion) {
+        fireClaimCelebrationExplosion();
+      }
+      setRewardFlyActive(true);
       setClaimBurstCount((c) => c + 1);
       setClaimFeedback({
         type: 'success',
-        message: `${formatNaira(gift.recipientEarningsNaira)} added to your Gifted Rewards.`,
+        message: `${formatNaira(gift.recipientEarningsNaira)} added to your rewards balance.`,
       });
       setClaimPanelOpen(false);
     } else if (res.status === 'already_claimed') {
       setClaimFeedback({
         type: 'already',
-        message: 'This gift has already been claimed. Your earnings balance remains unchanged.',
+        message: 'This gift has already been claimed. Your rewards balance remains unchanged.',
       });
     } else if (res.status === 'wrong_recipient') {
       setClaimFeedback({
@@ -359,59 +447,78 @@ export function GiftRevealExperience({
             ? 'sparkle-hug'
             : 'heart-burst';
 
-  const latestGift = getGiftById(gift.id) ?? gift;
-  const isClaimed = Boolean(latestGift.claimedAt);
   const audioProgressPct =
     audioDuration > 0 ? Math.min(100, (audioCurrentTime / audioDuration) * 100) : 0;
 
-  // Signature per-gift payoff choreography
   const giftChoreography = reducedMotion
     ? { scale: 1, y: 0, rotate: 0 }
     : gift.snapshot.animationType === 'pulse'
-      ? { scale: [0.35, 1.18, 0.98, 1.08, 1.02], y: [24, -10, 0, -4, 0] }
+      ? { scale: [0.4, 1.15, 0.98, 1.06, 1], y: [20, -10, 0, -4, 0] }
       : gift.snapshot.animationType === 'bloom'
-        ? { scale: [0.3, 1.14, 1.04], rotate: [-14, 6, 0], y: [28, -8, 0] }
+        ? { scale: [0.35, 1.12, 1.02], rotate: [-12, 6, 0], y: [24, -8, 0] }
         : gift.snapshot.animationType === 'wave'
-          ? { scale: [0.35, 1.12, 1.02], rotate: [0, -8, 8, -4, 0], y: [24, -8, 0] }
-          : { scale: [0.32, 1.2, 0.96, 1.06], y: [28, -14, 0, -4] };
+          ? { scale: [0.4, 1.1, 1.01], rotate: [0, -7, 7, -3, 0], y: [20, -8, 0] }
+          : { scale: [0.38, 1.16, 0.96, 1.04], y: [24, -12, 0, -4] };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col overflow-y-auto text-[var(--text-primary)]"
+      className="fixed inset-0 z-50 flex flex-col overflow-y-auto text-[#FAF8FC]"
       style={{
-        backgroundColor: isDark ? '#08060E' : '#FAF6FC',
-        backgroundImage: isDark
-          ? 'radial-gradient(ellipse 68% 46% at 50% 0%, rgba(255, 23, 108, 0.34), transparent 72%), radial-gradient(circle at 50% 42%, rgba(168, 85, 247, 0.28), rgba(255, 23, 108, 0.14) 38%, rgba(8, 6, 14, 0) 70%)'
-          : 'radial-gradient(ellipse 68% 46% at 50% 0%, rgba(225, 11, 92, 0.16), transparent 72%), radial-gradient(circle at 50% 42%, rgba(132, 57, 213, 0.14), rgba(225, 11, 92, 0.08) 40%, rgba(250, 246, 252, 0) 72%)',
+        backgroundColor: '#09090D',
+        backgroundImage:
+          'radial-gradient(ellipse 68% 44% at 50% 0%, rgba(255, 35, 133, 0.34), transparent 72%), radial-gradient(circle at 50% 42%, rgba(124, 58, 237, 0.28), rgba(255, 35, 133, 0.14) 38%, rgba(9, 9, 13, 0) 72%)',
       }}
       data-testid="gift-reveal-stage"
       data-reveal-stage={stage}
       data-claim-confetti-count={claimBurstCount}
     >
-      {/* Top Bar matching Mockup 04 */}
-      <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 py-3 shrink-0">
+      {/* Cinematic Top Bar with Live Recipient Balance HUD */}
+      <header className="relative z-20 flex items-center justify-between gap-2 px-4 sm:px-8 py-3 shrink-0">
         <button
           type="button"
           onClick={handleExitReveal}
           aria-label={isPreview ? 'Close preview' : 'Close gift reveal'}
           data-testid="reveal-exit-btn"
-          className="min-h-[42px] min-w-[42px] px-3 rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-primary)] inline-flex items-center justify-center gap-1.5 hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+          className="min-h-[40px] min-w-[40px] px-3 rounded-full bg-white/8 border border-white/12 text-sm font-semibold text-white inline-flex items-center justify-center gap-1.5 hover:bg-white/14 transition-colors cursor-pointer"
         >
           <X className="w-4 h-4" />
           <span className="hidden sm:inline">{isPreview ? 'Editor' : 'Close'}</span>
         </button>
 
-        <span className="text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)] select-none">
-          Showme<span className="text-[#E10B5C] dark:text-[#FF2A85]">love</span>
-        </span>
+        {/* Live Animated Balance Pill */}
+        {!isPreview && state.activeRole !== 'guest' ? (
+          <motion.div
+            key={`bal-${claimBurstCount}`}
+            animate={
+              claimBurstCount > 0 && !reducedMotion
+                ? { scale: [1, 1.12, 1] }
+                : { scale: 1 }
+            }
+            transition={{ duration: 0.45 }}
+            data-testid="reveal-balance-pill"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/8 border border-white/14 backdrop-blur-md"
+          >
+            <GoldLoveCoinSvg className="w-5 h-5 shrink-0" />
+            <span className="text-[11px] font-medium text-[#C8BED6] hidden sm:inline">
+              Balance
+            </span>
+            <span className="text-xs sm:text-sm font-bold tabular-nums text-white">
+              {formatNaira(displayedBalance)}
+            </span>
+          </motion.div>
+        ) : (
+          <span className="text-base sm:text-lg font-bold tracking-tight text-white select-none">
+            Showme<span className="text-[#FF2385]">love</span>
+          </span>
+        )}
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5">
           {stage === 'revealing' && (
             <button
               type="button"
               onClick={handleSkip}
               data-testid="reveal-skip-btn"
-              className="min-h-[40px] px-3 rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--bg-raised)] cursor-pointer"
+              className="min-h-[40px] px-3 rounded-full bg-white/8 border border-white/12 text-xs font-semibold text-white inline-flex items-center gap-1 hover:bg-white/14 cursor-pointer"
             >
               <FastForward className="w-3.5 h-3.5" />
               <span>Skip</span>
@@ -422,27 +529,13 @@ export function GiftRevealExperience({
             onClick={handleToggleMute}
             aria-label={muted ? 'Unmute audio' : 'Mute audio'}
             data-testid="reveal-mute-btn"
-            className="min-h-[40px] min-w-[40px] rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-raised)] cursor-pointer"
+            className="min-h-[40px] min-w-[40px] rounded-full bg-white/8 border border-white/12 text-white flex items-center justify-center hover:bg-white/14 cursor-pointer"
           >
             {muted ? (
-              <VolumeX className="w-4 h-4 text-[#E10B5C] dark:text-[#FF3888]" />
+              <VolumeX className="w-4 h-4 text-[#FF4F9A]" />
             ) : (
               <Volume2 className="w-4 h-4" />
             )}
-          </button>
-          <button
-            type="button"
-            onClick={handleShareLink}
-            aria-label="Share gift link"
-            data-testid="reveal-share-btn"
-            className="min-h-[40px] min-w-[40px] px-2.5 rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center justify-center gap-1 hover:bg-[var(--bg-raised)] cursor-pointer"
-          >
-            {sharedCopied ? (
-              <Check className="w-4 h-4 text-[#087F56] dark:text-[#24C888]" />
-            ) : (
-              <Share2 className="w-4 h-4" />
-            )}
-            {sharedCopied && <span className="hidden sm:inline">Copied</span>}
           </button>
           {stage === 'revealed' && (
             <button
@@ -450,7 +543,7 @@ export function GiftRevealExperience({
               onClick={handleReplay}
               aria-label="Replay reveal"
               data-testid="reveal-replay-btn"
-              className="min-h-[40px] min-w-[40px] rounded-full bg-[var(--bg-card)]/90 border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-raised)] cursor-pointer"
+              className="min-h-[40px] min-w-[40px] rounded-full bg-white/8 border border-white/12 text-white flex items-center justify-center hover:bg-white/14 cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -464,37 +557,44 @@ export function GiftRevealExperience({
           {stage === 'sealed' ? (
             <motion.section
               key="sealed-stage"
-              initial={reducedMotion ? false : { opacity: 0, y: 16, scale: 0.96 }}
+              initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={
                 reducedMotion
                   ? { opacity: 0 }
-                  : { opacity: 0, scale: 0.92, transition: { duration: 0.14 } }
+                  : { opacity: 0, scale: 0.94, transition: { duration: 0.16 } }
               }
-              transition={{ type: 'spring', stiffness: 460, damping: 28 }}
+              transition={
+                reducedMotion
+                  ? { duration: 0.25 }
+                  : { type: 'spring', stiffness: 420, damping: 28 }
+              }
               className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-5"
             >
-              {/* Title matching Mockup 04: "A gift for Adaeze" */}
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--text-primary)]">
-                A gift for{' '}
-                <span className="text-[#E10B5C] dark:text-[#FF5FA2]">
-                  {gift.recipientName}
-                </span>
-              </h1>
+              {/* 4. "A gift for Adaeze" + "From Bene" */}
+              <div className="space-y-1.5">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+                  A gift for{' '}
+                  <span className="text-[#FF4F9A]">{gift.recipientName}</span>
+                </h1>
+                <p className="text-base sm:text-lg font-medium text-[#C8BED6]">
+                  From <span className="font-bold text-white">{gift.senderName}</span>
+                </p>
+              </div>
 
-              {/* Luminous Mascot + Gift Teaser Stage */}
-              <div className="relative w-full max-w-[320px] h-[250px] sm:h-[280px] flex items-center justify-center">
-                {/* Ambient stage floor glow */}
+              {/* 2 & 3. Pink Heart Mascot Holding the Selected Gift with Spotlight & Sparkles */}
+              <div className="relative w-full max-w-[320px] h-[240px] sm:h-[268px] flex items-center justify-center">
+                {/* Soft spotlight floor */}
                 <div
                   aria-hidden="true"
-                  className="absolute bottom-3 w-56 h-10 rounded-full blur-2xl opacity-75"
+                  className="absolute bottom-2 w-60 h-12 rounded-full blur-2xl opacity-80"
                   style={{
                     background:
-                      'radial-gradient(circle, rgba(255, 23, 108, 0.72) 0%, rgba(168, 85, 247, 0.35) 60%, transparent 100%)',
+                      'radial-gradient(circle, rgba(255, 35, 133, 0.72) 0%, rgba(124, 58, 237, 0.42) 60%, transparent 100%)',
                   }}
                 />
 
-                {/* Orbiting sparkle & heart particles */}
+                {/* Orbiting hearts & sparkles */}
                 {!reducedMotion &&
                   FLOATING_PARTICLES.map((p) => (
                     <motion.span
@@ -503,11 +603,11 @@ export function GiftRevealExperience({
                       style={{ left: p.left, top: p.top }}
                       animate={{
                         y: [0, -10, 0],
-                        opacity: [0.45, 1, 0.45],
+                        opacity: [0.4, 1, 0.4],
                         scale: [0.85, 1.12, 0.85],
                       }}
                       transition={{
-                        duration: 2.6,
+                        duration: 2.8,
                         delay: p.delay,
                         repeat: Infinity,
                         ease: 'easeInOut',
@@ -517,7 +617,7 @@ export function GiftRevealExperience({
                       {p.kind === 'heart' ? (
                         <Heart
                           style={{ width: p.size, height: p.size }}
-                          className="text-[#FF3888] fill-[#FF3888]/70"
+                          className="text-[#FF4F9A] fill-[#FF4F9A]/75"
                         />
                       ) : (
                         <Sparkles
@@ -528,55 +628,68 @@ export function GiftRevealExperience({
                     </motion.span>
                   ))}
 
-                {/* Mascot + Gift composite */}
+                {/* Mascot entering & gently floating while holding the selected gift */}
                 <motion.div
-                  animate={reducedMotion ? undefined : { y: [0, -8, 0] }}
-                  transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative z-10 flex items-end justify-center"
+                  initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 24, scale: 0.88 }}
+                  animate={
+                    reducedMotion
+                      ? { opacity: 1 }
+                      : { opacity: 1, y: [0, -8, 0], scale: 1 }
+                  }
+                  transition={
+                    reducedMotion
+                      ? { duration: 0.3 }
+                      : {
+                          opacity: { duration: 0.4 },
+                          scale: { type: 'spring', stiffness: 360, damping: 24 },
+                          y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 },
+                        }
+                  }
+                  className="relative flex items-center justify-center"
                 >
-                  <LoveCoinHeartSvg className="w-40 h-40 sm:w-44 sm:h-44" />
+                  <LoveCoinHeartSvg className="w-44 h-44 sm:w-48 sm:h-48" />
                   <motion.div
-                    animate={reducedMotion ? undefined : { rotate: [-4, 4, -4] }}
-                    transition={{ duration: 3.1, repeat: Infinity, ease: 'easeInOut' }}
-                    className="-ml-10 mb-1"
+                    animate={
+                      reducedMotion
+                        ? undefined
+                        : { y: [0, -4, 0], rotate: [-2, 2, -2] }
+                    }
+                    transition={{
+                      duration: 2.8,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                    className="-ml-12 mt-8"
                   >
                     <GiftArtworkSvg
                       artworkId={gift.snapshot.artworkId}
-                      className="w-24 h-24 sm:w-28 sm:h-28"
+                      className="w-28 h-28 sm:w-32 sm:h-32"
                     />
                   </motion.div>
                 </motion.div>
               </div>
 
-              {/* From Sender + Teaser Promise Pill matching Mockup 04 */}
-              <div className="space-y-3 w-full">
-                <p className="text-lg font-bold text-[var(--text-primary)]">
-                  From{' '}
-                  <span className="text-[#E10B5C] dark:text-[#FF5FA2]">
-                    {gift.senderName}
-                  </span>
+              {/* 5. Promise Card Message Preview */}
+              <div className="w-full max-w-sm rounded-2xl bg-white/[0.06] border border-white/12 px-5 py-3.5 backdrop-blur-md">
+                <p className="font-serif-card text-base sm:text-lg text-white leading-snug">
+                  &ldquo;{gift.promiseText}&rdquo;
                 </p>
-
-                <div className="rounded-2xl bg-[var(--bg-card)]/85 border border-[var(--border-subtle)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] inline-flex items-center justify-center gap-2 max-w-full">
-                  <Sparkles className="w-4 h-4 text-[#FBBF24] shrink-0" />
-                  <span className="truncate">{gift.promiseText}</span>
-                </div>
-
                 {gift.hasVoiceNote && (
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Includes a personal voice note · Tap below with sound on
+                  <p className="text-[11px] font-medium text-[#FF6EB0] mt-1.5 inline-flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5" />
+                    <span>Includes a personal voice note</span>
                   </p>
                 )}
               </div>
 
-              {/* Radiant Hot-Pink CTA matching Mockup 04 */}
-              <div className="w-full space-y-3 pt-1">
+              {/* 6. Large CTA: "Open your gift" */}
+              <div className="w-full max-w-sm pt-1 space-y-2.5">
                 <Button
                   variant="primary"
                   size="lg"
                   fullWidth
                   onClick={handleOpenGift}
-                  data-testid="open-gift-btn"
+                  data-testid="open-gift-cta"
                   className="rounded-full min-h-[54px] text-base"
                 >
                   <GiftIcon className="w-5 h-5" />
@@ -584,7 +697,7 @@ export function GiftRevealExperience({
                 </Button>
 
                 {isPreview && (
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="text-xs text-[#ADA4BA]">
                     Preview mode · No order created
                   </p>
                 )}
@@ -593,67 +706,99 @@ export function GiftRevealExperience({
           ) : (
             <motion.section
               key="active-reveal-stage"
-              initial={reducedMotion ? false : { opacity: 0, scale: 0.96 }}
+              initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 520, damping: 30 }}
-              className="w-full max-w-xl mx-auto flex flex-col items-center gap-3 sm:gap-4"
+              transition={
+                reducedMotion
+                  ? { duration: 0.28 }
+                  : { type: 'spring', stiffness: 480, damping: 30 }
+              }
+              className="w-full max-w-lg mx-auto flex flex-col items-center gap-3.5"
             >
-              {/* TikTok Live-Inspired Animated Reveal Stage */}
+              {/* Spotlight Reveal Stage */}
               <div
-                className="relative w-full h-[224px] sm:h-[296px] rounded-[28px] overflow-hidden border border-[var(--border-subtle)] flex items-center justify-center"
+                className="relative w-full h-[220px] sm:h-[272px] rounded-[28px] overflow-hidden border border-white/10 flex items-center justify-center"
                 style={{
-                  backgroundColor: isDark ? 'rgba(21, 18, 27, 0.82)' : 'rgba(255, 255, 255, 0.88)',
-                  backgroundImage: isDark
-                    ? 'radial-gradient(circle at 50% 45%, rgba(255, 23, 108, 0.34), rgba(168, 85, 247, 0.24) 44%, rgba(21, 18, 27, 0) 76%)'
-                    : 'radial-gradient(circle at 50% 45%, rgba(225, 11, 92, 0.16), rgba(132, 57, 213, 0.12) 44%, rgba(255, 255, 255, 0) 76%)',
+                  backgroundColor: 'rgba(20, 19, 27, 0.86)',
+                  backgroundImage:
+                    'radial-gradient(circle at 50% 45%, rgba(255, 35, 133, 0.34), rgba(124, 58, 237, 0.26) 44%, rgba(20, 19, 27, 0) 76%)',
                 }}
               >
-                {/* Kinetic Sender Gift Banner */}
+                {/* Sender Banner */}
                 <motion.div
                   key={`banner-${playKey}`}
-                  initial={reducedMotion ? false : { opacity: 0, x: -36, scale: 0.92 }}
+                  initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: -30, scale: 0.94 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 560, damping: 26 }}
+                  transition={
+                    reducedMotion
+                      ? { duration: 0.25 }
+                      : { type: 'spring', stiffness: 520, damping: 28 }
+                  }
                   className="absolute top-3.5 left-3.5 right-3.5 z-20 flex items-center justify-between gap-2 pointer-events-none"
                 >
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--bg-card)]/92 border border-[var(--border-subtle)] px-3.5 py-1.5 shadow-sm max-w-[72%]">
-                    <Sparkles className="w-3.5 h-3.5 text-[#E10B5C] dark:text-[#FF3888] shrink-0" />
-                    <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                      {gift.senderName} sent {gift.snapshot.name}
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#14131B]/90 border border-white/12 px-3 py-1.5 max-w-[68%]">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF4F9A] shrink-0" />
+                    <span className="text-xs font-semibold text-white truncate">
+                      From {gift.senderName}
                     </span>
                   </div>
-                  <span className="rounded-full bg-[var(--bg-card)]/92 border border-[var(--border-subtle)] px-3 py-1 text-xs tabular-nums font-bold text-[#E10B5C] dark:text-[#FF3888] shrink-0">
-                    {(gift.coinsSpent || gift.amountNaira).toLocaleString('en-NG')} Coins
+                  <span className="rounded-full bg-[#14131B]/90 border border-white/12 px-3 py-1 text-xs tabular-nums font-bold text-[#FF62A9] shrink-0">
+                    {formatNaira(gift.amountNaira)}
                   </span>
                 </motion.div>
 
-                {/* Expanding Radiant Shockwave Ring on Payoff */}
+                {/* 7. Animated Reward Flying Up Into Recipient Balance */}
+                <AnimatePresence>
+                  {rewardFlyActive && (
+                    <motion.div
+                      key={`reward-fly-${playKey}-${claimBurstCount}`}
+                      initial={
+                        reducedMotion
+                          ? { opacity: 0, scale: 0.92 }
+                          : { opacity: 0, y: 36, scale: 0.65 }
+                      }
+                      animate={
+                        reducedMotion
+                          ? { opacity: 1, scale: 1 }
+                          : { opacity: [0, 1, 1, 0], y: [36, -18, -68, -110], scale: [0.7, 1.12, 1, 0.82] }
+                      }
+                      transition={{ duration: reducedMotion ? 0.35 : 1.35, ease: [0.16, 1, 0.3, 1] }}
+                      data-testid="reveal-reward-fly-badge"
+                      className="pointer-events-none absolute z-30 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0D3326]/95 border border-[#24C888]/45 text-[#24C888] text-sm font-bold tabular-nums shadow-[0_8px_24px_rgba(36,200,136,0.35)]"
+                    >
+                      <GoldLoveCoinSvg className="w-5 h-5 shrink-0" />
+                      <span>+{formatNaira(gift.recipientEarningsNaira)}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Soft expanding ring */}
                 {payoffActive && !reducedMotion && (
                   <motion.div
                     key={`ring-${playKey}`}
                     aria-hidden="true"
-                    initial={{ scale: 0.35, opacity: 0.85 }}
-                    animate={{ scale: 2.3, opacity: 0 }}
+                    initial={{ scale: 0.35, opacity: 0.8 }}
+                    animate={{ scale: 2.2, opacity: 0 }}
                     transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute w-36 h-36 rounded-full border-2 border-[#FF3888]/70 pointer-events-none"
+                    className="absolute w-36 h-36 rounded-full border-2 border-[#FF4F9A]/70 pointer-events-none"
                   />
                 )}
 
-                {/* Floating Hearts & Golden Sparkles */}
+                {/* Orbiting hearts & sparkles */}
                 {!reducedMotion &&
                   FLOATING_PARTICLES.map((p) => (
                     <motion.span
                       key={`act-${p.id}-${playKey}`}
                       aria-hidden="true"
                       style={{ left: p.left, top: p.top }}
-                      initial={{ opacity: 0, scale: 0.4, y: 18 }}
+                      initial={{ opacity: 0, scale: 0.4, y: 16 }}
                       animate={{
-                        opacity: [0, 1, 0.7],
-                        scale: [0.6, 1.15, 0.95],
-                        y: [18, -12, -4],
+                        opacity: [0, 0.95, 0.65],
+                        scale: [0.6, 1.12, 0.95],
+                        y: [16, -10, -4],
                       }}
                       transition={{
-                        duration: 1.4,
+                        duration: 1.5,
                         delay: p.delay,
                         repeat: Infinity,
                         repeatType: 'reverse',
@@ -664,7 +809,7 @@ export function GiftRevealExperience({
                       {p.kind === 'heart' ? (
                         <Heart
                           style={{ width: p.size, height: p.size }}
-                          className="text-[#FF3888] fill-[#FF3888]/75"
+                          className="text-[#FF4F9A] fill-[#FF4F9A]/75"
                         />
                       ) : (
                         <Sparkles
@@ -675,48 +820,47 @@ export function GiftRevealExperience({
                     </motion.span>
                   ))}
 
-                {/* Mascot Leaping In & Handing Over Transparent 3D Gift */}
+                {/* Mascot Handing Over Transparent Gift */}
                 <div className="relative z-10 flex items-center justify-center pt-5">
                   <motion.div
                     key={`mascot-${playKey}`}
                     initial={
                       reducedMotion
-                        ? false
-                        : { opacity: 0, x: -72, y: 28, scale: 0.65, rotate: -10 }
+                        ? { opacity: 0, scale: 0.95 }
+                        : { opacity: 0, x: -64, y: 24, scale: 0.7 }
                     }
                     animate={{
                       opacity: 1,
                       x: -10,
                       y: reducedMotion ? 0 : [0, -6, 0],
                       scale: 1,
-                      rotate: 0,
                     }}
                     transition={
                       reducedMotion
-                        ? { duration: 0 }
+                        ? { duration: 0.25 }
                         : {
-                            x: { type: 'spring', stiffness: 420, damping: 24 },
-                            scale: { type: 'spring', stiffness: 440, damping: 24 },
-                            opacity: { duration: 0.25 },
-                            y: { duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.5 },
+                            x: { type: 'spring', stiffness: 400, damping: 24 },
+                            scale: { type: 'spring', stiffness: 420, damping: 24 },
+                            opacity: { duration: 0.24 },
+                            y: { duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 },
                           }
                     }
                   >
-                    <LoveCoinHeartSvg className="w-36 h-36 sm:w-44 sm:h-44" />
+                    <LoveCoinHeartSvg className="w-32 h-32 sm:w-40 sm:h-40" />
                   </motion.div>
 
                   <motion.div
                     key={`gift-${playKey}`}
                     initial={
-                      reducedMotion ? false : { opacity: 0, scale: 0.3, y: 24 }
+                      reducedMotion ? { opacity: 0, scale: 0.92 } : { opacity: 0, scale: 0.35, y: 20 }
                     }
                     animate={{ opacity: 1, ...giftChoreography }}
                     transition={
                       reducedMotion
-                        ? { duration: 0 }
+                        ? { duration: 0.28 }
                         : {
-                            duration: 0.9,
-                            delay: 0.28,
+                            duration: 0.85,
+                            delay: 0.22,
                             ease: [0.16, 1, 0.3, 1],
                           }
                     }
@@ -724,24 +868,26 @@ export function GiftRevealExperience({
                   >
                     <GiftArtworkSvg
                       artworkId={gift.snapshot.artworkId}
-                      className="w-32 h-32 sm:w-38 sm:h-38"
+                      className="w-28 h-28 sm:w-36 sm:h-36"
                     />
                   </motion.div>
                 </div>
 
-                {/* 60fps Lottie Emote Burst Overlay */}
-                <LottieEmote
-                  emote={activeEmote}
-                  playKey={playKey}
-                  active={payoffActive}
-                  className="absolute inset-0 w-full h-full pointer-events-none z-20"
-                />
+                {/* Lottie Emote Overlay (skipped in reduced motion) */}
+                {!reducedMotion && (
+                  <LottieEmote
+                    emote={activeEmote}
+                    playKey={playKey}
+                    active={payoffActive}
+                    className="absolute inset-0 w-full h-full pointer-events-none z-20"
+                  />
+                )}
               </div>
 
-              {/* Voice Note Playback Bar */}
+              {/* 8. Voice Note Player (prominent after reveal) */}
               {gift.hasVoiceNote && (
                 <div
-                  className="w-full apple-card rounded-[22px] px-4 py-3 flex items-center gap-3.5"
+                  className="w-full rounded-[22px] bg-[#14131B] border border-white/10 px-4 py-3 flex items-center gap-3.5"
                   data-testid="reveal-voice-note-bar"
                 >
                   <button
@@ -760,18 +906,18 @@ export function GiftRevealExperience({
 
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold text-[var(--text-primary)] truncate">
+                      <span className="font-semibold text-white truncate">
                         Voice note from {gift.senderName}
                       </span>
                       <span
-                        className="tabular-nums text-[var(--text-secondary)] shrink-0"
+                        className="tabular-nums text-[#ADA4BA] shrink-0"
                         data-testid="voice-note-duration"
                       >
                         {formatAudioClock(audioCurrentTime)} /{' '}
                         {formatAudioClock(audioDuration)}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-[var(--bg-raised)] overflow-hidden">
+                    <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                       <div
                         className="h-full rounded-full cta-pink-surface transition-[width] duration-150"
                         style={{ width: `${audioProgressPct}%` }}
@@ -781,43 +927,51 @@ export function GiftRevealExperience({
                 </div>
               )}
 
-              {/* Settled Promise Card + Claim Flow */}
+              {/* Settled Promise Card + Reward Status + Share This Gift */}
               <AnimatePresence>
                 {stage === 'revealed' && (
                   <motion.div
                     key="promise-reveal-card"
-                    initial={reducedMotion ? false : { opacity: 0, y: 16, scale: 0.97 }}
+                    initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 520, damping: 30 }}
-                    className="w-full apple-card rounded-[28px] p-4 sm:p-5 space-y-4"
+                    transition={
+                      reducedMotion
+                        ? { duration: 0.25 }
+                        : { type: 'spring', stiffness: 480, damping: 30 }
+                    }
+                    className="w-full rounded-[28px] bg-[#14131B] border border-white/10 p-4 sm:p-5 space-y-4"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-13 h-13 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] flex items-center justify-center shrink-0">
+                        <div className="w-12 h-12 rounded-2xl bg-[#1D1B26] border border-white/10 flex items-center justify-center shrink-0">
                           <GiftArtworkSvg
                             artworkId={gift.snapshot.artworkId}
                             className="w-10 h-10"
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-[var(--text-secondary)]">
-                            From{' '}
-                            <span className="font-semibold text-[var(--text-primary)]">
-                              {gift.senderName}
-                            </span>{' '}
-                            to{' '}
-                            <span className="font-semibold text-[var(--text-primary)]">
+                          <p className="text-xs text-[#ADA4BA]">
+                            For{' '}
+                            <span className="font-semibold text-white">
                               {gift.recipientName}
+                            </span>{' '}
+                            · From{' '}
+                            <span className="font-semibold text-white">
+                              {gift.senderName}
                             </span>
                           </p>
-                          <h2 className="text-lg font-bold text-[var(--text-primary)] leading-tight truncate">
+                          <h2 className="text-lg font-bold text-white leading-tight truncate">
                             {gift.snapshot.name}
                           </h2>
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-[11px] text-[var(--text-secondary)]">Gift value</p>
-                        <PriceLabel amountNaira={gift.amountNaira} size="md" accent />
+                        <p className="text-[11px] text-[#ADA4BA]">Reward</p>
+                        <PriceLabel
+                          amountNaira={gift.recipientEarningsNaira}
+                          size="md"
+                          accent
+                        />
                       </div>
                     </div>
 
@@ -827,91 +981,109 @@ export function GiftRevealExperience({
                       senderName={gift.senderName}
                       recipientName={gift.recipientName}
                       cardStyle={gift.promiseCardStyle ?? 'silk-crimson'}
-                      unfoldAnimation={true}
+                      unfoldAnimation={!reducedMotion}
                     />
 
+                    {/* Reward Credited / Claim Feedback */}
                     {claimFeedback && (
                       <div
                         role="status"
-                        className={`rounded-2xl px-4 py-3 text-sm border ${
+                        className={`rounded-2xl px-4 py-3 text-sm border flex items-center gap-2.5 ${
                           claimFeedback.type === 'wrong'
-                            ? 'bg-[#FFEAF2] dark:bg-[#2F1426] border-[#E10B5C]/35 dark:border-[#FF176C]/40 text-[var(--text-primary)]'
+                            ? 'bg-[#2F1426] border-[#FF2385]/40 text-white'
                             : claimFeedback.type === 'success'
-                              ? 'bg-[#E6F6EF] dark:bg-[#0D3326] border-[#087F56]/25 dark:border-[#24C888]/35 text-[var(--text-primary)]'
-                              : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)]'
+                              ? 'bg-[#0D3326] border-[#24C888]/35 text-white'
+                              : 'bg-[#1D1B26] border-white/10 text-white'
                         }`}
                       >
+                        {claimFeedback.type === 'success' && (
+                          <CheckCircle2 className="w-4 h-4 text-[#24C888] shrink-0" />
+                        )}
                         <p className="font-medium">{claimFeedback.message}</p>
                       </div>
                     )}
 
                     {isPreview ? (
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          Preview only · Recipient claims{' '}
-                          {formatNaira(gift.recipientEarningsNaira)} after checkout
+                        <span className="text-xs text-[#ADA4BA]">
+                          Preview only · Recipient receives{' '}
+                          {formatNaira(gift.recipientEarningsNaira)}
                         </span>
-                        <Button variant="dark" size="md" onClick={handleExitReveal}>
+                        <Button variant="secondary" size="md" onClick={handleExitReveal}>
                           Back to editor
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <Button
-                            variant={isClaimed ? 'secondary' : 'primary'}
-                            size="lg"
-                            className="flex-1 rounded-full"
-                            onClick={() => {
-                              if (!state.signedInEmail) {
-                                setClaimPanelOpen(true);
-                                return;
-                              }
-                              handleClaimAttempt();
-                            }}
-                            data-testid="claim-gift-btn"
-                          >
-                            {isClaimed ? (
-                              <>
-                                <CheckCircle2 className="w-4 h-4 text-[#087F56] dark:text-[#24C888]" />
-                                <span>Claimed · Check status</span>
-                              </>
-                            ) : (
-                              <>
-                                <Wallet className="w-4 h-4" />
-                                <span>
-                                  Claim {formatNaira(gift.recipientEarningsNaira)}
-                                </span>
-                              </>
-                            )}
-                          </Button>
-
-                          {isClaimed && onGoToInbox && (
+                        {/* Primary Claim / Claimed Status + Share This Gift CTA */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {isClaimed ? (
                             <Button
-                              variant="dark"
+                              variant="primary"
                               size="lg"
+                              fullWidth
                               className="rounded-full"
                               onClick={() => {
                                 stopAllConfetti();
-                                onGoToInbox();
+                                onGoToInbox?.();
                               }}
                               data-testid="reveal-open-inbox-btn"
                             >
-                              Open Inbox
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Claimed · View Inbox</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="primary"
+                              size="lg"
+                              fullWidth
+                              className="rounded-full"
+                              onClick={() => {
+                                if (!state.signedInEmail) {
+                                  setClaimPanelOpen(true);
+                                  return;
+                                }
+                                handleClaimAttempt();
+                              }}
+                              data-testid="claim-gift-btn"
+                            >
+                              <Wallet className="w-4 h-4" />
+                              <span>
+                                Claim {formatNaira(gift.recipientEarningsNaira)}
+                              </span>
                             </Button>
                           )}
+
+                          <button
+                            type="button"
+                            onClick={handleShareLink}
+                            data-testid="reveal-share-btn"
+                            className="min-h-[50px] px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/16 border border-white/14 text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                          >
+                            {sharedCopied ? (
+                              <>
+                                <Check className="w-4 h-4 text-[#24C888]" />
+                                <span>Link copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Share2 className="w-4 h-4" />
+                                <span>Share this gift</span>
+                              </>
+                            )}
+                          </button>
                         </div>
 
                         {(claimPanelOpen || (!state.signedInEmail && !isClaimed)) && (
-                          <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 space-y-3">
+                          <div className="rounded-2xl border border-white/12 bg-[#1D1B26] p-4 space-y-3">
                             <div className="flex items-start gap-2.5">
-                              <Lock className="w-4 h-4 text-[#E10B5C] dark:text-[#FF3888] shrink-0 mt-0.5" />
+                              <Lock className="w-4 h-4 text-[#FF4F9A] shrink-0 mt-0.5" />
                               <div>
-                                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                  Demo recipient verification
+                                <p className="text-sm font-semibold text-white">
+                                  Verify recipient to claim
                                 </p>
-                                <p className="text-xs text-[var(--text-secondary)]">
-                                  Verify your demo email matches the email entered by the sender.
+                                <p className="text-xs text-[#ADA4BA]">
+                                  Enter the recipient email used when this gift was sent.
                                 </p>
                               </div>
                             </div>
@@ -925,11 +1097,11 @@ export function GiftRevealExperience({
                                 type="email"
                                 value={verifyEmailInput}
                                 onChange={(e) => setVerifyEmailInput(e.target.value)}
-                                placeholder="Enter recipient email (e.g. ada@showmelove.ng)"
-                                className="flex-1 min-h-[44px] px-3.5 py-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)]"
+                                placeholder="e.g. ada@showmelove.ng"
+                                className="flex-1 min-h-[44px] px-3.5 py-2 rounded-2xl border border-white/12 bg-[#14131B] text-sm text-white placeholder:text-[#ADA4BA]/60"
                               />
                               <Button
-                                variant="dark"
+                                variant="primary"
                                 size="md"
                                 onClick={() => handleClaimAttempt(verifyEmailInput)}
                               >
@@ -938,18 +1110,16 @@ export function GiftRevealExperience({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <span className="text-[var(--text-secondary)]">
-                                Quick test sign-in:
-                              </span>
+                              <span className="text-[#ADA4BA]">Quick sign-in:</span>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setVerifyEmailInput(DEMO_USERS.recipient.email);
                                   handleClaimAttempt(DEMO_USERS.recipient.email);
                                 }}
-                                className="px-2.5 py-1 rounded-xl bg-[#FFEAF2] dark:bg-[#2B1726] text-[#E10B5C] dark:text-[#FF7AA8] font-medium cursor-pointer"
+                                className="px-2.5 py-1 rounded-xl bg-[#2B1726] text-[#FF7AA8] font-medium cursor-pointer"
                               >
-                                Sign in as {DEMO_USERS.recipient.email}
+                                {DEMO_USERS.recipient.email}
                               </button>
                               <button
                                 type="button"
@@ -957,9 +1127,9 @@ export function GiftRevealExperience({
                                   setVerifyEmailInput('stranger@example.com');
                                   handleClaimAttempt('stranger@example.com');
                                 }}
-                                className="px-2.5 py-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium cursor-pointer"
+                                className="px-2.5 py-1 rounded-xl bg-[#14131B] border border-white/12 text-[#ADA4BA] font-medium cursor-pointer"
                               >
-                                Test wrong recipient
+                                Test wrong email
                               </button>
                             </div>
                           </div>

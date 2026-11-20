@@ -8,53 +8,53 @@
 }
 
 :root {
-  --bg-page: #F9F6FB;
-  --bg-card: #FFFFFF;
-  --bg-raised: #F2ECF6;
-  --bg-elevated: #FAF7FC;
-  --text-primary: #18111F;
-  --text-secondary: #685D74;
-  --border-subtle: rgba(24, 17, 31, 0.09);
-  --border-strong: rgba(24, 17, 31, 0.16);
-  --accent-primary: #E10B5C;
-  --accent-primary-hover: #C2074E;
-  --accent-purple: #8439D5;
+  --bg-page: #FAF7F5;
+  --bg-card: #FCF8FC;
+  --bg-raised: #F4EDF8;
+  --bg-elevated: #FFFDFB;
+  --text-primary: #1B1622;
+  --text-secondary: #625870;
+  --border-subtle: rgba(27, 22, 34, 0.085);
+  --border-strong: rgba(27, 22, 34, 0.16);
+  --accent-primary: #E61472;
+  --accent-primary-hover: #C80D60;
+  --accent-purple: #7C3AED;
   --accent-success: #087F56;
   --love-coin-gradient:
-    radial-gradient(circle at 86% 18%, rgba(255, 23, 108, 0.24) 0%, transparent 56%),
-    radial-gradient(circle at 12% 84%, rgba(168, 85, 247, 0.18) 0%, transparent 58%),
-    linear-gradient(135deg, #FFE4EF 0%, #F9D8ED 52%, #EDE0FB 100%);
+    radial-gradient(circle at 86% 18%, rgba(255, 35, 133, 0.22) 0%, transparent 56%),
+    radial-gradient(circle at 12% 84%, rgba(124, 58, 237, 0.16) 0%, transparent 58%),
+    linear-gradient(135deg, #FFE8F2 0%, #F9DFF0 52%, #EFE3FC 100%);
   --rewards-glow-bg:
-    radial-gradient(circle at 86% 24%, rgba(132, 57, 213, 0.24) 0%, transparent 56%),
-    radial-gradient(circle at 14% 88%, rgba(225, 11, 92, 0.12) 0%, transparent 56%),
-    linear-gradient(135deg, #F6EEFF 0%, #EFE2FF 56%, #F9EBF8 100%);
-  --cta-pink-gradient: linear-gradient(135deg, #FF287C 0%, #E10B5C 100%);
-  --nav-glass: rgba(255, 255, 255, 0.86);
+    radial-gradient(circle at 86% 24%, rgba(124, 58, 237, 0.22) 0%, transparent 56%),
+    radial-gradient(circle at 14% 88%, rgba(255, 35, 133, 0.12) 0%, transparent 56%),
+    linear-gradient(135deg, #F5EEFF 0%, #ECE0FF 56%, #F8EBF8 100%);
+  --cta-pink-gradient: linear-gradient(135deg, #FF3B94 0%, #FF2385 52%, #DC106A 100%);
+  --nav-glass: rgba(252, 248, 252, 0.88);
 }
 
 html.dark {
-  --bg-page: #08070C;
-  --bg-card: #15121B;
-  --bg-raised: #1F1B28;
-  --bg-elevated: #282334;
+  --bg-page: #09090D;
+  --bg-card: #14131B;
+  --bg-raised: #1D1B26;
+  --bg-elevated: #262333;
   --text-primary: #FAF8FC;
-  --text-secondary: #ACA3B8;
-  --border-subtle: rgba(255, 255, 255, 0.09);
+  --text-secondary: #ADA4BA;
+  --border-subtle: rgba(255, 255, 255, 0.085);
   --border-strong: rgba(255, 255, 255, 0.16);
-  --accent-primary: #FF176C;
-  --accent-primary-hover: #E0105D;
-  --accent-purple: #A855F7;
+  --accent-primary: #FF2385;
+  --accent-primary-hover: #E61472;
+  --accent-purple: #7C3AED;
   --accent-success: #24C888;
   --love-coin-gradient:
-    radial-gradient(circle at 86% 18%, rgba(255, 36, 130, 0.62) 0%, transparent 56%),
-    radial-gradient(circle at 16% 85%, rgba(147, 51, 234, 0.42) 0%, transparent 60%),
-    linear-gradient(135deg, #2B102E 0%, #580F44 52%, #7D0F52 100%);
+    radial-gradient(circle at 86% 18%, rgba(255, 35, 133, 0.58) 0%, transparent 56%),
+    radial-gradient(circle at 16% 85%, rgba(124, 58, 237, 0.44) 0%, transparent 60%),
+    linear-gradient(135deg, #28102C 0%, #551042 52%, #7A1051 100%);
   --rewards-glow-bg:
-    radial-gradient(circle at 84% 28%, rgba(168, 85, 247, 0.56) 0%, transparent 58%),
-    radial-gradient(circle at 12% 85%, rgba(255, 23, 108, 0.24) 0%, transparent 55%),
-    linear-gradient(135deg, #271342 0%, #441670 55%, #24103B 100%);
-  --cta-pink-gradient: linear-gradient(135deg, #FF3888 0%, #FF126B 55%, #D9095B 100%);
-  --nav-glass: rgba(16, 13, 22, 0.86);
+    radial-gradient(circle at 84% 28%, rgba(124, 58, 237, 0.58) 0%, transparent 58%),
+    radial-gradient(circle at 12% 85%, rgba(255, 35, 133, 0.24) 0%, transparent 55%),
+    linear-gradient(135deg, #24123D 0%, #3F176B 55%, #1E0F36 100%);
+  --cta-pink-gradient: linear-gradient(135deg, #FF3F96 0%, #FF2385 52%, #D81068 100%);
+  --nav-glass: rgba(15, 14, 21, 0.88);
 }
 
 @layer base {

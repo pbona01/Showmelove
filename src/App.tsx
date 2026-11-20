@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Gift, Home, Loader2, Send, User } from 'lucide-react';
+import { Bell, Home, Inbox, Loader2, Send, User } from 'lucide-react';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
 import { InboxAndWalletScreen } from './components/InboxAndWalletScreen';
@@ -11,7 +11,6 @@ import { WithdrawScreen } from './components/WithdrawScreen';
 import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
-import { DemoControlsPanel } from './components/DemoControlsPanel';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
@@ -32,6 +31,20 @@ function parseLocationRoute(): AppRoute {
   if (typeof window === 'undefined') return { page: 'home' };
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const params = new URLSearchParams(window.location.search);
+
+  if (params.get('admin') === '1') {
+    try {
+      window.localStorage.setItem('showmelove_demo_admin', '1');
+    } catch {
+      // Ignore storage errors
+    }
+  } else if (params.get('admin') === '0') {
+    try {
+      window.localStorage.removeItem('showmelove_demo_admin');
+    } catch {
+      // Ignore storage errors
+    }
+  }
 
   if (path === '/sample' || path === '/gift/sample') {
     return { page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id };
@@ -111,10 +124,10 @@ function RevealRouteView({
 
   if (checkingRemote && !syncGift) {
     return (
-      <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] flex items-center justify-center px-4">
-        <div className="apple-card rounded-[28px] p-8 text-center space-y-3">
-          <Loader2 className="w-7 h-7 animate-spin text-[#E10B5C] dark:text-[#FF2E7E] mx-auto" />
-          <p className="text-sm font-medium text-[var(--text-secondary)]">
+      <div className="min-h-screen bg-[#09090D] text-[#FAF8FC] flex items-center justify-center px-4">
+        <div className="rounded-[28px] bg-[#14131B] border border-white/10 p-8 text-center space-y-3">
+          <Loader2 className="w-7 h-7 animate-spin text-[#FF2385] mx-auto" />
+          <p className="text-sm font-medium text-[#ADA4BA]">
             Opening your gift link…
           </p>
         </div>
@@ -139,14 +152,14 @@ function RevealRouteView({
                 window.history.pushState({}, '', `/gift/${BUNDLED_SAMPLE_GIFT.id}`);
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="min-h-[44px] px-4 py-2 rounded-2xl cta-pink-surface text-white text-sm font-semibold transition-all"
+              className="min-h-[44px] px-4 py-2 rounded-2xl cta-pink-surface text-white text-sm font-semibold transition-all cursor-pointer"
             >
               Open sample reveal
             </button>
             <button
               type="button"
               onClick={onExit}
-              className="min-h-[44px] px-4 py-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm font-semibold text-[var(--text-primary)] hover:opacity-90 transition-opacity"
+              className="min-h-[44px] px-4 py-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm font-semibold text-[var(--text-primary)] hover:opacity-90 transition-opacity cursor-pointer"
             >
               Go home
             </button>
@@ -163,6 +176,13 @@ function RevealRouteView({
       onGoToInbox={onGoToInbox}
     />
   );
+}
+
+function getProfileInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
 function ShowmeloveShell() {
@@ -220,41 +240,40 @@ function ShowmeloveShell() {
   const isInboxTab = route.page === 'inbox';
   const isProfileTab = route.page === 'profile' || route.page === 'admin';
 
-  // Count unopened gifts for the signed-in user to show a subtle dot on Inbox
   const signedInEmail = state.signedInEmail.toLowerCase();
-  const hasUnopenedInbox =
-    state.activeRole !== 'guest' &&
-    Boolean(signedInEmail) &&
-    state.gifts.some(
-      (g) =>
-        g.recipientEmail.toLowerCase() === signedInEmail && !g.claimedAt,
-    );
+  const isSignedIn = state.activeRole !== 'guest' && Boolean(signedInEmail);
+  const unopenedCount = isSignedIn
+    ? state.gifts.filter(
+        (g) => g.recipientEmail.toLowerCase() === signedInEmail && !g.claimedAt,
+      ).length
+    : 0;
+  const initials = isSignedIn ? getProfileInitials(state.signedInName) : '';
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] flex flex-col transition-colors">
-      {/* Compact Three-Zone Top Bar (56px height) */}
+      {/* Compact Apple-Level Top Bar: Wordmark + Desktop Nav + Notification Bell & Profile Avatar */}
       <header className="sticky top-0 z-30 h-14 bg-[var(--nav-glass)] backdrop-blur-xl border-b border-[var(--border-subtle)]">
-        <div className="max-w-5xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between gap-3">
-          {/* Zone 1: Brand Wordmark */}
+        <div className="max-w-4xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between gap-3">
+          {/* Left: Brand Wordmark */}
           <a
             href="/"
             onClick={(e) => {
               e.preventDefault();
               navigate({ page: 'home' });
             }}
-            className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-xl tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
             <LoveCoinHeartSvg className="w-7 h-7 shrink-0" />
             <span>
               Showme
-              <span className="text-[#E10B5C] dark:text-[#FF2E7E]">love</span>
+              <span className="text-[#E61472] dark:text-[#FF2385]">love</span>
             </span>
           </a>
 
-          {/* Zone 2: Desktop Navigation */}
+          {/* Center: Clean Desktop Navigation */}
           <nav
             aria-label="Primary"
-            className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-[var(--bg-raised)]/80 border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-secondary)]"
+            className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-[var(--bg-raised)]/85 border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-secondary)]"
           >
             {[
               { id: 'home', label: 'Home', active: isHomeTab, href: '/', route: { page: 'home' as const } },
@@ -271,40 +290,70 @@ function ShowmeloveShell() {
                 }}
                 className={`relative px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap shrink-0 ${
                   item.active
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/20 dark:ring-[#FF2385]/30'
                     : 'hover:text-[var(--text-primary)]'
                 }`}
               >
                 {item.label}
-                {item.id === 'inbox' && hasUnopenedInbox && (
+                {item.id === 'inbox' && unopenedCount > 0 && (
                   <span
                     aria-hidden="true"
-                    className="inline-block w-1.5 h-1.5 rounded-full bg-[#E10B5C] dark:bg-[#FF2E7E] ml-1.5 align-middle"
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF2385] ml-1.5 align-middle"
                   />
                 )}
               </a>
             ))}
           </nav>
 
-          {/* Zone 3: Account Popover (sm+) + Single Primary CTA */}
+          {/* Right: Notification Button + Profile Avatar (Clean on Mobile & Desktop) */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="hidden sm:block">
-              <DemoControlsPanel onNavigateAdmin={() => navigate({ page: 'admin' })} />
-            </div>
             <button
               type="button"
-              onClick={() => navigate({ page: 'send' })}
-              data-testid="topbar-send-gift-btn"
-              className="min-h-[38px] sm:min-h-[40px] px-3.5 sm:px-4 py-1.5 rounded-xl cta-pink-surface text-white text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0"
+              onClick={() => navigate({ page: 'inbox' })}
+              aria-label={
+                unopenedCount > 0
+                  ? `Notifications: ${unopenedCount} unopened gift${unopenedCount > 1 ? 's' : ''}`
+                  : 'Notifications and Gift Inbox'
+              }
+              data-testid="topbar-notifications-btn"
+              className={`relative w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer ${
+                isInboxTab
+                  ? 'border-[#FF2385]/45 bg-[#FFE8F2] dark:bg-[#2A152C] text-[#E61472] dark:text-[#FF559F]'
+                  : 'border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] hover:bg-[var(--bg-raised)]'
+              }`}
             >
-              Send a gift
+              <Bell className="w-[18px] h-[18px]" />
+              {unopenedCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#FF2385] ring-2 ring-[var(--bg-card)]"
+                />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate({ page: 'profile' })}
+              aria-label="Open profile and settings"
+              data-testid="topbar-profile-avatar-btn"
+              className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
+                isProfileTab
+                  ? 'cta-pink-surface text-white shadow-[0_6px_18px_-4px_rgba(255,35,133,0.6)]'
+                  : 'bg-gradient-to-br from-[#FF2385]/18 to-[#7C3AED]/22 dark:from-[#FF2385]/30 dark:to-[#7C3AED]/38 border border-[#FF2385]/25 dark:border-[#FF2385]/35 text-[var(--text-primary)] hover:brightness-105'
+              }`}
+            >
+              {initials ? (
+                <span>{initials}</span>
+              ) : (
+                <User className="w-[18px] h-[18px]" />
+              )}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content with Subtle Framer Motion Route Transitions */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-24 md:pb-12">
+      {/* Centered App Canvas with Smooth Framer Motion Page Transitions */}
+      <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-24 md:pb-12">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={route.page}
@@ -387,7 +436,7 @@ function ShowmeloveShell() {
         </AnimatePresence>
       </main>
 
-      {/* Glassmorphic 4-Tab Mobile Bottom Bar matching Mockup 05 (Home / Send / Inbox / Profile) */}
+      {/* Persistent Mobile Bottom Navigation with Soft Pink/Purple Active Glow */}
       <nav
         aria-label="Mobile navigation"
         className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-[var(--nav-glass)] backdrop-blur-xl border-t border-[var(--border-subtle)] grid grid-cols-4 items-center px-2 pb-safe"
@@ -413,9 +462,9 @@ function ShowmeloveShell() {
             id: 'inbox',
             testId: 'mobile-nav-inbox',
             label: 'Inbox',
-            icon: Gift,
+            icon: Inbox,
             active: isInboxTab,
-            badge: hasUnopenedInbox,
+            badge: unopenedCount > 0,
             onClick: () => navigate({ page: 'inbox' }),
           },
           {
@@ -434,12 +483,12 @@ function ShowmeloveShell() {
               type="button"
               onClick={tab.onClick}
               data-testid={tab.testId}
-              className="h-full flex items-center justify-center"
+              className="h-full flex items-center justify-center cursor-pointer"
             >
               <span
-                className={`relative flex flex-col items-center justify-center gap-0.5 px-3.5 py-1.5 rounded-2xl text-[11px] font-semibold transition-all ${
+                className={`relative flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-2xl text-[11px] font-semibold transition-all ${
                   tab.active
-                    ? 'bg-[#FFEAF2] dark:bg-[#2A183D] text-[#E10B5C] dark:text-[#FF5B9A] shadow-sm'
+                    ? 'bg-gradient-to-br from-[#FF2385]/16 to-[#7C3AED]/20 dark:from-[#FF2385]/26 dark:to-[#7C3AED]/34 text-[#E61472] dark:text-[#FF62A9] ring-1 ring-[#FF2385]/30 dark:ring-[#FF2385]/40 shadow-[0_0_20px_-4px_rgba(255,35,133,0.45)]'
                     : 'text-[var(--text-secondary)]'
                 }`}
               >
@@ -448,7 +497,7 @@ function ShowmeloveShell() {
                 {tab.badge && (
                   <span
                     aria-hidden="true"
-                    className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#E10B5C] dark:bg-[#FF2E7E]"
+                    className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#FF2385]"
                   />
                 )}
               </span>

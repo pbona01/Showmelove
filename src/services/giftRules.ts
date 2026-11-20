@@ -589,3 +589,29 @@ export function resolveWithdrawal(
     },
   };
 }
+
+/**
+ * Only pre-fill the gift sender name when the active account is explicitly a sender.
+ * A signed-in recipient must never automatically become the sender signature on a Promise Card.
+ */
+export function getDefaultSenderName(
+  activeRole: UserRole,
+  signedInName?: string,
+): string {
+  if (activeRole === 'sender' && signedInName?.trim()) {
+    return signedInName.trim();
+  }
+  return '';
+}
+
+/**
+ * Admin Console and Reset Demo Data are strictly hidden for regular recipient,
+ * sender, and guest users unless role === 'admin' or the demo admin flag is enabled.
+ */
+export function canAccessAdminTools(
+  activeRole: UserRole,
+  demoAdminFlag = false,
+): boolean {
+  return activeRole === 'admin' || demoAdminFlag === true;
+}
+

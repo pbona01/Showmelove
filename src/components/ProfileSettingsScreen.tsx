@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
+import { canAccessAdminTools } from '../services/giftRules';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
 import type { UserRole } from '../types/showmelove';
 import { GoldLoveCoinSvg, LoveCoinHeartSvg } from './GiftArtwork';
@@ -47,12 +48,19 @@ export function ProfileSettingsScreen({
   const [txFilter, setTxFilter] = useState<TxFilter>('all');
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
+  const demoAdminEnabled =
+    typeof window !== 'undefined' &&
+    (window.localStorage.getItem('showmelove_demo_admin') === '1' ||
+      new URLSearchParams(window.location.search).get('admin') === '1');
+  const showAdminTools = canAccessAdminTools(state.activeRole, demoAdminEnabled);
 
   const roles: Array<{ id: UserRole; label: string; hint: string }> = [
     { id: 'recipient', label: 'Recipient', hint: 'ada@showmelove.ng' },
     { id: 'sender', label: 'Sender', hint: 'tunde@showmelove.ng' },
     { id: 'guest', label: 'Guest', hint: 'No sign-in' },
-    { id: 'admin', label: 'Admin', hint: 'Catalog & payouts' },
+    ...(showAdminTools
+      ? [{ id: 'admin' as const, label: 'Admin', hint: 'Catalog & payouts' }]
+      : []),
   ];
 
   const handleSaveBank = () => {
@@ -148,7 +156,11 @@ export function ProfileSettingsScreen({
                 <UserCheck className="w-3.5 h-3.5" />
                 <span>Switch demo account</span>
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div
+                className={`grid gap-2 ${
+                  roles.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+                }`}
+              >
                 {roles.map((r) => {
                   const active = state.activeRole === r.id;
                   return (
@@ -159,8 +171,8 @@ export function ProfileSettingsScreen({
                       data-testid={`profile-role-${r.id}`}
                       className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                         active
-                          ? 'border-[#E10B5C] dark:border-[#FF2A85] bg-[#FFF0F6] dark:bg-[#2A1426]'
-                          : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#8439D5]/45'
+                          ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2A1426]'
+                          : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/45'
                       }`}
                     >
                       <p className="text-xs font-bold text-[var(--text-primary)]">{r.label}</p>
@@ -284,35 +296,39 @@ export function ProfileSettingsScreen({
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
 
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              data-testid="profile-open-admin-btn"
-              className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-[#8439D5] dark:text-[#C084FC]" />
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  Admin Console (Catalog &amp; Payouts)
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-            </button>
+            {showAdminTools && (
+              <>
+                <button
+                  type="button"
+                  onClick={onOpenAdmin}
+                  data-testid="profile-open-admin-btn"
+                  className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-4 h-4 text-[#7C3AED] dark:text-[#C084FC]" />
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">
+                      Admin Console (Catalog &amp; Payouts)
+                    </span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
 
-            <button
-              type="button"
-              onClick={() => void resetDemo()}
-              data-testid="profile-reset-demo-btn"
-              className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <RotateCcw className="w-4 h-4 text-[#E10B5C] dark:text-[#FF3888]" />
-                <span className="text-sm font-semibold text-[#E10B5C] dark:text-[#FF7AA8]">
-                  Reset Demo Data
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-            </button>
+                <button
+                  type="button"
+                  onClick={() => void resetDemo()}
+                  data-testid="profile-reset-demo-btn"
+                  className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <RotateCcw className="w-4 h-4 text-[#E61472] dark:text-[#FF2385]" />
+                    <span className="text-sm font-semibold text-[#E61472] dark:text-[#FF7AA8]">
+                      Reset Demo Data
+                    </span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              </>
+            )}
           </section>
         </div>
 
