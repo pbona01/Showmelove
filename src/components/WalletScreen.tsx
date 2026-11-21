@@ -27,6 +27,7 @@ import {
 } from './GiftArtwork';
 import { Button, TransactionRow } from './ui/DesignSystem';
 import { Counter, Floating, TiltCard } from './ui/MotionPrimitives';
+import { SprayCoins } from './SprayCoins';
 
 interface WalletScreenProps {
   onOpenBalanceInfo: () => void;
@@ -47,7 +48,7 @@ export function WalletScreen({
   onOpenProfile,
   onTrySampleReveal,
 }: WalletScreenProps) {
-  const { state, currentWallet, switchRole } = useShowmelove();
+  const { state, currentWallet, switchRole, sprayLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
 
   const reducedMotion =
@@ -181,7 +182,15 @@ export function WalletScreen({
             <section
               className="love-coin-surface rounded-[28px] border border-[#E10B5C]/25 dark:border-[#FF3888]/30 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-[0_20px_44px_-20px_rgba(255,23,108,0.45)] overflow-hidden relative"
               aria-label="Love Coins balance"
+              data-testid="love-coins-hero"
             >
+              <SprayCoins
+                isEnabled={isSignedIn && currentWallet.loveCoinsBalance > 0}
+                coinBalance={currentWallet.loveCoinsBalance}
+                onSpray={(count) => {
+                  void sprayLoveCoins(count);
+                }}
+              />
               <Floating className="shrink-0">
                 <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" />
               </Floating>

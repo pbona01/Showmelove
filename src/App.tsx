@@ -14,7 +14,12 @@ import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
-import { PageTransition, SharedLayout } from './components/PageTransition';
+import {
+  PageTransition,
+  SharedLayout,
+  StaggerContainer,
+  StaggerItem,
+} from './components/PageTransition';
 import { springs, usePrefersReducedMotion } from './lib/animation';
 import { Shimmer } from './components/ui/MotionPrimitives';
 
@@ -367,6 +372,8 @@ function ShowmeloveShell() {
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-24 md:pb-12">
         <AnimatePresence mode="wait" initial={false}>
           <PageTransition key={route.page} type="shared-axis">
+            <StaggerContainer delay={0} stagger={0.12}>
+              <StaggerItem>
             {(route.page === 'home' || route.page === 'wallet') && (
               <WalletScreen
                 onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
@@ -437,6 +444,8 @@ function ShowmeloveShell() {
             )}
 
             {route.page === 'admin' && <AdminScreen />}
+              </StaggerItem>
+            </StaggerContainer>
           </PageTransition>
         </AnimatePresence>
       </main>

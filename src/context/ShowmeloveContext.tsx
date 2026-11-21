@@ -37,6 +37,7 @@ import {
   fetchSharedGiftFromSupabase,
   publishGiftToSupabase,
 } from '../services/supabaseBridge';
+import { ECONOMY_CONFIG } from '../config/economy';
 
 interface ShowmeloveContextValue {
   state: ShowmeloveStoreState;
@@ -46,6 +47,7 @@ interface ShowmeloveContextValue {
   resetDemo: () => Promise<void>;
   submitCheckout: (draft: ComposeGiftDraft) => CheckoutResult;
   purchaseLoveCoins: (coins: number) => { ok: boolean; error?: string };
+  sprayLoveCoins: (coins: number) => { ok: boolean; error?: string };
   markGiftRevealed: (giftId: string) => void;
   claimGift: (giftId: string, overrideEmail?: string) => ClaimResult;
   getGiftById: (giftId: string) => SentGift | undefined;
@@ -154,6 +156,48 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       const res = buyLoveCoins(prev, prev.signedInEmail, coins, txId, now);
       commitNext(res.nextState);
       return { ok: res.ok, error: res.error };
+    },
+    [commitNext],
+  );
+
+  const sprayLoveCoins = useCallback(
+    (coins: number): { ok: boolean; error?: string } => {
+      const count = Math.floor(coins);
+      const prev = stateRef.current;
+      const email = normalizeEmail(prev.signedInEmail);
+      if (!email) return { ok: false, error: 'Sign in to spray Love Coins.' };
+      if (!Number.isFinite(count) || count <= 0) {
+        return { ok: false, error: 'Spray at least one Love Coin.' };
+      }
+
+      const wallet = ensureWallet(prev.walletsByEmail, email);
+      if (wallet.loveCoinsBalance < count) {
+        return { ok: false, error: 'Not enough Love Coins for this spray.' };
+      }
+
+      const now = new Date().toISOString();
+      commitNext({
+        ...prev,
+        walletsByEmail: {
+          ...prev.walletsByEmail,
+          [email]: {
+            ...wallet,
+            loveCoinsBalance: wallet.loveCoinsBalance - count,
+            coinTransactions: [
+              {
+                id: `spray_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                createdAt: now,
+                type: 'spend',
+                coinsDelta: -count,
+                amountNaira: count * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN,
+                description: `Sprayed ${count.toLocaleString('en-NG')} Love Coin${count === 1 ? '' : 's'}`,
+              },
+              ...wallet.coinTransactions,
+            ],
+          },
+        },
+      });
+      return { ok: true };
     },
     [commitNext],
   );
@@ -297,6 +341,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       resetDemo,
       submitCheckout,
       purchaseLoveCoins,
+      sprayLoveCoins,
       markGiftRevealed,
       claimGift,
       getGiftById,
@@ -315,6 +360,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       resetDemo,
       submitCheckout,
       purchaseLoveCoins,
+      sprayLoveCoins,
       markGiftRevealed,
       claimGift,
       getGiftById,

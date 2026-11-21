@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { motion, type Variants } from 'motion/react';
 import {
   durations,
+  duration,
   easings,
+  easeOutExpo,
   pageTransition,
   springs,
   staggers,
@@ -12,7 +14,11 @@ import {
 type PageTransitionType = 'shared-axis' | 'fade' | 'slide' | 'push';
 
 const transitionVariants: Record<PageTransitionType, Variants> = {
-  'shared-axis': pageTransition,
+  'shared-axis': {
+    initial: pageTransition.initial,
+    animate: pageTransition.animate,
+    exit: pageTransition.exit,
+  },
   fade: {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
@@ -46,7 +52,13 @@ export function PageTransition({
       initial={reduced ? false : 'initial'}
       animate="animate"
       exit={reduced ? undefined : 'exit'}
-      transition={reduced ? { duration: 0 } : { ...springs.springGentle, opacity: { duration: durations.slow, ease: easings.easeOutExpo } }}
+      transition={
+        reduced
+          ? { duration: 0 }
+          : type === 'shared-axis'
+            ? { duration: duration.normal, ease: easeOutExpo }
+            : { ...springs.springGentle, opacity: { duration: durations.slow, ease: easings.easeOutExpo } }
+      }
       className={className}
     >
       {children}

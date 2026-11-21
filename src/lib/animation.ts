@@ -9,8 +9,27 @@ import {
   type Variants,
 } from 'motion/react';
 
+export const springDefault = {
+  type: 'spring',
+  stiffness: 210,
+  damping: 20,
+  mass: 1,
+} as const satisfies Transition;
+
+export const easeOutExpo = [0.16, 1, 0.3, 1] as const;
+
+export const duration = {
+  normal: 0.25,
+  slow: 0.35,
+} as const;
+
+export const stagger = {
+  normal: 0.06,
+  page: 0.12,
+} as const;
+
 export const springs = {
-  springDefault: { type: 'spring', stiffness: 210, damping: 20 },
+  springDefault,
   springSnappy: { type: 'spring', stiffness: 300, damping: 24 },
   springGentle: { type: 'spring', stiffness: 160, damping: 22 },
   springBouncy: { type: 'spring', stiffness: 280, damping: 18 },
@@ -18,7 +37,7 @@ export const springs = {
 } as const satisfies Record<string, Transition>;
 
 export const easings = {
-  easeOutExpo: [0.16, 1, 0.3, 1],
+  easeOutExpo,
   easeOutCubic: [0.33, 1, 0.68, 1],
   easeInOutQuart: [0.76, 0, 0.24, 1],
 } as const;
@@ -39,11 +58,12 @@ export const staggers = {
   page: 0.12,
 } as const;
 
-export const pageTransition: Variants = {
-  initial: { opacity: 0, y: 14, scale: 0.992 },
-  animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -8, scale: 0.996 },
-};
+export const pageTransition = {
+  initial: { opacity: 0, x: 20 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -20 },
+  transition: { duration: duration.normal, ease: easeOutExpo },
+} satisfies MotionProps;
 
 export const modalTransition: Variants = {
   initial: { opacity: 0, y: 24, scale: 0.96 },

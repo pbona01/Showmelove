@@ -85,6 +85,16 @@ The WebGL scene and `RevealFallback2D` read the same `giftRevealTimeline` object
 
 Three.js is lazy-loaded. The fallback is rendered while the chunk loads, when WebGL is unavailable, or after a WebGL error. Keep callbacks idempotent because the fallback and scene can overlap during Suspense handoff.
 
+## Spray Coins
+
+`SprayCoins` is an absolute overlay for the Love Coins hero. A horizontal primary-pointer swipe emits 12–20 DOM particles along the last eight pointer samples and deducts the same number of coins through the wallet context.
+
+- Vertical scrolling and pinch zoom remain available through `touch-action: pan-y pinch-zoom`.
+- A 300ms cooldown and rolling 50-coin-per-minute allowance bound DOM and balance activity.
+- Particles integrate velocity, 800px/s² downward gravity, and 0.98 per-frame drag for 1.2 seconds.
+- Reduced motion keeps the swipe and instant deduction but omits all particles.
+- Haptic and Web Audio feedback are progressive enhancements and fail silently when unavailable.
+
 ## Accessibility and performance
 
 Use `usePrefersReducedMotion()` inside React components. For non-React code, use `prefersReducedMotion()` or `getMotionConfig()`. Reduced motion removes spatial transitions and continuous loops while preserving state changes.
