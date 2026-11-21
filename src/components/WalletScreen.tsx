@@ -9,6 +9,7 @@ import {
   Play,
   Plus,
   Send,
+  Sparkles,
   UserCheck,
   Wallet as WalletIcon,
 } from 'lucide-react';
@@ -131,6 +132,43 @@ export function WalletScreen({
         </div>
       </div>
 
+      <section
+        className="relative overflow-hidden rounded-[28px] border border-[#F3B843]/45 bg-gradient-to-br from-[#FFEDB3] via-[#FFD6A6] to-[#F7A8CF] p-5 sm:p-6 shadow-[0_18px_42px_-24px_rgba(225,119,41,0.7)] dark:from-[#41281A] dark:via-[#55273F] dark:to-[#2E193E]"
+        aria-label="Love Coin Spray"
+        data-testid="home-spray-coins"
+      >
+        <SprayCoins
+          isEnabled={isSignedIn && currentWallet.loveCoinsBalance > 0}
+          coinBalance={currentWallet.loveCoinsBalance}
+          onSpray={(count) => {
+            void sprayLoveCoins(count);
+          }}
+        />
+        <div className="relative z-10 flex items-center justify-between gap-4 pointer-events-none">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/55 px-2.5 py-1 text-[11px] font-bold text-[#6A3A13] backdrop-blur-sm dark:bg-white/10 dark:text-[#FFE6A3]">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>LOVE COIN SPRAY</span>
+            </div>
+            <h2 className="mt-2 text-xl font-bold tracking-tight text-[#27120F] dark:text-white">
+              Swipe across to share the love
+            </h2>
+            <p className="mt-1 text-sm text-[#613023] dark:text-[#F7DDE6]">
+              {isSignedIn
+                ? 'Swipe sideways anywhere on this card to spray 12–20 Love Coins.'
+                : 'Sign in with a demo account to unlock Love Coin Spray.'}
+            </p>
+          </div>
+          <div className="shrink-0 rounded-2xl bg-white/55 px-3 py-2 text-right text-[#4C2517] backdrop-blur-sm dark:bg-black/20 dark:text-white">
+            <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">Available</p>
+            <p className="text-lg font-bold tabular-nums">
+              {currentWallet.loveCoinsBalance.toLocaleString('en-NG')}
+            </p>
+            <p className="text-[10px] font-semibold">Coins</p>
+          </div>
+        </div>
+      </section>
+
       {!isSignedIn ? (
         <section className="apple-card rounded-[28px] p-6 sm:p-7 space-y-5">
           <div className="flex items-start gap-3.5">
@@ -184,13 +222,6 @@ export function WalletScreen({
               aria-label="Love Coins balance"
               data-testid="love-coins-hero"
             >
-              <SprayCoins
-                isEnabled={isSignedIn && currentWallet.loveCoinsBalance > 0}
-                coinBalance={currentWallet.loveCoinsBalance}
-                onSpray={(count) => {
-                  void sprayLoveCoins(count);
-                }}
-              />
               <Floating className="shrink-0">
                 <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" priority />
               </Floating>
