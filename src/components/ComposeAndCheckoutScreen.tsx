@@ -61,10 +61,10 @@ const PROMISE_IDEAS = [
 ];
 
 const PRESET_AMOUNTS = [
-  { value: 10, label: '10 Coins' },
-  { value: 50, label: '50 Coins' },
   { value: 100, label: '100 Coins' },
   { value: 500, label: '500 Coins' },
+  { value: 1000, label: '1,000 Coins' },
+  { value: 5000, label: '5,000 Coins' },
 ];
 
 const storedValueToCoins = (amount: number) =>
@@ -201,7 +201,7 @@ export function ComposeAndCheckoutScreen({
       return false;
     }
     if (!amountValidation.valid) {
-      setFormError(amountValidation.error || 'Enter a gift amount between 10 and 10,000 Love Coins.');
+      setFormError(amountValidation.error || 'Enter a gift amount between 100 and 100,000 Love Coins.');
       return false;
     }
     setFormError(null);
