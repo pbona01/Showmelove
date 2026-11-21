@@ -42,7 +42,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#643528] dark:text-[#F5DDE7]">
             {canSpray
-              ? 'Swipe sideways across this card to launch 12–20 Love Coins with every spray.'
+              ? 'Swipe up or down across this card to launch 12–20 Love Coins with every spray.'
               : isSignedIn
                 ? 'Your Love Coin balance is empty. Add coins to start spraying.'
                 : 'Sign in to a demo account to unlock Love Coin Spray.'}

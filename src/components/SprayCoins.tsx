@@ -37,7 +37,6 @@ const PARTICLE_LIFETIME_MS = 1200;
 const GRAVITY_PX_PER_SECOND = 800;
 const DRAG_PER_FRAME = 0.98;
 const SPRAY_COOLDOWN_MS = 300;
-const MAX_COINS_PER_MINUTE = 50;
 const SWIPE_DISTANCE_PX = 48;
 const HINT_STORAGE_KEY = 'showmelove_spray_coins_hint_seen';
 
@@ -156,7 +155,6 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
   const activePointerRef = useRef<number | null>(null);
   const pointerHistoryRef = useRef<PointerSample[]>([]);
   const lastSprayAtRef = useRef(0);
-  const emittedAtRef = useRef<number[]>([]);
   const balanceRef = useRef(coinBalance);
   balanceRef.current = coinBalance;
 
@@ -183,10 +181,10 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
       const now = performance.now();
       if (!isEnabled || now - lastSprayAtRef.current < SPRAY_COOLDOWN_MS) return;
 
-      emittedAtRef.current = emittedAtRef.current.filter((time) => now - time < 60_000);
-      const minuteAllowance = MAX_COINS_PER_MINUTE - emittedAtRef.current.length;
       const desiredCount = Math.floor(randomBetween(12, 21));
-      const count = Math.min(desiredCount, minuteAllowance, balanceRef.current);
+      // Every valid swipe can use the remaining balance; the final swipe simply
+      // emits however many coins are left instead of imposing an artificial cap.
+      const count = Math.min(desiredCount, balanceRef.current);
       if (count <= 0) return;
 
       const first = history[0];
@@ -197,7 +195,6 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
       const velocityY = Math.max(-900, Math.min(900, (last.y - first.y) / elapsedSeconds));
 
       lastSprayAtRef.current = now;
-      emittedAtRef.current.push(...Array.from({ length: count }, () => now));
       if (!onSpray(count)) return;
       setAnnouncement(`${count} Love Coins sprayed. ${Math.max(0, balanceRef.current - count)} remaining.`);
       setShowHint(false);
@@ -282,7 +279,7 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
     if (!first || !last) return;
     const deltaX = last.x - first.x;
     const deltaY = last.y - first.y;
-    if (Math.abs(deltaX) >= SWIPE_DISTANCE_PX && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+    if (Math.abs(deltaY) >= SWIPE_DISTANCE_PX && Math.abs(deltaY) > Math.abs(deltaX) * 1.25) {
       emitSpray(history);
     }
   };
@@ -308,7 +305,7 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
         }
       }}
       data-testid="spray-coins-overlay"
-      aria-label={isEnabled ? 'Swipe horizontally to spray Love Coins' : undefined}
+      aria-label={isEnabled ? 'Swipe vertically to spray Love Coins' : undefined}
     >
       <AnimatePresence>
         {particles.map((particle) => (
@@ -326,7 +323,7 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
             className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#20111D]/72 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md whitespace-nowrap shadow-lg"
             data-testid="spray-coins-hint"
           >
-            Swipe sideways to spray Love Coins
+            Swipe up or down to spray Love Coins
           </motion.div>
         )}
       </AnimatePresence>

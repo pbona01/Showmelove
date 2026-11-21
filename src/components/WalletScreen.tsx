@@ -151,7 +151,7 @@ export function WalletScreen({
             </h2>
             <p className="mt-1 text-sm text-[#613023] dark:text-[#F7DDE6]">
               {isSignedIn
-                ? 'Open your spray room and launch 12–20 Love Coins with every swipe.'
+                ? 'Open your spray room and launch 12–20 Love Coins with every vertical swipe.'
                 : 'Open the spray room to sign in and unlock Love Coin Spray.'}
             </p>
           </div>
