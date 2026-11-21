@@ -28,9 +28,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
         <SprayCoins
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
-          onSpray={(count) => {
-            void sprayLoveCoins(count);
-          }}
+          onSpray={(count) => sprayLoveCoins(count).ok}
         />
 
         <div className="relative z-10 pointer-events-none flex min-h-[390px] flex-col items-center justify-center">

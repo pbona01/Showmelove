@@ -11,7 +11,7 @@ import { usePrefersReducedMotion } from '../lib/animation';
 export interface SprayCoinsProps {
   isEnabled: boolean;
   coinBalance: number;
-  onSpray: (count: number) => void;
+  onSpray: (count: number) => boolean;
 }
 
 interface PointerSample {
@@ -198,7 +198,7 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
 
       lastSprayAtRef.current = now;
       emittedAtRef.current.push(...Array.from({ length: count }, () => now));
-      onSpray(count);
+      if (!onSpray(count)) return;
       setAnnouncement(`${count} Love Coins sprayed. ${Math.max(0, balanceRef.current - count)} remaining.`);
       setShowHint(false);
 
@@ -234,8 +234,13 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isEnabled || !event.isPrimary || event.button !== 0) return;
+    if (
+      !isEnabled ||
+      !event.isPrimary ||
+      (event.pointerType === 'mouse' && event.button !== 0)
+    ) return;
     activePointerRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     const rect = event.currentTarget.getBoundingClientRect();
     pointerHistoryRef.current = [{
       x: event.clientX - rect.left,
@@ -268,6 +273,9 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
     ].slice(-8);
     activePointerRef.current = null;
     pointerHistoryRef.current = [];
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
 
     const first = history[0];
     const last = history.at(-1);
@@ -292,6 +300,9 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
         if (activePointerRef.current === event.pointerId) {
           activePointerRef.current = null;
           pointerHistoryRef.current = [];
+        }
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
         }
       }}
       data-testid="spray-coins-overlay"
