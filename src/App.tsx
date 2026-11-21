@@ -11,6 +11,7 @@ import { WithdrawScreen } from './components/WithdrawScreen';
 import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
+import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
@@ -33,6 +34,7 @@ type AppRoute =
   | { page: 'withdraw' }
   | { page: 'profile' }
   | { page: 'admin' }
+  | { page: 'spray-coins' }
   | { page: 'reveal'; giftId: string };
 
 function parseLocationRoute(): AppRoute {
@@ -71,6 +73,7 @@ function parseLocationRoute(): AppRoute {
   if (path === '/withdraw') return { page: 'withdraw' };
   if (path === '/profile' || path === '/settings') return { page: 'profile' };
   if (path === '/admin') return { page: 'admin' };
+  if (path === '/spray-coins') return { page: 'spray-coins' };
 
   return { page: 'home' };
 }
@@ -97,6 +100,8 @@ function routeToPath(route: AppRoute): string {
       return '/profile';
     case 'admin':
       return '/admin';
+    case 'spray-coins':
+      return '/spray-coins';
     case 'reveal':
       return `/gift/${encodeURIComponent(route.giftId)}`;
   }
@@ -387,6 +392,7 @@ function ShowmeloveShell() {
                 onTrySampleReveal={() =>
                   navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
                 }
+                onOpenSpray={() => navigate({ page: 'spray-coins' })}
               />
             )}
 
@@ -444,6 +450,10 @@ function ShowmeloveShell() {
             )}
 
             {route.page === 'admin' && <AdminScreen />}
+
+            {route.page === 'spray-coins' && (
+              <SprayCoinsScreen onBack={() => navigate({ page: 'home' })} />
+            )}
               </StaggerItem>
             </StaggerContainer>
           </PageTransition>

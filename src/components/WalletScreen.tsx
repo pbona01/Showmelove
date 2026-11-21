@@ -28,7 +28,6 @@ import {
 } from './GiftArtwork';
 import { Button, TransactionRow } from './ui/DesignSystem';
 import { Counter, Floating, TiltCard } from './ui/MotionPrimitives';
-import { SprayCoins } from './SprayCoins';
 
 interface WalletScreenProps {
   onOpenBalanceInfo: () => void;
@@ -38,6 +37,7 @@ interface WalletScreenProps {
   onOpenInbox: () => void;
   onOpenProfile?: () => void;
   onTrySampleReveal?: () => void;
+  onOpenSpray: () => void;
 }
 
 export function WalletScreen({
@@ -48,8 +48,9 @@ export function WalletScreen({
   onOpenInbox,
   onOpenProfile,
   onTrySampleReveal,
+  onOpenSpray,
 }: WalletScreenProps) {
-  const { state, currentWallet, switchRole, sprayLoveCoins } = useShowmelove();
+  const { state, currentWallet, switchRole } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
 
   const reducedMotion =
@@ -132,19 +133,14 @@ export function WalletScreen({
         </div>
       </div>
 
-      <section
-        className="relative overflow-hidden rounded-[28px] border border-[#F3B843]/45 bg-gradient-to-br from-[#FFEDB3] via-[#FFD6A6] to-[#F7A8CF] p-5 sm:p-6 shadow-[0_18px_42px_-24px_rgba(225,119,41,0.7)] dark:from-[#41281A] dark:via-[#55273F] dark:to-[#2E193E]"
+      <button
+        type="button"
+        onClick={onOpenSpray}
+        className="group relative w-full overflow-hidden rounded-[28px] border border-[#F3B843]/45 bg-gradient-to-br from-[#FFEDB3] via-[#FFD6A6] to-[#F7A8CF] p-5 text-left shadow-[0_18px_42px_-24px_rgba(225,119,41,0.7)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF2385] dark:from-[#41281A] dark:via-[#55273F] dark:to-[#2E193E] sm:p-6"
         aria-label="Love Coin Spray"
         data-testid="home-spray-coins"
       >
-        <SprayCoins
-          isEnabled={isSignedIn && currentWallet.loveCoinsBalance > 0}
-          coinBalance={currentWallet.loveCoinsBalance}
-          onSpray={(count) => {
-            void sprayLoveCoins(count);
-          }}
-        />
-        <div className="relative z-10 flex items-center justify-between gap-4 pointer-events-none">
+        <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/55 px-2.5 py-1 text-[11px] font-bold text-[#6A3A13] backdrop-blur-sm dark:bg-white/10 dark:text-[#FFE6A3]">
               <Sparkles className="h-3.5 w-3.5" />
@@ -155,8 +151,8 @@ export function WalletScreen({
             </h2>
             <p className="mt-1 text-sm text-[#613023] dark:text-[#F7DDE6]">
               {isSignedIn
-                ? 'Swipe sideways anywhere on this card to spray 12–20 Love Coins.'
-                : 'Sign in with a demo account to unlock Love Coin Spray.'}
+                ? 'Open your spray room and launch 12–20 Love Coins with every swipe.'
+                : 'Open the spray room to sign in and unlock Love Coin Spray.'}
             </p>
           </div>
           <div className="shrink-0 rounded-2xl bg-white/55 px-3 py-2 text-right text-[#4C2517] backdrop-blur-sm dark:bg-black/20 dark:text-white">
@@ -167,7 +163,10 @@ export function WalletScreen({
             <p className="text-[10px] font-semibold">Coins</p>
           </div>
         </div>
-      </section>
+        <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#613023] dark:text-[#FFE4A6]">
+          Open Spray Room <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </button>
 
       {!isSignedIn ? (
         <section className="apple-card rounded-[28px] p-6 sm:p-7 space-y-5">
