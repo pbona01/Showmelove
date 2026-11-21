@@ -306,7 +306,7 @@ export function WithdrawScreen({
                       Amount
                     </label>
                     <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-4 py-2 focus-within:border-[#E10B5C] dark:focus-within:border-[#FF2A85] focus-within:ring-2 focus-within:ring-[#E10B5C]/25">
-                      <span className="text-lg font-bold text-[var(--text-primary)]">₦</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">LC</span>
                       <input
                         id="withdraw-amount"
                         type="number"
@@ -356,7 +356,7 @@ export function WithdrawScreen({
                       </span>
                       <span className="font-semibold tabular-nums text-[var(--text-primary)]">
                         {summary.payoutFeeNaira === 0
-                          ? 'Free (₦0)'
+                          ? 'Free (0 Love Coins)'
                           : `-${formatNaira(summary.payoutFeeNaira)}`}
                       </span>
                     </div>

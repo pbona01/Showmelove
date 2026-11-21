@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import {
   ECONOMY_CONFIG,
   formatCoinCount,
-  formatNaira,
 } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { GiftArtworkSvg, ShowmeloveMascotSvg } from './GiftArtwork';
@@ -48,7 +47,7 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 lg:gap-10 items-center">
           <div className="lg:col-span-7 space-y-5">
             <p className="text-xs font-medium text-[var(--text-secondary)]">
-              Animated gifts · Personal voice notes · Nigerian bank payouts · Guest checkout available
+              Animated gifts · Personal voice notes · Love Coin rewards · Guest checkout available
             </p>
 
             <h1 className="text-4xl sm:text-5xl lg:text-[3.35rem] font-bold tracking-tight text-[var(--text-primary)] leading-[1.05] text-balance">
@@ -56,7 +55,7 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
             </h1>
 
             <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-xl leading-relaxed">
-              Pick an animated gift, write a Digital Promise Card, and record a voice note. Share one link on WhatsApp—watch your gift come to life and let them withdraw the naira rewards.
+              Pick an animated gift, write a Digital Promise Card, and record a voice note. Share one link on WhatsApp—watch your gift come to life and let them redeem their Love Coin rewards.
             </p>
 
             {/* Primary CTA first, Sample Reveal second */}
@@ -84,7 +83,7 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
             </div>
 
             <p className="text-xs text-[var(--text-secondary)] tabular-nums">
-              1 Love Coin = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)} · {feePercent}% demo platform fee · No account needed to send
+              All values use Love Coins · {feePercent}% demo platform fee · No account needed to send
             </p>
           </div>
 
@@ -123,9 +122,6 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold tabular-nums text-[#DF0756] dark:text-[#FF7AA8]">
                       {formatCoinCount(featuredGift.defaultPriceNaira)}
-                    </p>
-                    <p className="text-xs tabular-nums text-[#6F6478] dark:text-[#DFC8DD]">
-                      {formatNaira(featuredGift.defaultPriceNaira)}
                     </p>
                   </div>
                 </div>

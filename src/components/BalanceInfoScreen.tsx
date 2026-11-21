@@ -86,9 +86,9 @@ export function BalanceInfoScreen({
         <div className="apple-card rounded-[28px] p-5 sm:p-6 space-y-5">
           <div className="divide-y divide-[var(--border-subtle)] text-sm sm:text-base">
             <div className="pb-3.5 flex items-center justify-between gap-4">
-              <span className="text-[var(--text-secondary)]">1 Love Coin</span>
+              <span className="text-[var(--text-secondary)]">App balance</span>
               <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)}
+                Love Coins only
               </span>
             </div>
 

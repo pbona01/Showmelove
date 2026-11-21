@@ -116,7 +116,7 @@ export function AdminScreen() {
                     htmlFor={`admin-price-${item.id}`}
                     className="block text-xs text-[var(--text-secondary)] mb-1"
                   >
-                    Default price (₦)
+                    Default price (Love Coins)
                   </label>
                   <input
                     id={`admin-price-${item.id}`}

@@ -80,7 +80,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
 
       setStatus('success');
       setStatusMessage(
-        `Added ${formatCoinCount(activeCoins)} (${formatNaira(activeCostNaira)} simulated) to your wallet.`,
+        `Added ${formatNaira(activeCostNaira)} to your wallet.`,
       );
       setCoinTrailKey((k) => k + 1);
     }, 360);
@@ -141,7 +141,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
               Get more Love Coin and spread more love
             </p>
             <p className="text-xs text-[#6B5F78] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
-              1 Love Coin = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)} · Simulated checkout
+              Love Coins are the only balance used in Showmelove · Simulated checkout
             </p>
           </div>
         </div>
@@ -221,7 +221,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
                           }
                           setStatus('success');
                           setStatusMessage(
-                            `Added ${formatCoinCount(pkg.coins)} (${formatNaira(pkg.priceNaira)} simulated) to your wallet.`,
+                            `Added ${formatNaira(pkg.priceNaira)} to your wallet.`,
                           );
                           setCoinTrailKey((k) => k + 1);
                         }, 320);
@@ -306,9 +306,9 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">Rate</span>
+              <span className="text-[var(--text-secondary)]">Balance unit</span>
               <span className="tabular-nums text-[var(--text-primary)]">
-                1 Coin = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)}
+                Love Coins
               </span>
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">

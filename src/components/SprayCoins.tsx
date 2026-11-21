@@ -32,7 +32,7 @@ interface CoinParticle {
 }
 
 const COIN_ASSET =
-  '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.png';
+  '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.webp';
 const PARTICLE_LIFETIME_MS = 1200;
 const GRAVITY_PX_PER_SECOND = 800;
 const DRAG_PER_FRAME = 0.98;
@@ -105,6 +105,10 @@ function CoinParticleView({
         ref={imageRef}
         src={COIN_ASSET}
         alt=""
+        width={36}
+        height={36}
+        loading="eager"
+        decoding="async"
         draggable={false}
         className="absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 object-contain mix-blend-screen select-none"
         style={{

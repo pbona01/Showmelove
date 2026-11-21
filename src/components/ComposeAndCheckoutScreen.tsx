@@ -61,11 +61,16 @@ const PROMISE_IDEAS = [
 ];
 
 const PRESET_AMOUNTS = [
-  { value: 100, label: '₦100' },
-  { value: 500, label: '₦500' },
-  { value: 1000, label: '₦1,000' },
-  { value: 5000, label: '₦5,000' },
+  { value: 10, label: '10 Coins' },
+  { value: 50, label: '50 Coins' },
+  { value: 100, label: '100 Coins' },
+  { value: 500, label: '500 Coins' },
 ];
+
+const storedValueToCoins = (amount: number) =>
+  amount / ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN;
+const coinsToStoredValue = (coins: number) =>
+  coins * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN;
 
 type ComposerStep = 'choose' | 'personalize' | 'review';
 type CheckoutProcessingState = 'idle' | 'processing' | 'failed';
@@ -101,9 +106,13 @@ export function ComposeAndCheckoutScreen({
     useState<PromiseCardStyle>('silk-crimson');
   const [messageText, setMessageText] = useState('');
   const [emote] = useState<EmoteOption>('party-confetti');
-  const [amountInput, setAmountInput] = useState(String(defaultGift.defaultPriceNaira));
+  const [amountInput, setAmountInput] = useState(
+    String(storedValueToCoins(defaultGift.defaultPriceNaira)),
+  );
   const [showCustomAmount, setShowCustomAmount] = useState(
-    !PRESET_AMOUNTS.some((p) => p.value === defaultGift.defaultPriceNaira),
+    !PRESET_AMOUNTS.some(
+      (p) => p.value === storedValueToCoins(defaultGift.defaultPriceNaira),
+    ),
   );
   const [voiceNote, setVoiceNote] = useState<VoiceNoteValue>({ source: 'none' });
 
@@ -160,7 +169,7 @@ export function ComposeAndCheckoutScreen({
     };
   }, []);
 
-  const parsedAmount = Number(amountInput);
+  const parsedAmount = coinsToStoredValue(Number(amountInput));
   const amountValidation = validateGiftAmount(parsedAmount);
   const summary = useMemo(
     () => calculateCheckoutSummary(amountValidation.valid ? amountValidation.normalized : 0),
@@ -179,8 +188,9 @@ export function ComposeAndCheckoutScreen({
     setSelectedCatalogId(giftId);
     const found = state.catalog.find((g) => g.id === giftId);
     if (found) {
-      setAmountInput(String(found.defaultPriceNaira));
-      setShowCustomAmount(!PRESET_AMOUNTS.some((p) => p.value === found.defaultPriceNaira));
+      const defaultCoinAmount = storedValueToCoins(found.defaultPriceNaira);
+      setAmountInput(String(defaultCoinAmount));
+      setShowCustomAmount(!PRESET_AMOUNTS.some((p) => p.value === defaultCoinAmount));
     }
     setFormError(null);
   };
@@ -191,7 +201,7 @@ export function ComposeAndCheckoutScreen({
       return false;
     }
     if (!amountValidation.valid) {
-      setFormError(amountValidation.error || 'Enter a gift amount between ₦100 and ₦100,000.');
+      setFormError(amountValidation.error || 'Enter a gift amount between 10 and 10,000 Love Coins.');
       return false;
     }
     setFormError(null);
@@ -522,7 +532,7 @@ export function ComposeAndCheckoutScreen({
                 Choose a gift
               </h1>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-                Pick an animated gift and set its real Naira value.
+                Pick an animated gift and set its Love Coin value.
               </p>
             </div>
 
@@ -595,11 +605,11 @@ export function ComposeAndCheckoutScreen({
               {showCustomAmount && (
                 <InputField
                   id="custom-amount-input"
-                  label="Custom amount (₦)"
+                  label="Custom Love Coin amount"
                   type="number"
-                  min={ECONOMY_CONFIG.MIN_GIFT_NAIRA}
-                  max={ECONOMY_CONFIG.MAX_GIFT_NAIRA}
-                  step={100}
+                  min={storedValueToCoins(ECONOMY_CONFIG.MIN_GIFT_NAIRA)}
+                  max={storedValueToCoins(ECONOMY_CONFIG.MAX_GIFT_NAIRA)}
+                  step={1}
                   value={amountInput}
                   onChange={(e) => {
                     setAmountInput(e.target.value);

@@ -192,7 +192,7 @@ export function WalletScreen({
                 }}
               />
               <Floating className="shrink-0">
-                <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" />
+                <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" priority />
               </Floating>
 
               <div className="flex-1 min-w-0 text-right sm:text-left sm:pl-2">
@@ -207,7 +207,7 @@ export function WalletScreen({
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#5E2846] dark:text-[#EBC4DC]">
                   <GoldLoveCoinSvg className="w-4 h-4 shrink-0" />
-                  <span>1 Coin = {formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)}</span>
+                  <span>Spendable across every Showmelove gift</span>
                 </div>
               </div>
             </section>
@@ -300,7 +300,7 @@ export function WalletScreen({
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/75 dark:bg-white/14 text-xs font-semibold text-[#087F56] dark:text-[#24C888]">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>
-                        {canWithdrawNow ? 'Can be withdrawn' : 'Below ₦100 minimum'}
+                        {canWithdrawNow ? 'Can be redeemed' : 'Below 100 Love Coins minimum'}
                       </span>
                     </span>
                     {currentWallet.reservedEarningsNaira > 0 && (

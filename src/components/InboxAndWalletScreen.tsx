@@ -105,7 +105,7 @@ export function InboxAndWalletScreen({
             Your Gifts
           </h1>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-            Open animated gifts, claim naira rewards, and track sent gift links.
+            Open animated gifts, claim Love Coin rewards, and track sent gift links.
           </p>
         </div>
         {isSignedIn && (

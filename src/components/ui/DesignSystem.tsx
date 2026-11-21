@@ -6,7 +6,7 @@ import {
 } from 'react';
 import { AnimatePresence, motion, type HTMLMotionProps } from 'motion/react';
 import { Check, Heart, Monitor, Moon, Sparkles, Sun, X } from 'lucide-react';
-import { ECONOMY_CONFIG, formatCoinCount, formatNaira } from '../../config/economy';
+import { ECONOMY_CONFIG, formatNaira } from '../../config/economy';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
 import type { GiftCatalogItem, PromiseCardStyle } from '../../types/showmelove';
 import { GiftArtworkSvg, GoldLoveCoinSvg } from '../GiftArtwork';
@@ -113,7 +113,6 @@ export function PriceLabel({
   size?: 'sm' | 'md' | 'lg';
   accent?: boolean;
 }) {
-  const coins = Math.ceil(amountNaira / ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN);
   const priceSize =
     size === 'lg'
       ? 'text-2xl sm:text-3xl'
@@ -134,7 +133,7 @@ export function PriceLabel({
       </span>
       {showCoins && (
         <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-          {formatCoinCount(coins)}
+          Showmelove balance
         </span>
       )}
     </div>
@@ -301,7 +300,7 @@ export function TactileGiftCard({
         </motion.div>
       </div>
 
-      {/* Crisp Title + Coin/Naira Value */}
+      {/* Crisp title + Love Coin value */}
       <div className="mt-2 space-y-0.5">
         <h3
           className={`font-bold text-[var(--text-primary)] leading-tight truncate ${
@@ -317,7 +316,7 @@ export function TactileGiftCard({
               <span className="font-semibold text-[var(--text-primary)]">
                 {coinsRequired.toLocaleString('en-NG')}
               </span>
-              <span>· {formatNaira(item.defaultPriceNaira)}</span>
+              <span>{coinsRequired === 1 ? 'Love Coin' : 'Love Coins'}</span>
             </>
           ) : (
             <span className="font-semibold text-[var(--text-primary)]">

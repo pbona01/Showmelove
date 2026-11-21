@@ -25,8 +25,8 @@ export const ECONOMY_CONFIG = {
   MAX_COIN_PURCHASE: 500_000,
   /** Maximum voice note recording length in seconds */
   MAX_VOICE_NOTE_SECONDS: 30,
-  /** Currency symbol */
-  CURRENCY_SYMBOL: '₦',
+  /** User-facing balance unit. Stored field names remain unchanged for API compatibility. */
+  CURRENCY_SYMBOL: 'LC',
 } as const;
 
 export interface CoinPackage {
@@ -67,8 +67,9 @@ export interface WithdrawalSummary {
 }
 
 export function formatNaira(amount: number): string {
-  const safe = Number.isFinite(amount) ? Math.round(amount) : 0;
-  return `${ECONOMY_CONFIG.CURRENCY_SYMBOL}${safe.toLocaleString('en-NG')}`;
+  const storedValue = Number.isFinite(amount) ? Math.round(amount) : 0;
+  const coins = Math.ceil(storedValue / ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN);
+  return formatCoins(coins);
 }
 
 export function formatCoins(coins: number): string {
@@ -130,7 +131,7 @@ export function calculateCheckoutSummary(giftAmountNaira: number): CheckoutSumma
     platformFeePercent,
     creatorSharePercent,
     feePercentLabel: `${feePctStr}% demo fee`,
-    conversionLabel: `1 Love Coin = ${formatNaira(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN)}`,
+    conversionLabel: 'All gift values are shown in Love Coins',
   };
 }
 

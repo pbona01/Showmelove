@@ -13,6 +13,42 @@ export const SHOWMELOVE_ASSETS = {
   } as Record<GiftArtworkId, string>,
 } as const;
 
+function webpSource(src: string): string {
+  return src.replace(/\.png$/i, '.webp');
+}
+
+function OptimizedAssetImage({
+  src,
+  alt,
+  className,
+  priority = false,
+  onError,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+  priority?: boolean;
+  onError: () => void;
+}) {
+  return (
+    <picture className="contents">
+      <source srcSet={webpSource(src)} type="image/webp" />
+      <img
+        src={src}
+        alt={alt}
+        width={512}
+        height={512}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
+        draggable={false}
+        onError={onError}
+        className={className}
+      />
+    </picture>
+  );
+}
+
 const GIFT_ALT_TEXT: Record<GiftArtworkId, string> = {
   'little-heart': 'Glassy pink heart gift with ribbon and sparkles',
   rose: 'Lush dewy red rose gift',
@@ -64,20 +100,21 @@ function FallbackCoinSvg({ className }: { className: string }) {
 export function LoveCoinHeartSvg({
   className = 'w-16 h-16',
   alt = 'Showmelove heart mascot holding a Love Coin',
+  priority = false,
 }: {
   className?: string;
   alt?: string;
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <FallbackHeartSvg className={className} />;
   return (
-    <img
+    <OptimizedAssetImage
       src={SHOWMELOVE_ASSETS.heartMascot}
       alt={alt}
-      referrerPolicy="no-referrer"
-      draggable={false}
       onError={() => setFailed(true)}
       className={`object-contain select-none asset-drop-shadow ${className}`}
+      priority={priority}
     />
   );
 }
@@ -89,20 +126,21 @@ export function LoveCoinHeartSvg({
 export function PurpleGiftBoxSvg({
   className = 'w-16 h-16',
   alt = 'Purple Gifted Rewards box with sparkling heart emblem',
+  priority = false,
 }: {
   className?: string;
   alt?: string;
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <FallbackBoxSvg className={className} />;
   return (
-    <img
+    <OptimizedAssetImage
       src={SHOWMELOVE_ASSETS.purpleRewardsBox}
       alt={alt}
-      referrerPolicy="no-referrer"
-      draggable={false}
       onError={() => setFailed(true)}
       className={`object-contain select-none asset-drop-shadow ${className}`}
+      priority={priority}
     />
   );
 }
@@ -114,20 +152,21 @@ export function PurpleGiftBoxSvg({
 export function GoldLoveCoinSvg({
   className = 'w-9 h-9',
   alt = 'Gold Love Coin',
+  priority = false,
 }: {
   className?: string;
   alt?: string;
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <FallbackCoinSvg className={className} />;
   return (
-    <img
+    <OptimizedAssetImage
       src={SHOWMELOVE_ASSETS.goldLoveCoin}
       alt={alt}
-      referrerPolicy="no-referrer"
-      draggable={false}
       onError={() => setFailed(true)}
       className={`object-contain select-none ${className}`}
+      priority={priority}
     />
   );
 }
@@ -137,14 +176,17 @@ export function GoldLoveCoinSvg({
  */
 export function ShowmeloveMascotSvg({
   className = 'w-44 h-44',
+  priority = false,
 }: {
   className?: string;
   holdingGift?: boolean;
+  priority?: boolean;
 }) {
   return (
     <LoveCoinHeartSvg
       className={className}
       alt="Showmelove smiling pink heart mascot"
+      priority={priority}
     />
   );
 }
@@ -156,9 +198,11 @@ export function ShowmeloveMascotSvg({
 export function GiftArtworkSvg({
   artworkId,
   className = 'w-20 h-20',
+  priority = false,
 }: {
   artworkId: GiftArtworkId;
   className?: string;
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const src = SHOWMELOVE_ASSETS.gifts[artworkId] ?? SHOWMELOVE_ASSETS.gifts['gift-box'];
@@ -172,13 +216,12 @@ export function GiftArtworkSvg({
   }
 
   return (
-    <img
+    <OptimizedAssetImage
       src={src}
       alt={GIFT_ALT_TEXT[artworkId] ?? 'Animated gift artwork'}
-      referrerPolicy="no-referrer"
-      draggable={false}
       onError={() => setFailed(true)}
       className={`object-contain select-none asset-drop-shadow ${className}`}
+      priority={priority}
     />
   );
 }

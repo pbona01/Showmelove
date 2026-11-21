@@ -271,7 +271,7 @@ function ShowmeloveShell() {
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
             <SharedLayout id="showmelove-brand-mark" className="shrink-0">
-              <LoveCoinHeartSvg className="w-7 h-7" />
+              <LoveCoinHeartSvg className="w-7 h-7" priority />
             </SharedLayout>
             <span>
               Showme
