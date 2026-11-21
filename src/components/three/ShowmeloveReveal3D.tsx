@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { GiftAnimationType, GiftArtworkId } from '../../types/showmelove';
+import { backOut, giftRevealTimeline, smootherstep } from '../../lib/animation';
 
 export function detectWebGlSupport(): { supported: boolean; isSoftwareGl: boolean } {
   if (typeof document === 'undefined') {
@@ -686,8 +687,8 @@ function MascotAndGiftRig({
   }, [playKey]);
 
   useEffect(() => {
-    if (skipped && animTimeRef.current < 5.3) {
-      animTimeRef.current = 5.3;
+    if (skipped && animTimeRef.current < giftRevealTimeline.totalDuration) {
+      animTimeRef.current = giftRevealTimeline.totalDuration;
       payoffProgressRef.current = 1;
       payoffFiredRef.current = true;
       completeFiredRef.current = true;
@@ -706,10 +707,13 @@ function MascotAndGiftRig({
     animTimeRef.current += step;
     const elapsed = animTimeRef.current;
 
-    // 5.4s TikTok Live Gift Handoff Choreography:
-    // 0.00 - 0.85s: Mascot glides & pops into view carrying the gift between both hands
-    const enterT = THREE.MathUtils.clamp(elapsed / 0.85, 0, 1);
-    const enterEase = easeOutBack(enterT);
+    // Shared 2.6s cinematic timeline (kept in sync with the DOM fallback).
+    const enterT = THREE.MathUtils.clamp(
+      (elapsed - giftRevealTimeline.sealedBox.start) / giftRevealTimeline.sealedBox.duration,
+      0,
+      1,
+    );
+    const enterEase = smootherstep(0, 1, enterT);
 
     // Expressive blink at 0.42s - 0.60s and again at 3.20s - 3.36s
     const blink1 =
@@ -722,25 +726,34 @@ function MascotAndGiftRig({
         : 0;
     const eyeScaleY = Math.max(0.08, 1 - Math.max(blink1, blink2) * 0.92);
 
-    // 0.85 - 2.05s: Mascot leans forward & extends both arms holding the gift out
-    const reachT = THREE.MathUtils.clamp((elapsed - 0.85) / 1.2, 0, 1);
+    const reachT = THREE.MathUtils.clamp(
+      (elapsed - giftRevealTimeline.lidOpen.start) / giftRevealTimeline.lidOpen.duration,
+      0,
+      1,
+    );
     const reachEase = easeOutCubic(reachT);
 
-    // 2.05 - 2.90s: Mascot releases the gift cleanly forward into hero focus
-    const releaseT = THREE.MathUtils.clamp((elapsed - 2.05) / 0.85, 0, 1);
-    const releaseEase = easeOutBack(releaseT);
+    const releaseT = THREE.MathUtils.clamp(
+      (elapsed - giftRevealTimeline.giftRise.start) / giftRevealTimeline.giftRise.duration,
+      0,
+      1,
+    );
+    const releaseEase = backOut(releaseT);
 
-    // 2.90 - 4.95s: Gift-specific payoff unfolds across ~2.05s
-    const payoffT = THREE.MathUtils.clamp((elapsed - 2.9) / 2.05, 0, 1);
+    const payoffT = THREE.MathUtils.clamp(
+      (elapsed - giftRevealTimeline.lidOpen.start) /
+        (giftRevealTimeline.particleBurst.start + giftRevealTimeline.particleBurst.duration - giftRevealTimeline.lidOpen.start),
+      0,
+      1,
+    );
     payoffProgressRef.current = payoffT;
 
-    if (elapsed >= 2.9 && !payoffFiredRef.current) {
+    if (elapsed >= giftRevealTimeline.particleBurst.start && !payoffFiredRef.current) {
       payoffFiredRef.current = true;
       onPayoffStart();
     }
 
-    // 4.95 - 5.40s: Smooth settle & Promise Card reveal
-    if (elapsed >= 5.3 && !completeFiredRef.current) {
+    if (elapsed >= giftRevealTimeline.totalDuration && !completeFiredRef.current) {
       completeFiredRef.current = true;
       onRevealComplete();
     }
@@ -819,7 +832,11 @@ function MascotAndGiftRig({
     }
 
     if (auraRingRef.current) {
-      const ringProgress = THREE.MathUtils.clamp((elapsed - 2.86) / 0.8, 0, 1);
+      const ringProgress = THREE.MathUtils.clamp(
+        (elapsed - giftRevealTimeline.particleBurst.start) / giftRevealTimeline.particleBurst.duration,
+        0,
+        1,
+      );
       auraRingRef.current.visible = ringProgress > 0 && ringProgress < 1;
       const ringScale = 0.35 + easeOutCubic(ringProgress) * 1.65;
       auraRingRef.current.scale.setScalar(ringScale);
@@ -985,7 +1002,7 @@ export function ShowmeloveReveal3D({
       <div className="w-full h-full relative" data-testid="reveal-3d-canvas">
         <Canvas
           frameloop={webgl.isSoftwareGl ? 'demand' : 'always'}
-          dpr={webgl.isSoftwareGl ? 1 : [1, 2]}
+          dpr={webgl.isSoftwareGl ? 1 : [1, 1.5]}
           shadows={!webgl.isSoftwareGl}
           camera={{ position: [0, 0.15, 5.85], fov: 40, near: 0.1, far: 40 }}
           gl={{

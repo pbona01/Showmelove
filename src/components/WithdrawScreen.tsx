@@ -23,6 +23,7 @@ import { useShowmelove } from '../context/ShowmeloveContext';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
 import { PurpleGiftBoxSvg } from './GiftArtwork';
 import { BottomSheet, Button, InputField } from './ui/DesignSystem';
+import { Counter, ProgressRing } from './ui/MotionPrimitives';
 
 interface WithdrawScreenProps {
   onBack: () => void;
@@ -252,7 +253,9 @@ export function WithdrawScreen({
                   className="rounded-2xl bg-[#E6F6EF] dark:bg-[#0D3326] border border-[#087F56]/30 dark:border-[#24C888]/35 p-4 space-y-2"
                 >
                   <div className="flex items-center gap-2 text-[#087F56] dark:text-[#24C888] font-bold text-sm">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <motion.span initial={{ scale: 0, rotate: -24 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 280, damping: 18 }}>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    </motion.span>
                     <span>Withdrawal submitted (Pending)</span>
                   </div>
                   <p className="text-xs text-[var(--text-primary)] leading-relaxed">
@@ -343,7 +346,7 @@ export function WithdrawScreen({
                         <span>Withdrawal amount</span>
                       </span>
                       <span className="font-semibold tabular-nums text-[var(--text-primary)]">
-                        {formatNaira(summary.grossAmountNaira)}
+                        <Counter value={summary.grossAmountNaira} formatter={formatNaira} />
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
@@ -476,7 +479,7 @@ export function WithdrawScreen({
                       <span className="inline-flex items-center gap-1 text-xs font-semibold">
                         {payout.status === 'pending' && (
                           <>
-                            <Clock className="w-3.5 h-3.5 text-amber-500" />
+                            <ProgressRing value={0.5} size={22} strokeWidth={3} label="Payout pending" />
                             <span className="text-[var(--text-primary)]">Pending</span>
                           </>
                         )}

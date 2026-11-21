@@ -43,6 +43,8 @@ import {
   PromisePaperCard,
   TactileGiftCard,
 } from './ui/DesignSystem';
+import { ProgressRing } from './ui/MotionPrimitives';
+import { springs, usePrefersReducedMotion } from '../lib/animation';
 
 interface ComposeAndCheckoutScreenProps {
   initialGiftCatalogId?: string;
@@ -74,6 +76,7 @@ export function ComposeAndCheckoutScreen({
   onOpenGiftLink,
   onGoToCoins,
 }: ComposeAndCheckoutScreenProps) {
+  const prefersReduced = usePrefersReducedMotion();
   const { state, currentWallet, submitCheckout } = useShowmelove();
 
   const availableGifts = state.catalog.filter((g) => g.available);
@@ -476,15 +479,22 @@ export function ComposeAndCheckoutScreen({
                 onClick={() => {
                   if (canClick) setStep(s.id);
                 }}
-                className={`min-h-[36px] px-2 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`relative min-h-[36px] px-2 py-1.5 rounded-xl text-[11px] sm:text-xs font-semibold whitespace-nowrap ${
                   active
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/20 dark:ring-[#FF2385]/35'
+                    ? 'text-[var(--text-primary)]'
                     : canClick
                       ? 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer'
                       : 'text-[var(--text-secondary)]/50 cursor-default'
                 }`}
               >
-                {s.num}. {s.label}
+                {active && (
+                  <motion.span
+                    layoutId={prefersReduced ? undefined : 'composer-step-active'}
+                    className="absolute inset-0 rounded-xl bg-[var(--bg-card)] shadow-sm ring-1 ring-[#FF2385]/20 dark:ring-[#FF2385]/35"
+                    transition={springs.springSnappy}
+                  />
+                )}
+                <span className="relative z-10">{s.num}. {s.label}</span>
               </button>
             );
           })}
@@ -1077,6 +1087,9 @@ export function ComposeAndCheckoutScreen({
               onClick={handleSimulateSuccess}
               data-testid="fw-demo-success-btn"
             >
+              {fwStatus === 'processing' && (
+                <ProgressRing value={0.72} size={24} strokeWidth={3} label="Processing payment" />
+              )}
               {fwStatus === 'processing'
                 ? 'Processing payment…'
                 : paymentSource === 'coin_balance' && isSignedIn

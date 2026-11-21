@@ -6,6 +6,7 @@ import {
 } from '../config/economy';
 import { LoveCoinHeartSvg, PurpleGiftBoxSvg } from './GiftArtwork';
 import { Button } from './ui/DesignSystem';
+import { Reveal } from './ui/MotionPrimitives';
 
 interface BalanceInfoScreenProps {
   onBack: () => void;
@@ -21,7 +22,7 @@ export function BalanceInfoScreen({
   const sampleBreakdown = calculateCheckoutSummary(1000);
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 space-y-6">
+    <Reveal type="slide-up" className="max-w-3xl mx-auto pb-12 space-y-6">
       {/* Top Bar */}
       <div className="flex items-center gap-3">
         <button
@@ -137,6 +138,6 @@ export function BalanceInfoScreen({
           Withdraw Rewards
         </Button>
       </div>
-    </div>
+    </Reveal>
   );
 }

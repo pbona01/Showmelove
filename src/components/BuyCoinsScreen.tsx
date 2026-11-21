@@ -16,6 +16,8 @@ import {
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { GoldLoveCoinSvg, PurpleGiftBoxSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
+import { Counter, Pulse } from './ui/MotionPrimitives';
+import { usePrefersReducedMotion } from '../lib/animation';
 
 interface BuyCoinsScreenProps {
   onBack: () => void;
@@ -35,9 +37,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [coinTrailKey, setCoinTrailKey] = useState(0);
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
 
   const activeCoins = isCustomMode ? Math.round(Number(customCoinsInput) || 0) : selectedCoins;
   const activeCostNaira = Math.max(0, activeCoins * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN);
@@ -302,7 +302,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
             <div className="flex items-center justify-between gap-2">
               <span className="text-[var(--text-secondary)]">Package</span>
               <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                {formatCoinCount(Math.max(0, activeCoins))}
+                <Counter value={Math.max(0, activeCoins)} formatter={formatCoinCount} />
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -355,6 +355,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
           )}
 
           <div className="space-y-2 pt-1">
+            <Pulse className="w-full">
             <Button
               variant="primary"
               size="lg"
@@ -374,6 +375,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
                 </span>
               )}
             </Button>
+            </Pulse>
 
             <Button
               variant="ghost"

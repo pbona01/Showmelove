@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Check,
@@ -34,6 +34,12 @@ import {
   fireGiftPayoffBurst,
   stopAllConfetti,
 } from '../utils/confettiEffects';
+import { RevealFallback2D } from './RevealFallback2D';
+import { giftRevealTimeline, usePrefersReducedMotion } from '../lib/animation';
+
+const LazyShowmeloveReveal3D = lazy(() =>
+  import('./three/ShowmeloveReveal3D').then((module) => ({ default: module.ShowmeloveReveal3D })),
+);
 
 interface GiftRevealExperienceProps {
   gift: SentGift;
@@ -108,11 +114,10 @@ export function GiftRevealExperience({
   const payoffTimerRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
   const mutedRef = useRef(muted);
+  const payoffHandledRef = useRef(false);
   mutedRef.current = muted;
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
 
   const latestGift = getGiftById(gift.id) ?? gift;
   const isClaimed = Boolean(latestGift.claimedAt);
@@ -306,36 +311,43 @@ export function GiftRevealExperience({
     state.signedInEmail,
   ]);
 
+  const activatePayoff = useCallback(() => {
+    if (payoffHandledRef.current) return;
+    payoffHandledRef.current = true;
+    setPayoffActive(true);
+    setRewardFlyActive(true);
+    if (!reducedMotion) {
+      playSoftPayoffChime(mutedRef.current);
+      fireGiftPayoffBurst(gift.snapshot.themeColor);
+    }
+    autoClaimOnOpenIfEligible();
+  }, [autoClaimOnOpenIfEligible, gift.snapshot.themeColor, reducedMotion]);
+
   const triggerRevealChoreography = useCallback(() => {
     clearRevealTimers();
+    payoffHandledRef.current = false;
     setPayoffActive(false);
     setRewardFlyActive(false);
     setStage('revealing');
     setPlayKey((k) => k + 1);
 
     if (reducedMotion) {
-      setPayoffActive(true);
-      setRewardFlyActive(true);
-      autoClaimOnOpenIfEligible();
+      activatePayoff();
       setStage('revealed');
       return;
     }
 
-    payoffTimerRef.current = window.setTimeout(() => {
-      setPayoffActive(true);
-      setRewardFlyActive(true);
-      playSoftPayoffChime(mutedRef.current);
-      fireGiftPayoffBurst(gift.snapshot.themeColor);
-      autoClaimOnOpenIfEligible();
-    }, 480);
+    payoffTimerRef.current = window.setTimeout(
+      activatePayoff,
+      giftRevealTimeline.particleBurst.start * 1000,
+    );
 
     settleTimerRef.current = window.setTimeout(() => {
       setStage('revealed');
-    }, 1450);
+    }, (giftRevealTimeline.promiseCard.start + giftRevealTimeline.promiseCard.duration) * 1000);
   }, [
-    autoClaimOnOpenIfEligible,
+    activatePayoff,
     clearRevealTimers,
-    gift.snapshot.themeColor,
     reducedMotion,
   ]);
 
@@ -352,14 +364,7 @@ export function GiftRevealExperience({
 
   const handleSkip = () => {
     clearRevealTimers();
-    if (!payoffActive) {
-      setPayoffActive(true);
-      setRewardFlyActive(true);
-      if (!reducedMotion) {
-        fireGiftPayoffBurst(gift.snapshot.themeColor);
-      }
-      autoClaimOnOpenIfEligible();
-    }
+    activatePayoff();
     setStage('revealed');
   };
 
@@ -449,16 +454,6 @@ export function GiftRevealExperience({
 
   const audioProgressPct =
     audioDuration > 0 ? Math.min(100, (audioCurrentTime / audioDuration) * 100) : 0;
-
-  const giftChoreography = reducedMotion
-    ? { scale: 1, y: 0, rotate: 0 }
-    : gift.snapshot.animationType === 'pulse'
-      ? { scale: [0.4, 1.15, 0.98, 1.06, 1], y: [20, -10, 0, -4, 0] }
-      : gift.snapshot.animationType === 'bloom'
-        ? { scale: [0.35, 1.12, 1.02], rotate: [-12, 6, 0], y: [24, -8, 0] }
-        : gift.snapshot.animationType === 'wave'
-          ? { scale: [0.4, 1.1, 1.01], rotate: [0, -7, 7, -3, 0], y: [20, -8, 0] }
-          : { scale: [0.38, 1.16, 0.96, 1.04], y: [24, -12, 0, -4] };
 
   return (
     <div
@@ -820,57 +815,42 @@ export function GiftRevealExperience({
                     </motion.span>
                   ))}
 
-                {/* Mascot Handing Over Transparent Gift */}
-                <div className="relative z-10 flex items-center justify-center pt-5">
-                  <motion.div
-                    key={`mascot-${playKey}`}
-                    initial={
-                      reducedMotion
-                        ? { opacity: 0, scale: 0.95 }
-                        : { opacity: 0, x: -64, y: 24, scale: 0.7 }
-                    }
-                    animate={{
-                      opacity: 1,
-                      x: -10,
-                      y: reducedMotion ? 0 : [0, -6, 0],
-                      scale: 1,
-                    }}
-                    transition={
-                      reducedMotion
-                        ? { duration: 0.25 }
-                        : {
-                            x: { type: 'spring', stiffness: 400, damping: 24 },
-                            scale: { type: 'spring', stiffness: 420, damping: 24 },
-                            opacity: { duration: 0.24 },
-                            y: { duration: 2.8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 },
-                          }
+                {/* Lazy WebGL choreography with a timing-identical accessible fallback. */}
+                <div className="absolute inset-0 z-10 pt-7">
+                  <Suspense
+                    fallback={
+                      <RevealFallback2D
+                        artworkId={gift.snapshot.artworkId}
+                        animationType={gift.snapshot.animationType}
+                        playKey={playKey}
+                        reducedMotion={reducedMotion}
+                        onPayoffStart={activatePayoff}
+                        onRevealComplete={() => setStage('revealed')}
+                      />
                     }
                   >
-                    <LoveCoinHeartSvg className="w-32 h-32 sm:w-40 sm:h-40" />
-                  </motion.div>
-
-                  <motion.div
-                    key={`gift-${playKey}`}
-                    initial={
-                      reducedMotion ? { opacity: 0, scale: 0.92 } : { opacity: 0, scale: 0.35, y: 20 }
-                    }
-                    animate={{ opacity: 1, ...giftChoreography }}
-                    transition={
-                      reducedMotion
-                        ? { duration: 0.28 }
-                        : {
-                            duration: 0.85,
-                            delay: 0.22,
-                            ease: [0.16, 1, 0.3, 1],
-                          }
-                    }
-                    className="-ml-8 mt-4"
-                  >
-                    <GiftArtworkSvg
+                    <LazyShowmeloveReveal3D
                       artworkId={gift.snapshot.artworkId}
-                      className="w-28 h-28 sm:w-36 sm:h-36"
+                      animationType={gift.snapshot.animationType}
+                      themeColor={gift.snapshot.themeColor}
+                      accentColor={gift.snapshot.accentColor}
+                      playKey={playKey}
+                      skipped={stage === 'revealed'}
+                      isDark
+                      onPayoffStart={activatePayoff}
+                      onRevealComplete={() => setStage('revealed')}
+                      fallback={
+                        <RevealFallback2D
+                          artworkId={gift.snapshot.artworkId}
+                          animationType={gift.snapshot.animationType}
+                          playKey={playKey}
+                          reducedMotion={reducedMotion}
+                          onPayoffStart={activatePayoff}
+                          onRevealComplete={() => setStage('revealed')}
+                        />
+                      }
                     />
-                  </motion.div>
+                  </Suspense>
                 </div>
 
                 {/* Lottie Emote Overlay (skipped in reduced motion) */}

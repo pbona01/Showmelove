@@ -1,19 +1,19 @@
 import {
   useEffect,
   useState,
-  type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, type HTMLMotionProps } from 'motion/react';
 import { Check, Heart, Monitor, Moon, Sparkles, Sun, X } from 'lucide-react';
 import { ECONOMY_CONFIG, formatCoinCount, formatNaira } from '../../config/economy';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
 import type { GiftCatalogItem, PromiseCardStyle } from '../../types/showmelove';
 import { GiftArtworkSvg, GoldLoveCoinSvg } from '../GiftArtwork';
 import { LottieEmote } from '../LottieEmote';
+import { springs, usePrefersReducedMotion } from '../../lib/animation';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'size'> {
   variant?: 'primary' | 'secondary' | 'dark' | 'ghost';
   size?: 'md' | 'lg' | 'sm';
   fullWidth?: boolean;
@@ -28,6 +28,7 @@ export function Button({
   disabled,
   ...rest
 }: ButtonProps) {
+  const reducedMotion = usePrefersReducedMotion();
   const base =
     'inline-flex items-center justify-center gap-2 font-semibold transition-all duration-150 whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E10B5C] dark:focus-visible:ring-[#FF176C] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
 
@@ -48,13 +49,16 @@ export function Button({
   };
 
   return (
-    <button
+    <motion.button
       disabled={disabled}
+      whileHover={reducedMotion || disabled ? undefined : { y: -1, scale: 1.01 }}
+      whileTap={reducedMotion || disabled ? undefined : { scale: 0.965 }}
+      transition={springs.springSnappy}
       className={`${base} ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...rest}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -198,9 +202,7 @@ export function TactileGiftCard({
   const [hovered, setHovered] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (selected) {
@@ -221,7 +223,7 @@ export function TactileGiftCard({
       onMouseLeave={() => setHovered(false)}
       whileHover={reducedMotion || !item.available ? undefined : { y: -3 }}
       whileTap={reducedMotion || !item.available ? undefined : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 480, damping: 28 }}
+      transition={springs.springSnappy}
       aria-pressed={selected}
       className={`group relative w-full text-center rounded-[24px] border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E10B5C] dark:focus-visible:ring-[#FF176C] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-page)] cursor-pointer overflow-hidden ${
         compact ? 'p-3 sm:p-4' : 'p-3.5 sm:p-4'

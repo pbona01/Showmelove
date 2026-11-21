@@ -3,6 +3,7 @@ import { formatNaira } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
+import { Reveal } from './ui/MotionPrimitives';
 
 export function AdminScreen() {
   const { state, updateCatalogItem, setSeasonalConfig, resolvePayout } = useShowmelove();
@@ -10,7 +11,7 @@ export function AdminScreen() {
   const pendingPayouts = state.payoutRequests.filter((p) => p.status === 'pending');
 
   return (
-    <div className="max-w-5xl mx-auto pb-16 space-y-8">
+    <Reveal type="slide-up" className="max-w-5xl mx-auto pb-16 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold text-[#8439D5] dark:text-[#A855F7]">
@@ -243,6 +244,6 @@ export function AdminScreen() {
           </div>
         )}
       </section>
-    </div>
+    </Reveal>
   );
 }
