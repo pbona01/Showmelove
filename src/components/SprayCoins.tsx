@@ -292,7 +292,9 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
       className={`absolute inset-0 z-20 overflow-hidden rounded-[28px] select-none ${
         isEnabled ? 'cursor-ew-resize' : 'pointer-events-none'
       }`}
-      style={{ touchAction: 'pan-y pinch-zoom' }}
+      // Spray has its own dedicated page, so it must own the full gesture.
+      // This prevents mobile browsers from turning a swipe into page scroll/zoom.
+      style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={finishPointer}

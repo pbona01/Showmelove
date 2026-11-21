@@ -24,7 +24,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
         Back to Wallet Home
       </button>
 
-      <section className="relative min-h-[440px] overflow-hidden rounded-[32px] border border-[#F3B843]/45 bg-[radial-gradient(circle_at_50%_5%,#FFF7D4_0%,#FFCF9E_35%,#EB7BAF_68%,#492449_100%)] p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] dark:bg-[radial-gradient(circle_at_50%_5%,#74422C_0%,#592947_45%,#1E1429_100%)] sm:p-9">
+      <section className="relative min-h-[440px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-[#F3B843]/45 bg-[radial-gradient(circle_at_50%_5%,#FFF7D4_0%,#FFCF9E_35%,#EB7BAF_68%,#492449_100%)] p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] dark:bg-[radial-gradient(circle_at_50%_5%,#74422C_0%,#592947_45%,#1E1429_100%)] sm:p-9">
         <SprayCoins
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
