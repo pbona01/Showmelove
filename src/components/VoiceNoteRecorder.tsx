@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioLines, Mic, Pause, Play, RotateCcw, Square, Trash2, Volume2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { ECONOMY_CONFIG } from '../config/economy';
 import { audioStorage } from '../services/audioStorage';
 import { getBundledSampleVoiceNoteUrl } from '../audio/sampleVoiceNote';
+import { usePrefersReducedMotion, waveformAnimation } from '../lib/animation';
 
 export interface VoiceNoteValue {
   source: 'none' | 'sample' | 'recorded';
@@ -27,6 +29,7 @@ function formatDuration(seconds: number): string {
 }
 
 export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
+  const reducedMotion = usePrefersReducedMotion();
   const [recordingState, setRecordingState] = useState<'idle' | 'recording'>('idle');
   const [elapsedSec, setElapsedSec] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -397,8 +400,9 @@ export function VoiceNoteRecorder({ value, onChange }: VoiceNoteRecorderProps) {
                   const barPct = ((idx + 1) / WAVEFORM_BARS.length) * 100;
                   const active = isPlaying ? playbackProgress >= barPct : idx < 11;
                   return (
-                    <span
+                    <motion.span
                       key={idx}
+                      {...(isPlaying && !reducedMotion ? waveformAnimation(idx) : {})}
                       className={`flex-1 rounded-full transition-colors ${
                         active
                           ? 'bg-gradient-to-t from-[#E10B5C] to-[#FF66A8] dark:from-[#FF176C] dark:to-[#C084FC]'

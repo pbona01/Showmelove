@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -26,6 +26,7 @@ import {
   PurpleGiftBoxSvg,
 } from './GiftArtwork';
 import { Button, TransactionRow } from './ui/DesignSystem';
+import { Counter, Floating, TiltCard } from './ui/MotionPrimitives';
 
 interface WalletScreenProps {
   onOpenBalanceInfo: () => void;
@@ -181,13 +182,9 @@ export function WalletScreen({
               className="love-coin-surface rounded-[28px] border border-[#E10B5C]/25 dark:border-[#FF3888]/30 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-[0_20px_44px_-20px_rgba(255,23,108,0.45)] overflow-hidden relative"
               aria-label="Love Coins balance"
             >
-              <motion.div
-                animate={reducedMotion ? undefined : { y: [0, -5, 0] }}
-                transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
-                className="shrink-0"
-              >
+              <Floating className="shrink-0">
                 <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" />
-              </motion.div>
+              </Floating>
 
               <div className="flex-1 min-w-0 text-right sm:text-left sm:pl-2">
                 <p className="text-sm font-semibold text-[#5E2846] dark:text-[#F8D6E8]">
@@ -197,7 +194,7 @@ export function WalletScreen({
                   className="text-4xl sm:text-[46px] font-bold tabular-nums text-[#20111D] dark:text-white leading-none mt-1 tracking-tight"
                   data-testid="wallet-coins-balance"
                 >
-                  {currentWallet.loveCoinsBalance.toLocaleString('en-NG')}
+                  <Counter value={currentWallet.loveCoinsBalance} formatter={(value) => value.toLocaleString('en-NG')} />
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#5E2846] dark:text-[#EBC4DC]">
                   <GoldLoveCoinSvg className="w-4 h-4 shrink-0" />
@@ -277,7 +274,9 @@ export function WalletScreen({
               className="w-full text-left rewards-glow-surface rounded-[28px] border border-[#8439D5]/30 dark:border-[#A855F7]/35 p-5 sm:p-6 flex items-center justify-between gap-4 hover:border-[#8439D5]/60 dark:hover:border-[#C084FC]/60 transition-all shadow-[0_20px_44px_-22px_rgba(168,85,247,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7] cursor-pointer"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <PurpleGiftBoxSvg className="w-20 h-20 sm:w-24 sm:h-24 shrink-0" />
+                <Floating className="shrink-0">
+                  <PurpleGiftBoxSvg className="w-20 h-20 sm:w-24 sm:h-24" />
+                </Floating>
                 <div className="space-y-1.5 min-w-0">
                   <p className="text-sm font-semibold text-[#5B21B6] dark:text-[#E9D5FF]">
                     Gifted Rewards
@@ -286,7 +285,7 @@ export function WalletScreen({
                     className="text-3xl sm:text-4xl font-bold tabular-nums text-[#20111D] dark:text-white leading-none"
                     data-testid="wallet-available-earnings"
                   >
-                    {formatNaira(currentWallet.availableEarningsNaira)}
+                    <Counter value={currentWallet.availableEarningsNaira} formatter={formatNaira} />
                   </p>
                   <div className="flex flex-wrap items-center gap-2 pt-0.5">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/75 dark:bg-white/14 text-xs font-semibold text-[#087F56] dark:text-[#24C888]">
@@ -334,11 +333,16 @@ export function WalletScreen({
 
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {availableCatalog.slice(0, 4).map((item) => (
-                  <button
+                  <TiltCard key={item.id}>
+                  <motion.button
                     key={item.id}
                     type="button"
                     onClick={() => onOpenSendGift(item.id)}
-                    className="group rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:border-[#E10B5C]/50 dark:hover:border-[#FF2A85]/55 p-2.5 flex flex-col items-center text-center gap-1.5 transition-all cursor-pointer"
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.88 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileTap={reducedMotion ? undefined : { scale: 0.96 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 24, delay: reducedMotion ? 0 : availableCatalog.findIndex((catalogItem) => catalogItem.id === item.id) * 0.06 }}
+                    className="group w-full rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:border-[#E10B5C]/50 dark:hover:border-[#FF2A85]/55 p-2.5 flex flex-col items-center text-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <GiftArtworkSvg
                       artworkId={item.artworkId}
@@ -356,7 +360,8 @@ export function WalletScreen({
                     <span className="text-[10px] font-medium tabular-nums text-[var(--text-secondary)]">
                       {formatNaira(item.defaultPriceNaira)}
                     </span>
-                  </button>
+                  </motion.button>
+                  </TiltCard>
                 ))}
               </div>
             </section>
@@ -402,9 +407,10 @@ export function WalletScreen({
                   className="divide-y divide-[var(--border-subtle)]"
                   data-testid="wallet-transaction-history"
                 >
+                  <AnimatePresence initial={false} mode="popLayout">
                   {combinedHistory.slice(0, 5).map((item) => (
+                    <motion.div key={item.id} layout exit={{ opacity: 0, x: -16 }} transition={{ type: 'spring', stiffness: 300, damping: 24 }}>
                     <TransactionRow
-                      key={item.id}
                       icon={
                         <div className="w-10 h-10 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] flex items-center justify-center">
                           {item.kind === 'Love Coins' ? (
@@ -422,7 +428,9 @@ export function WalletScreen({
                       amountLabel={item.amountLabel}
                       amountTone={item.tone}
                     />
+                    </motion.div>
                   ))}
+                  </AnimatePresence>
                 </div>
               )}
 

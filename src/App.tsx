@@ -14,6 +14,9 @@ import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
+import { PageTransition, SharedLayout } from './components/PageTransition';
+import { springs, usePrefersReducedMotion } from './lib/animation';
+import { Shimmer } from './components/ui/MotionPrimitives';
 
 type AppRoute =
   | { page: 'home' }
@@ -127,6 +130,7 @@ function RevealRouteView({
       <div className="min-h-screen bg-[#09090D] text-[#FAF8FC] flex items-center justify-center px-4">
         <div className="rounded-[28px] bg-[#14131B] border border-white/10 p-8 text-center space-y-3">
           <Loader2 className="w-7 h-7 animate-spin text-[#FF2385] mx-auto" />
+          <Shimmer className="h-2.5 w-36 rounded-full mx-auto" />
           <p className="text-sm font-medium text-[#ADA4BA]">
             Opening your gift link…
           </p>
@@ -189,9 +193,7 @@ function ShowmeloveShell() {
   const [route, setRoute] = useState<AppRoute>(() => parseLocationRoute());
   const { state } = useShowmelove();
 
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = usePrefersReducedMotion();
 
   const navigate = useCallback((next: AppRoute) => {
     if (next.page !== 'reveal') {
@@ -263,7 +265,9 @@ function ShowmeloveShell() {
             }}
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
-            <LoveCoinHeartSvg className="w-7 h-7 shrink-0" />
+            <SharedLayout id="showmelove-brand-mark" className="shrink-0">
+              <LoveCoinHeartSvg className="w-7 h-7" />
+            </SharedLayout>
             <span>
               Showme
               <span className="text-[#E61472] dark:text-[#FF2385]">love</span>
@@ -288,13 +292,20 @@ function ShowmeloveShell() {
                   e.preventDefault();
                   navigate(item.route);
                 }}
-                className={`relative px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap shrink-0 ${
+                className={`relative px-3.5 py-1.5 rounded-xl whitespace-nowrap shrink-0 ${
                   item.active
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/20 dark:ring-[#FF2385]/30'
+                    ? 'text-[var(--text-primary)]'
                     : 'hover:text-[var(--text-primary)]'
                 }`}
               >
-                {item.label}
+                {item.active && (
+                  <motion.span
+                    layoutId={reducedMotion ? undefined : 'desktop-nav-active'}
+                    className="absolute inset-0 rounded-xl bg-[var(--bg-card)] shadow-sm ring-1 ring-[#FF2385]/20 dark:ring-[#FF2385]/30"
+                    transition={springs.springSnappy}
+                  />
+                )}
+                <span className="relative z-10">{item.label}</span>
                 {item.id === 'inbox' && unopenedCount > 0 && (
                   <span
                     aria-hidden="true"
@@ -355,13 +366,7 @@ function ShowmeloveShell() {
       {/* Centered App Canvas with Smooth Framer Motion Page Transitions */}
       <main className="flex-1 w-full max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-7 pb-24 md:pb-12">
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={route.page}
-            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            transition={{ duration: reducedMotion ? 0 : 0.18, ease: 'easeOut' }}
-          >
+          <PageTransition key={route.page} type="shared-axis">
             {(route.page === 'home' || route.page === 'wallet') && (
               <WalletScreen
                 onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
@@ -432,7 +437,7 @@ function ShowmeloveShell() {
             )}
 
             {route.page === 'admin' && <AdminScreen />}
-          </motion.div>
+          </PageTransition>
         </AnimatePresence>
       </main>
 
@@ -485,7 +490,9 @@ function ShowmeloveShell() {
               data-testid={tab.testId}
               className="h-full flex items-center justify-center cursor-pointer"
             >
-              <span
+              <motion.span
+                layout
+                transition={springs.springSnappy}
                 className={`relative flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-2xl text-[11px] font-semibold transition-all ${
                   tab.active
                     ? 'bg-gradient-to-br from-[#FF2385]/16 to-[#7C3AED]/20 dark:from-[#FF2385]/26 dark:to-[#7C3AED]/34 text-[#E61472] dark:text-[#FF62A9] ring-1 ring-[#FF2385]/30 dark:ring-[#FF2385]/40 shadow-[0_0_20px_-4px_rgba(255,35,133,0.45)]'
@@ -500,7 +507,7 @@ function ShowmeloveShell() {
                     className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#FF2385]"
                   />
                 )}
-              </span>
+              </motion.span>
             </button>
           );
         })}

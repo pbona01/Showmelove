@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import {
   Calendar,
   Check,
@@ -21,6 +22,7 @@ import {
 import { DEMO_USERS } from '../services/seedData';
 import { GiftArtworkSvg, PurpleGiftBoxSvg } from './GiftArtwork';
 import { Button, TransactionRow } from './ui/DesignSystem';
+import { springs, usePrefersReducedMotion } from '../lib/animation';
 
 interface InboxScreenProps {
   onOpenGift: (giftId: string) => void;
@@ -52,6 +54,7 @@ export function InboxAndWalletScreen({
   const [customEmailInput, setCustomEmailInput] = useState('');
   const [copiedGiftId, setCopiedGiftId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<InboxTab>('all');
+  const reducedMotion = usePrefersReducedMotion();
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const normalizedUserEmail = state.signedInEmail.trim().toLowerCase();
@@ -129,13 +132,20 @@ export function InboxAndWalletScreen({
               aria-selected={active}
               data-testid={`inbox-tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`min-h-[38px] px-2 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+              className={`relative min-h-[38px] px-2 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
                 active
-                  ? 'bg-gradient-to-r from-[#8439D5] to-[#A855F7] text-white shadow-sm'
+                  ? 'text-white'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              {tab.label}
+              {active && (
+                <motion.span
+                  layoutId={reducedMotion ? undefined : 'inbox-active-tab'}
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-[#8439D5] to-[#A855F7] shadow-sm"
+                  transition={springs.springSnappy}
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
             </button>
           );
         })}

@@ -16,6 +16,7 @@ import { DEMO_BANK_PRESETS } from '../services/seedData';
 import type { UserRole } from '../types/showmelove';
 import { GoldLoveCoinSvg, LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField, ThemeSwitcher, TransactionRow } from './ui/DesignSystem';
+import { AnimatedTabs, Reveal } from './ui/MotionPrimitives';
 
 interface ProfileSettingsScreenProps {
   onOpenBalanceInfo: () => void;
@@ -333,7 +334,7 @@ export function ProfileSettingsScreen({
         </div>
 
         {/* Right Column: Full Filterable Transactions */}
-        <section className="lg:col-span-6 apple-card rounded-[28px] p-5 sm:p-6 space-y-4">
+        <Reveal type="slide-up" className="lg:col-span-6 apple-card rounded-[28px] p-5 sm:p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)]">
@@ -344,31 +345,16 @@ export function ProfileSettingsScreen({
               </p>
             </div>
 
-            <div className="inline-flex items-center p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)]">
-              {(
-                [
-                  { id: 'all', label: 'All' },
-                  { id: 'coins', label: 'Coins' },
-                  { id: 'rewards', label: 'Rewards' },
-                ] as const
-              ).map((tab) => {
-                const active = txFilter === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setTxFilter(tab.id)}
-                    className={`min-h-[34px] px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                      active
-                        ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+            <AnimatedTabs
+              label="Filter transactions"
+              tabs={[
+                { id: 'all', label: 'All' },
+                { id: 'coins', label: 'Coins' },
+                { id: 'rewards', label: 'Rewards' },
+              ] as const}
+              value={txFilter}
+              onChange={setTxFilter}
+            />
           </div>
 
           {filteredTx.length === 0 ? (
@@ -414,7 +400,7 @@ export function ProfileSettingsScreen({
               ))}
             </div>
           )}
-        </section>
+        </Reveal>
       </div>
     </div>
   );

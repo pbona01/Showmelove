@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import type { GiftAnimationType, GiftArtworkId } from '../types/showmelove';
 import { GiftArtworkSvg, ShowmeloveMascotSvg } from './GiftArtwork';
+import { giftRevealTimeline, springs } from '../lib/animation';
 
 interface RevealFallback2DProps {
   artworkId: GiftArtworkId;
@@ -26,8 +27,14 @@ export function RevealFallback2D({
       onRevealComplete();
       return;
     }
-    const payoffTimer = window.setTimeout(onPayoffStart, 2900);
-    const doneTimer = window.setTimeout(onRevealComplete, 5300);
+    const payoffTimer = window.setTimeout(
+      onPayoffStart,
+      giftRevealTimeline.particleBurst.start * 1000,
+    );
+    const doneTimer = window.setTimeout(
+      onRevealComplete,
+      giftRevealTimeline.totalDuration * 1000,
+    );
     return () => {
       window.clearTimeout(payoffTimer);
       window.clearTimeout(doneTimer);
@@ -53,7 +60,7 @@ export function RevealFallback2D({
         key={`mascot-${playKey}`}
         initial={reducedMotion ? false : { opacity: 0, y: 42, scale: 0.55 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ ...springs.springBouncy, delay: giftRevealTimeline.mascotReact.start }}
         className="flex flex-col items-center"
       >
         <ShowmeloveMascotSvg className="w-40 h-40 sm:w-48 sm:h-48" holdingGift={false} />
@@ -64,8 +71,8 @@ export function RevealFallback2D({
         initial={reducedMotion ? false : { opacity: 0, scale: 0.42, y: -32 }}
         animate={{ opacity: 1, ...giftHandoffAnimation }}
         transition={{
-          duration: reducedMotion ? 0 : 2.2,
-          delay: reducedMotion ? 0 : 0.7,
+          duration: reducedMotion ? 0 : giftRevealTimeline.giftRise.duration,
+          delay: reducedMotion ? 0 : giftRevealTimeline.giftRise.start,
           ease: [0.22, 1, 0.36, 1],
         }}
         className="-mt-6 p-4 rounded-3xl bg-[var(--bg-card)]/95 border border-[var(--border-subtle)] shadow-xl"
