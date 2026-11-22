@@ -1,4 +1,6 @@
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { GoldLoveCoinSvg } from './GiftArtwork';
 import { SprayCoins } from './SprayCoins';
@@ -11,7 +13,14 @@ interface SprayCoinsScreenProps {
 export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins, switchRole } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
-  const canSpray = isSignedIn && currentWallet.loveCoinsBalance > 0;
+  const [layoutId, setLayoutId] = useState<SprayLayoutId>('classic');
+  const recipients = useMemo(
+    () => Object.keys(state.walletsByEmail).filter((email) => email !== state.signedInEmail.toLowerCase()),
+    [state.signedInEmail, state.walletsByEmail],
+  );
+  const [recipientEmail, setRecipientEmail] = useState('adaeze.okafor@example.com');
+  const layout = SPRAY_LAYOUTS.find((item) => item.id === layoutId) ?? SPRAY_LAYOUTS[0];
+  const canSpray = isSignedIn && currentWallet.loveCoinsBalance >= layout.minimumCoins && Boolean(recipientEmail);
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-8">
@@ -24,27 +33,30 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
         Back to Wallet Home
       </button>
 
-      <section className="relative min-h-[440px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-[#F3B843]/45 bg-[radial-gradient(circle_at_50%_5%,#FFF7D4_0%,#FFCF9E_35%,#EB7BAF_68%,#492449_100%)] p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] dark:bg-[radial-gradient(circle_at_50%_5%,#74422C_0%,#592947_45%,#1E1429_100%)] sm:p-9">
+      <section className={`relative min-h-[440px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-[#F3B843]/45 bg-gradient-to-br ${layout.gradient} p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] sm:p-9`}>
         <SprayCoins
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
-          onSpray={(count) => sprayLoveCoins(count).ok}
+          minimumSpray={layout.minimumCoins}
+          onSpray={(count) => sprayLoveCoins({ coins: count, recipientEmail, layoutId }).ok}
         />
 
         <div className="relative z-10 pointer-events-none flex min-h-[390px] flex-col items-center justify-center">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/60 px-3 py-1.5 text-xs font-bold text-[#633417] shadow-sm backdrop-blur-md dark:bg-white/10 dark:text-[#FFE4A6]">
             <Sparkles className="h-4 w-4" />
-            LOVE COIN SPRAY
+            {layout.badge} · LOVE COIN SPRAY
           </div>
-          <GoldLoveCoinSvg className="mt-6 h-28 w-28 drop-shadow-[0_18px_18px_rgba(89,38,21,0.3)]" priority />
+          <div className="mt-6 flex h-28 w-28 items-center justify-center rounded-full bg-white/20 text-6xl font-black text-white shadow-[0_18px_18px_rgba(89,38,21,0.3)] backdrop-blur-sm">
+            {layout.id === 'classic' ? <GoldLoveCoinSvg className="h-28 w-28" priority /> : layout.symbol}
+          </div>
           <h1 className="mt-5 text-3xl font-bold tracking-tight text-[#28140F] dark:text-white">
-            Spread the love
+            {layout.name} Spray
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#643528] dark:text-[#F5DDE7]">
             {canSpray
-              ? 'Swipe up or down across this card to launch 12–20 Love Coins with every spray.'
+              ? `Swipe up or down to launch at least ${layout.minimumCoins.toLocaleString('en-NG')} Love Coins. ${layout.description}`
               : isSignedIn
-                ? 'Your Love Coin balance is empty. Add coins to start spraying.'
+                ? `You need at least ${layout.minimumCoins.toLocaleString('en-NG')} Love Coins for this layout.`
                 : 'Sign in to a demo account to unlock Love Coin Spray.'}
           </p>
           <div className="mt-5 rounded-2xl bg-white/60 px-5 py-3 text-[#4D2519] shadow-sm backdrop-blur-md dark:bg-black/20 dark:text-white">
@@ -54,6 +66,32 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
             </p>
           </div>
         </div>
+      </section>
+
+      <section className="apple-card rounded-[28px] p-4 sm:p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-[var(--text-primary)]">Choose your flex</h2>
+          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">Each layout has its own social-status minimum.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {SPRAY_LAYOUTS.map((item) => {
+            const locked = currentWallet.loveCoinsBalance < item.minimumCoins;
+            return (
+              <button key={item.id} type="button" onClick={() => setLayoutId(item.id)} className={`relative min-h-[82px] rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-white shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
+                {locked && <LockKeyhole className="absolute right-2 top-2 h-3 w-3" />}
+                <span className="block text-sm font-black">{item.name}</span>
+                <span className="mt-3 block text-[10px] font-bold opacity-90">{item.minimumCoins.toLocaleString('en-NG')} Coins min.</span>
+              </button>
+            );
+          })}
+        </div>
+        <label className="block text-xs font-semibold text-[var(--text-secondary)]">
+          Send spray to
+          <select value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} className="mt-1.5 w-full min-h-[44px] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 text-sm font-semibold text-[var(--text-primary)]">
+            {recipients.map((email) => <option key={email} value={email}>{email}</option>)}
+          </select>
+        </label>
+        <p className="text-xs text-[var(--text-secondary)]">The receiver gets 97% of every spray; Showmelove settles 3% to the platform wallet.</p>
       </section>
 
       {!isSignedIn && (

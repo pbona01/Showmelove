@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import {
   COIN_PACKAGES,
+  calculateFundingCredit,
   ECONOMY_CONFIG,
   formatCoinCount,
   formatNaira,
@@ -41,6 +42,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
 
   const activeCoins = isCustomMode ? Math.round(Number(customCoinsInput) || 0) : selectedCoins;
   const activeCostNaira = Math.max(0, activeCoins * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN);
+  const fundingCredit = calculateFundingCredit(activeCostNaira);
   const isValidCustom =
     activeCoins >= ECONOMY_CONFIG.MIN_COIN_PURCHASE &&
     activeCoins <= ECONOMY_CONFIG.MAX_COIN_PURCHASE;
@@ -80,7 +82,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
 
       setStatus('success');
       setStatusMessage(
-        `Added ${formatNaira(activeCostNaira)} to your wallet.`,
+        `Added ${formatCoinCount(fundingCredit.creditedCoins)} to your wallet.`,
       );
       setCoinTrailKey((k) => k + 1);
     }, 360);
@@ -141,7 +143,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
               Get more Love Coin and spread more love
             </p>
             <p className="text-xs text-[#6B5F78] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
-              Love Coins are the only balance used in Showmelove · Simulated checkout
+              Fund at a clear 1:1 price; your wallet receives the post-settlement Coin amount.
             </p>
           </div>
         </div>
@@ -189,7 +191,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
                   >
                     <GoldLoveCoinSvg className="w-8 h-8 shrink-0" />
                     <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)] truncate">
-                      {formatCoinCount(pkg.coins)}
+                      Fund ₦{pkg.priceNaira.toLocaleString('en-NG')} · receive {formatCoinCount(calculateFundingCredit(pkg.priceNaira).creditedCoins)}
                     </span>
                   </button>
 
@@ -221,7 +223,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
                           }
                           setStatus('success');
                           setStatusMessage(
-                            `Added ${formatNaira(pkg.priceNaira)} to your wallet.`,
+                            `Added ${formatCoinCount(calculateFundingCredit(pkg.priceNaira).creditedCoins)} to your wallet.`,
                           );
                           setCoinTrailKey((k) => k + 1);
                         }, 320);
@@ -302,11 +304,11 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
             <div className="flex items-center justify-between gap-2">
               <span className="text-[var(--text-secondary)]">Package</span>
               <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                <Counter value={Math.max(0, activeCoins)} formatter={formatCoinCount} />
+                <Counter value={Math.max(0, fundingCredit.creditedCoins)} formatter={formatCoinCount} />
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">Balance unit</span>
+              <span className="text-[var(--text-secondary)]">You receive</span>
               <span className="tabular-nums text-[var(--text-primary)]">
                 Love Coins
               </span>

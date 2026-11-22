@@ -7,6 +7,7 @@ export type CollectionId = 'evergreen' | 'valentines';
 export type EmoteOption = 'none' | 'heart-burst' | 'rose-petals' | 'sparkle-hug' | 'party-confetti';
 
 export type UserRole = 'guest' | 'sender' | 'recipient' | 'admin';
+export type SprayLayoutId = 'classic' | 'figo' | 'usd' | 'btc' | 'waso';
 
 export interface DemoUser {
   id: string;
@@ -75,11 +76,40 @@ export interface SentGift {
 export interface CoinTransaction {
   id: string;
   createdAt: string;
-  type: 'purchase' | 'spend' | 'seed';
+  type: 'purchase' | 'spend' | 'spray_received' | 'seed';
   coinsDelta: number;
   amountNaira: number;
   description: string;
   relatedGiftId?: string;
+}
+
+export type FeeType = 'guest_gift' | 'funding' | 'spray';
+
+export interface FeeTransaction {
+  id: string;
+  createdAt: string;
+  type: FeeType;
+  coins: number;
+  description: string;
+  relatedId?: string;
+}
+
+export interface AdminMasterWallet {
+  loveCoinsBalance: number;
+  totalGuestGiftFees: number;
+  totalFundingFees: number;
+  totalSprayFees: number;
+}
+
+export interface SprayTransaction {
+  id: string;
+  createdAt: string;
+  senderEmail: string;
+  recipientEmail: string;
+  layoutId: SprayLayoutId;
+  grossCoins: number;
+  recipientCoins: number;
+  feeCoins: number;
 }
 
 export interface EarningsTransaction {
@@ -133,4 +163,7 @@ export interface ShowmeloveStoreState {
   walletsByEmail: Record<string, WalletState>;
   payoutRequests: PayoutRequest[];
   defaultBankAccount: DemoBankAccount;
+  sprayTransactions: SprayTransaction[];
+  feeTransactions: FeeTransaction[];
+  adminMasterWallet: AdminMasterWallet;
 }

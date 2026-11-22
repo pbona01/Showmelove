@@ -11,6 +11,7 @@ import { usePrefersReducedMotion } from '../lib/animation';
 export interface SprayCoinsProps {
   isEnabled: boolean;
   coinBalance: number;
+  minimumSpray?: number;
   onSpray: (count: number) => boolean;
 }
 
@@ -147,7 +148,7 @@ function playWhoosh() {
   }
 }
 
-export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps) {
+export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, onSpray }: SprayCoinsProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [particles, setParticles] = useState<CoinParticle[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -181,7 +182,9 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
       const now = performance.now();
       if (!isEnabled || now - lastSprayAtRef.current < SPRAY_COOLDOWN_MS) return;
 
-      const desiredCount = Math.floor(randomBetween(12, 21));
+      const desiredCount = minimumSpray <= 20
+        ? Math.floor(randomBetween(minimumSpray, 21))
+        : minimumSpray;
       // Every valid swipe can use the remaining balance; the final swipe simply
       // emits however many coins are left instead of imposing an artificial cap.
       const count = Math.min(desiredCount, balanceRef.current);
@@ -206,8 +209,9 @@ export function SprayCoins({ isEnabled, coinBalance, onSpray }: SprayCoinsProps)
 
       if (reducedMotion) return;
 
-      const nextParticles = Array.from({ length: count }, (_, index): CoinParticle => {
-        const pathIndex = count === 1 ? 0 : (index / (count - 1)) * (history.length - 1);
+      const visibleCount = Math.min(count, 20);
+      const nextParticles = Array.from({ length: visibleCount }, (_, index): CoinParticle => {
+        const pathIndex = visibleCount === 1 ? 0 : (index / (visibleCount - 1)) * (history.length - 1);
         const lowerIndex = Math.floor(pathIndex);
         const upperIndex = Math.min(history.length - 1, Math.ceil(pathIndex));
         const mix = pathIndex - lowerIndex;

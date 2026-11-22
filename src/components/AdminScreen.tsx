@@ -1,5 +1,5 @@
 import { CheckCircle2, Shield, XCircle } from 'lucide-react';
-import { formatNaira } from '../config/economy';
+import { formatCoins, formatNaira } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
@@ -49,6 +49,35 @@ export function AdminScreen() {
             />
             <span>Show Valentine&apos;s Drop</span>
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-4 shadow-sm">
+        <div>
+          <p className="text-xs font-semibold text-[#8439D5] dark:text-[#A855F7]">Master Wallet</p>
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">Platform fee profit</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            ['Total profit', state.adminMasterWallet.loveCoinsBalance],
+            ['Guest gifts', state.adminMasterWallet.totalGuestGiftFees],
+            ['Funding', state.adminMasterWallet.totalFundingFees],
+            ['Sprays', state.adminMasterWallet.totalSprayFees],
+          ].map(([label, coins]) => (
+            <div key={String(label)} className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5">
+              <p className="text-xs text-[var(--text-secondary)]">{label}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums text-[var(--text-primary)]">{formatCoins(Number(coins))}</p>
+            </div>
+          ))}
+        </div>
+        <div className="divide-y divide-[var(--border-subtle)]">
+          {state.feeTransactions.slice(0, 6).map((fee) => (
+            <div key={fee.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+              <span className="text-[var(--text-secondary)]">{fee.description}</span>
+              <strong className="tabular-nums text-[#087F56] dark:text-[#24C888]">+{formatCoins(fee.coins)}</strong>
+            </div>
+          ))}
+          {state.feeTransactions.length === 0 && <p className="py-2 text-sm text-[var(--text-secondary)]">No fee settlements recorded yet.</p>}
         </div>
       </section>
 

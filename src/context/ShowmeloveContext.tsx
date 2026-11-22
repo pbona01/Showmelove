@@ -13,6 +13,7 @@ import type {
   DemoBankAccount,
   GiftCatalogItem,
   SentGift,
+  SprayLayoutId,
   ShowmeloveStoreState,
   UserRole,
   WalletState,
@@ -26,6 +27,7 @@ import {
   normalizeEmail,
   requestWithdrawal,
   resolveWithdrawal,
+  settleLoveCoinSpray,
   type ClaimResult,
   type ComposeGiftDraft,
   type CheckoutResult,
@@ -37,7 +39,6 @@ import {
   fetchSharedGiftFromSupabase,
   publishGiftToSupabase,
 } from '../services/supabaseBridge';
-import { ECONOMY_CONFIG } from '../config/economy';
 
 interface ShowmeloveContextValue {
   state: ShowmeloveStoreState;
@@ -47,7 +48,7 @@ interface ShowmeloveContextValue {
   resetDemo: () => Promise<void>;
   submitCheckout: (draft: ComposeGiftDraft) => CheckoutResult;
   purchaseLoveCoins: (coins: number) => { ok: boolean; error?: string };
-  sprayLoveCoins: (coins: number) => { ok: boolean; error?: string };
+  sprayLoveCoins: (input: { coins: number; recipientEmail: string; layoutId: SprayLayoutId }) => { ok: boolean; error?: string };
   markGiftRevealed: (giftId: string) => void;
   claimGift: (giftId: string, overrideEmail?: string) => ClaimResult;
   getGiftById: (giftId: string) => SentGift | undefined;
@@ -161,43 +162,20 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
   );
 
   const sprayLoveCoins = useCallback(
-    (coins: number): { ok: boolean; error?: string } => {
-      const count = Math.floor(coins);
+    (input: { coins: number; recipientEmail: string; layoutId: SprayLayoutId }): { ok: boolean; error?: string } => {
       const prev = stateRef.current;
       const email = normalizeEmail(prev.signedInEmail);
       if (!email) return { ok: false, error: 'Sign in to spray Love Coins.' };
-      if (!Number.isFinite(count) || count <= 0) {
-        return { ok: false, error: 'Spray at least one Love Coin.' };
-      }
-
-      const wallet = ensureWallet(prev.walletsByEmail, email);
-      if (wallet.loveCoinsBalance < count) {
-        return { ok: false, error: 'Not enough Love Coins for this spray.' };
-      }
-
-      const now = new Date().toISOString();
-      commitNext({
-        ...prev,
-        walletsByEmail: {
-          ...prev.walletsByEmail,
-          [email]: {
-            ...wallet,
-            loveCoinsBalance: wallet.loveCoinsBalance - count,
-            coinTransactions: [
-              {
-                id: `spray_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                createdAt: now,
-                type: 'spend',
-                coinsDelta: -count,
-                amountNaira: count * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN,
-                description: `Sprayed ${count.toLocaleString('en-NG')} Love Coin${count === 1 ? '' : 's'}`,
-              },
-              ...wallet.coinTransactions,
-            ],
-          },
-        },
+      const result = settleLoveCoinSpray(prev, {
+        id: `spray_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        createdAt: new Date().toISOString(),
+        senderEmail: email,
+        recipientEmail: input.recipientEmail,
+        layoutId: input.layoutId,
+        grossCoins: input.coins,
       });
-      return { ok: true };
+      if (result.ok) commitNext(result.nextState);
+      return { ok: result.ok, error: result.error };
     },
     [commitNext],
   );

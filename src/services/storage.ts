@@ -38,6 +38,13 @@ function hydrateState(raw: string | null): ShowmeloveStoreState {
       payoutRequests: Array.isArray(parsed.payoutRequests)
         ? parsed.payoutRequests
         : fallback.payoutRequests,
+      sprayTransactions: Array.isArray(parsed.sprayTransactions)
+        ? parsed.sprayTransactions
+        : fallback.sprayTransactions,
+      feeTransactions: Array.isArray(parsed.feeTransactions)
+        ? parsed.feeTransactions
+        : fallback.feeTransactions,
+      adminMasterWallet: parsed.adminMasterWallet ?? fallback.adminMasterWallet,
       defaultBankAccount: parsed.defaultBankAccount ?? fallback.defaultBankAccount,
     };
   } catch {

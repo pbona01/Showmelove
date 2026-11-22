@@ -1,5 +1,8 @@
 import {
   calculateCheckoutSummary,
+  calculateFundingCredit,
+  calculateGuestGiftSettlement,
+  calculateSpraySettlement,
   calculateWithdrawalSummary,
   ECONOMY_CONFIG,
   formatCoins,
@@ -13,6 +16,7 @@ import type {
   GiftSnapshot,
   PayoutRequest,
   PromiseCardStyle,
+  SprayLayoutId,
   SentGift,
   ShowmeloveStoreState,
   UserRole,
@@ -21,6 +25,79 @@ import type {
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+export function settleLoveCoinSpray(
+  state: ShowmeloveStoreState,
+  input: {
+    id: string;
+    createdAt: string;
+    senderEmail: string;
+    recipientEmail: string;
+    layoutId: SprayLayoutId;
+    grossCoins: number;
+  },
+): { ok: boolean; error?: string; nextState: ShowmeloveStoreState } {
+  const senderEmail = normalizeEmail(input.senderEmail);
+  const recipientEmail = normalizeEmail(input.recipientEmail);
+  const grossCoins = Math.floor(input.grossCoins);
+  if (!senderEmail || !recipientEmail || senderEmail === recipientEmail) {
+    return { ok: false, error: 'Choose another signed-in recipient.', nextState: state };
+  }
+  if (!Number.isFinite(grossCoins) || grossCoins <= 0) {
+    return { ok: false, error: 'Choose a valid spray amount.', nextState: state };
+  }
+  const sender = ensureWallet(state.walletsByEmail, senderEmail);
+  if (sender.loveCoinsBalance < grossCoins) {
+    return { ok: false, error: 'Not enough Love Coins for this spray.', nextState: state };
+  }
+  const recipient = ensureWallet(state.walletsByEmail, recipientEmail);
+  const { recipientCoins, feeCoins } = calculateSpraySettlement(grossCoins);
+  const sprayTransaction = {
+    id: input.id,
+    createdAt: input.createdAt,
+    senderEmail,
+    recipientEmail,
+    layoutId: input.layoutId,
+    grossCoins,
+    recipientCoins,
+    feeCoins,
+  };
+  return {
+    ok: true,
+    nextState: {
+      ...state,
+      walletsByEmail: {
+        ...state.walletsByEmail,
+        [senderEmail]: {
+          ...sender,
+          loveCoinsBalance: sender.loveCoinsBalance - grossCoins,
+          coinTransactions: [{
+            id: `ctx_${input.id}_send`, createdAt: input.createdAt, type: 'spend', coinsDelta: -grossCoins,
+            amountNaira: grossCoins, description: `Sprayed ${formatCoins(grossCoins)}`,
+          }, ...sender.coinTransactions],
+        },
+        [recipientEmail]: {
+          ...recipient,
+          loveCoinsBalance: recipient.loveCoinsBalance + recipientCoins,
+          coinTransactions: [{
+            id: `ctx_${input.id}_receive`, createdAt: input.createdAt, type: 'spray_received', coinsDelta: recipientCoins,
+            amountNaira: recipientCoins, description: `Received a ${input.layoutId.toUpperCase()} Love Coin spray`,
+          }, ...recipient.coinTransactions],
+        },
+      },
+      sprayTransactions: [sprayTransaction, ...state.sprayTransactions],
+      feeTransactions: feeCoins > 0 ? [{
+        id: `fee_${input.id}`, createdAt: input.createdAt, type: 'spray', coins: feeCoins,
+        description: `${input.layoutId.toUpperCase()} spray settlement`, relatedId: input.id,
+      }, ...state.feeTransactions] : state.feeTransactions,
+      adminMasterWallet: feeCoins > 0 ? {
+        ...state.adminMasterWallet,
+        loveCoinsBalance: state.adminMasterWallet.loveCoinsBalance + feeCoins,
+        totalSprayFees: state.adminMasterWallet.totalSprayFees + feeCoins,
+      } : state.adminMasterWallet,
+    },
+  };
 }
 
 export type SentGiftLinkStatus = 'Unclaimed' | 'Revealed' | 'Claimed';
@@ -172,6 +249,10 @@ export function createPaidGiftIdempotent(
   }
 
   const summary = calculateCheckoutSummary(amountCheck.normalized);
+  const isGuestGift = draft.paymentMode === 'flutterwave_guest';
+  const guestSettlement = isGuestGift
+    ? calculateGuestGiftSettlement(summary.loveCoinsNeeded)
+    : { recipientCoins: summary.loveCoinsNeeded, feeCoins: 0 };
   const senderKey = draft.senderEmail ? normalizeEmail(draft.senderEmail) : '';
   const wallets = { ...state.walletsByEmail };
 
@@ -249,8 +330,8 @@ export function createPaidGiftIdempotent(
     emote: draft.emote,
     amountNaira: summary.amountPaidNaira,
     coinsSpent: summary.loveCoinsNeeded,
-    platformFeeNaira: summary.platformFeeNaira,
-    recipientEarningsNaira: summary.recipientEarningsNaira,
+    platformFeeNaira: guestSettlement.feeCoins,
+    recipientEarningsNaira: guestSettlement.recipientCoins,
     hasVoiceNote: draft.hasVoiceNote,
     voiceNoteSource: draft.voiceNoteSource,
     voiceNoteBlobKey: draft.voiceNoteBlobKey,
@@ -266,6 +347,23 @@ export function createPaidGiftIdempotent(
       gifts: [gift, ...state.gifts],
       processedCheckoutIds: [...state.processedCheckoutIds, draft.checkoutAttemptId],
       walletsByEmail: wallets,
+      feeTransactions: guestSettlement.feeCoins > 0
+        ? [{
+            id: `fee_${draft.giftId}`,
+            createdAt: draft.createdAt,
+            type: 'guest_gift',
+            coins: guestSettlement.feeCoins,
+            description: `Guest gift fee for ${draft.catalogItem.name}`,
+            relatedId: draft.giftId,
+          }, ...state.feeTransactions]
+        : state.feeTransactions,
+      adminMasterWallet: guestSettlement.feeCoins > 0
+        ? {
+            ...state.adminMasterWallet,
+            loveCoinsBalance: state.adminMasterWallet.loveCoinsBalance + guestSettlement.feeCoins,
+            totalGuestGiftFees: state.adminMasterWallet.totalGuestGiftFees + guestSettlement.feeCoins,
+          }
+        : state.adminMasterWallet,
     },
   };
 }
@@ -294,6 +392,7 @@ export function buyLoveCoins(
     };
   }
   const costNaira = roundedCoins * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN;
+  const { creditedCoins, feeCoins } = calculateFundingCredit(costNaira);
   const wallet = ensureWallet(state.walletsByEmail, key);
   return {
     ok: true,
@@ -303,20 +402,37 @@ export function buyLoveCoins(
         ...state.walletsByEmail,
         [key]: {
           ...wallet,
-          loveCoinsBalance: wallet.loveCoinsBalance + roundedCoins,
+          loveCoinsBalance: wallet.loveCoinsBalance + creditedCoins,
           coinTransactions: [
             {
               id: txId,
               createdAt,
               type: 'purchase',
-              coinsDelta: roundedCoins,
+              coinsDelta: creditedCoins,
               amountNaira: costNaira,
-              description: `Bought ${formatCoins(roundedCoins)} (${formatNaira(costNaira)} simulated)`,
+              description: `Funded with ${formatNaira(costNaira)} · received ${formatCoins(creditedCoins)}`,
             },
             ...wallet.coinTransactions,
           ],
         },
       },
+      feeTransactions: feeCoins > 0
+        ? [{
+            id: `fee_${txId}`,
+            createdAt,
+            type: 'funding',
+            coins: feeCoins,
+            description: `Funding settlement for ${formatCoins(creditedCoins)}`,
+            relatedId: txId,
+          }, ...state.feeTransactions]
+        : state.feeTransactions,
+      adminMasterWallet: feeCoins > 0
+        ? {
+            ...state.adminMasterWallet,
+            loveCoinsBalance: state.adminMasterWallet.loveCoinsBalance + feeCoins,
+            totalFundingFees: state.adminMasterWallet.totalFundingFees + feeCoins,
+          }
+        : state.adminMasterWallet,
     },
   };
 }

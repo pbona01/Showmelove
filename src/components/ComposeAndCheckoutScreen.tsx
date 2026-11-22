@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import {
   calculateCheckoutSummary,
+  calculateGuestGiftSettlement,
   ECONOMY_CONFIG,
   formatCoinCount,
   formatCoins,
@@ -171,12 +172,20 @@ export function ComposeAndCheckoutScreen({
 
   const parsedAmount = coinsToStoredValue(Number(amountInput));
   const amountValidation = validateGiftAmount(parsedAmount);
-  const summary = useMemo(
-    () => calculateCheckoutSummary(amountValidation.valid ? amountValidation.normalized : 0),
-    [amountValidation.valid, amountValidation.normalized],
-  );
-
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
+  const summary = useMemo(() => {
+    const base = calculateCheckoutSummary(amountValidation.valid ? amountValidation.normalized : 0);
+    if (isSignedIn) return base;
+    const settlement = calculateGuestGiftSettlement(base.loveCoinsNeeded);
+    return {
+      ...base,
+      platformFeeNaira: settlement.feeCoins,
+      recipientEarningsNaira: settlement.recipientCoins,
+      platformFeePercent: ECONOMY_CONFIG.GUEST_GIFT_FEE_BPS / 100,
+      creatorSharePercent: 100 - ECONOMY_CONFIG.GUEST_GIFT_FEE_BPS / 100,
+      feePercentLabel: '8.5% guest gift fee',
+    };
+  }, [amountValidation.valid, amountValidation.normalized, isSignedIn]);
   const hasEnoughCoins =
     isSignedIn && currentWallet.loveCoinsBalance >= summary.loveCoinsNeeded;
   const coinShortfall = Math.max(

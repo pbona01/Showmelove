@@ -273,6 +273,14 @@ export function createInitialStoreState(): ShowmeloveStoreState {
       },
     },
     payoutRequests: [],
+    sprayTransactions: [],
+    feeTransactions: [],
+    adminMasterWallet: {
+      loveCoinsBalance: 0,
+      totalGuestGiftFees: 0,
+      totalFundingFees: 0,
+      totalSprayFees: 0,
+    },
     defaultBankAccount: { ...DEMO_DEFAULT_BANK },
   };
 }
