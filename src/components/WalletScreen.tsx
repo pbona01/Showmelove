@@ -10,6 +10,7 @@ import {
   Plus,
   Send,
   Sparkles,
+  Trophy,
   UserCheck,
   Wallet as WalletIcon,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ interface WalletScreenProps {
   onOpenProfile?: () => void;
   onTrySampleReveal?: () => void;
   onOpenSpray: () => void;
+  onOpenLeaderboard: () => void;
 }
 
 export function WalletScreen({
@@ -49,6 +51,7 @@ export function WalletScreen({
   onOpenProfile,
   onTrySampleReveal,
   onOpenSpray,
+  onOpenLeaderboard,
 }: WalletScreenProps) {
   const { state, currentWallet, switchRole } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
@@ -166,6 +169,10 @@ export function WalletScreen({
         <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#613023] dark:text-[#FFE4A6]">
           Open Spray Room <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
+      </button>
+
+      <button type="button" onClick={onOpenLeaderboard} data-testid="home-leaderboard-btn" className="w-full rounded-[24px] border border-[#8439D5]/25 bg-[var(--bg-card)] p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#8439D5]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8439D5]">
+        <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F0E7FA] text-[#8439D5] dark:bg-[#2D1D40] dark:text-[#C084FC]"><Trophy className="h-5 w-5" /></span><div><p className="text-sm font-bold text-[var(--text-primary)]">Most Love Shown</p><p className="text-xs text-[var(--text-secondary)]">See the app-wide leaders for gifts and sprays.</p></div></div><ChevronRight className="h-5 w-5 text-[var(--text-secondary)]" /></div>
       </button>
 
       {!isSignedIn ? (

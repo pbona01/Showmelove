@@ -12,6 +12,7 @@ import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { SprayCoinsScreen } from './components/SprayCoinsScreen';
+import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
@@ -35,6 +36,7 @@ type AppRoute =
   | { page: 'profile' }
   | { page: 'admin' }
   | { page: 'spray-coins' }
+  | { page: 'leaderboard' }
   | { page: 'reveal'; giftId: string };
 
 function parseLocationRoute(): AppRoute {
@@ -74,6 +76,7 @@ function parseLocationRoute(): AppRoute {
   if (path === '/profile' || path === '/settings') return { page: 'profile' };
   if (path === '/admin') return { page: 'admin' };
   if (path === '/spray-coins') return { page: 'spray-coins' };
+  if (path === '/leaderboard') return { page: 'leaderboard' };
 
   return { page: 'home' };
 }
@@ -102,6 +105,8 @@ function routeToPath(route: AppRoute): string {
       return '/admin';
     case 'spray-coins':
       return '/spray-coins';
+    case 'leaderboard':
+      return '/leaderboard';
     case 'reveal':
       return `/gift/${encodeURIComponent(route.giftId)}`;
   }
@@ -393,6 +398,7 @@ function ShowmeloveShell() {
                   navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
                 }
                 onOpenSpray={() => navigate({ page: 'spray-coins' })}
+                onOpenLeaderboard={() => navigate({ page: 'leaderboard' })}
               />
             )}
 
@@ -453,6 +459,10 @@ function ShowmeloveShell() {
 
             {route.page === 'spray-coins' && (
               <SprayCoinsScreen onBack={() => navigate({ page: 'home' })} />
+            )}
+
+            {route.page === 'leaderboard' && (
+              <LeaderboardScreen onBack={() => navigate({ page: 'home' })} />
             )}
               </StaggerItem>
             </StaggerContainer>

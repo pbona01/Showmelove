@@ -14,13 +14,15 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins, switchRole } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const [layoutId, setLayoutId] = useState<SprayLayoutId>('classic');
+  const [sprayAmountInput, setSprayAmountInput] = useState('20');
   const recipients = useMemo(
     () => Object.keys(state.walletsByEmail).filter((email) => email !== state.signedInEmail.toLowerCase()),
     [state.signedInEmail, state.walletsByEmail],
   );
   const [recipientEmail, setRecipientEmail] = useState('adaeze.okafor@example.com');
   const layout = SPRAY_LAYOUTS.find((item) => item.id === layoutId) ?? SPRAY_LAYOUTS[0];
-  const canSpray = isSignedIn && currentWallet.loveCoinsBalance >= layout.minimumCoins && Boolean(recipientEmail);
+  const sprayAmount = Math.floor(Number(sprayAmountInput));
+  const canSpray = isSignedIn && sprayAmount >= layout.minimumCoins && currentWallet.loveCoinsBalance >= sprayAmount && Boolean(recipientEmail);
 
   return (
     <div className="mx-auto max-w-xl space-y-5 pb-8">
@@ -38,6 +40,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
           minimumSpray={layout.minimumCoins}
+          sprayAmount={sprayAmount}
           onSpray={(count) => sprayLoveCoins({ coins: count, recipientEmail, layoutId }).ok}
         />
 
@@ -54,7 +57,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#643528] dark:text-[#F5DDE7]">
             {canSpray
-              ? `Swipe up or down to launch at least ${layout.minimumCoins.toLocaleString('en-NG')} Love Coins. ${layout.description}`
+              ? `Swipe up or down to launch ${sprayAmount.toLocaleString('en-NG')} Love Coins. ${layout.description}`
               : isSignedIn
                 ? `You need at least ${layout.minimumCoins.toLocaleString('en-NG')} Love Coins for this layout.`
                 : 'Sign in to a demo account to unlock Love Coin Spray.'}
@@ -77,7 +80,7 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
           {SPRAY_LAYOUTS.map((item) => {
             const locked = currentWallet.loveCoinsBalance < item.minimumCoins;
             return (
-              <button key={item.id} type="button" onClick={() => setLayoutId(item.id)} className={`relative min-h-[82px] rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-white shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
+              <button key={item.id} type="button" onClick={() => { setLayoutId(item.id); setSprayAmountInput(String(item.minimumCoins)); }} className={`relative min-h-[82px] rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-white shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
                 {locked && <LockKeyhole className="absolute right-2 top-2 h-3 w-3" />}
                 <span className="block text-sm font-black">{item.name}</span>
                 <span className="mt-3 block text-[10px] font-bold opacity-90">{item.minimumCoins.toLocaleString('en-NG')} Coins min.</span>
@@ -85,6 +88,11 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
             );
           })}
         </div>
+        <label className="block text-xs font-semibold text-[var(--text-secondary)]">
+          Love Coins per spray
+          <input type="number" min={layout.minimumCoins} max={currentWallet.loveCoinsBalance || layout.minimumCoins} step={1} value={sprayAmountInput} onChange={(event) => setSprayAmountInput(event.target.value)} className="mt-1.5 min-h-[44px] w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 text-base font-bold tabular-nums text-[var(--text-primary)]" />
+          <span className="mt-1 block font-normal">Minimum: {layout.minimumCoins.toLocaleString('en-NG')} Coins · Available: {currentWallet.loveCoinsBalance.toLocaleString('en-NG')} Coins</span>
+        </label>
         <label className="block text-xs font-semibold text-[var(--text-secondary)]">
           Send spray to
           <select value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} className="mt-1.5 w-full min-h-[44px] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 text-sm font-semibold text-[var(--text-primary)]">
