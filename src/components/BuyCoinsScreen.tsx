@@ -79,7 +79,13 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
           body: JSON.stringify({ amountNaira: coins }),
         });
-        const result = await response.json() as { authorizationUrl?: string; error?: string };
+        const raw = await response.text();
+        let result: { authorizationUrl?: string; error?: string } = {};
+        try {
+          result = JSON.parse(raw) as { authorizationUrl?: string; error?: string };
+        } catch {
+          throw new Error(`Checkout service is unavailable (${response.status}). Open Vercel → Functions → paystack/initialize to see the server error, then confirm the server-only Paystack and Supabase variables are set.`);
+        }
         if (!response.ok || !result.authorizationUrl) throw new Error(result.error || 'Could not start secure checkout.');
         window.location.assign(result.authorizationUrl);
         return;
