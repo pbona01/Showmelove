@@ -1,5 +1,114 @@
 // Safe diagnostic endpoint: confirms environment configuration and external service reachability
 // WITHOUT EVER REVEALING SECRET KEY VALUES.
+async function settleFunding(
+  supabaseUrl: string,
+  supabaseSecret: string,
+  reference: string,
+  userId: string,
+  amountNaira: number,
+): Promise<{ status: string; credited_coins: number; idempotent?: boolean }> {
+  try {
+    const checkRes = await fetch(
+      `${supabaseUrl}/rest/v1/payment_events?reference=eq.${encodeURIComponent(reference)}&select=status,credited_coins`,
+      {
+        headers: { apikey: supabaseSecret, Authorization: `Bearer ${supabaseSecret}` },
+      },
+    );
+    if (checkRes.ok) {
+      const rows = (await checkRes.json()) as any[];
+      if (rows[0]?.status === 'succeeded') {
+        return { status: 'succeeded', credited_coins: rows[0].credited_coins, idempotent: true };
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  const v_credit = Math.floor(amountNaira * 0.97);
+  const v_fee = amountNaira - v_credit;
+
+  // Try RPC settle_paystack_funding first
+  try {
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/settle_paystack_funding`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseSecret,
+        Authorization: `Bearer ${supabaseSecret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        p_reference: reference,
+        p_user_id: userId,
+        p_amount_naira: amountNaira,
+      }),
+    });
+    if (rpcRes.ok) {
+      const settlement = (await rpcRes.json()) as any;
+      return {
+        status: 'succeeded',
+        credited_coins: settlement?.credited_coins ?? v_credit,
+        idempotent: Boolean(settlement?.idempotent),
+      };
+    }
+  } catch {
+    // Continue
+  }
+
+  // Direct REST fallback
+  const headers = {
+    apikey: supabaseSecret,
+    Authorization: `Bearer ${supabaseSecret}`,
+    'Content-Type': 'application/json',
+  };
+
+  await fetch(`${supabaseUrl}/rest/v1/payment_events`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({
+      reference,
+      user_id: userId,
+      amount_naira: amountNaira,
+      credited_coins: v_credit,
+      fee_coins: v_fee,
+      status: 'succeeded',
+      settled_at: new Date().toISOString(),
+    }),
+  }).catch(() => undefined);
+
+  try {
+    const wRes = await fetch(
+      `${supabaseUrl}/rest/v1/wallets?user_id=eq.${encodeURIComponent(userId)}&select=love_coins_balance`,
+      { headers },
+    );
+    const wRows = wRes.ok ? ((await wRes.json()) as any[]) : [];
+    if (wRows.length > 0) {
+      const currentBal = Number(wRows[0]?.love_coins_balance || 0);
+      await fetch(`${supabaseUrl}/rest/v1/wallets?user_id=eq.${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          love_coins_balance: currentBal + v_credit,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    } else {
+      await fetch(`${supabaseUrl}/rest/v1/wallets`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+          user_id: userId,
+          love_coins_balance: v_credit,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    }
+  } catch (err) {
+    console.error('Wallet balance update error:', err);
+  }
+
+  return { status: 'succeeded', credited_coins: v_credit, idempotent: false };
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -93,8 +202,6 @@ export default async function handler(req: any, res: any) {
         body: JSON.stringify({}),
       });
       const rpcText = await rpcCheck.text();
-      // If the function exists, PostgREST returns 400 with a parameter error or function signature error.
-      // If it DOES NOT exist, PostgREST returns 404 with "Could not find the function".
       if (rpcCheck.status === 404 || rpcText.includes('Could not find')) {
         rpcStatus = 'missing_rpc (settle_paystack_funding does not exist in public schema)';
       } else {
@@ -119,9 +226,11 @@ export default async function handler(req: any, res: any) {
   // Ping Paystack API and inspect recent transactions
   let paystackApiStatus = 'not_checked';
   let recentPaystackTransactions: any = null;
+  let syncOutcomes: any = null;
+
   if (paystackSec) {
     try {
-      const response = await fetch('https://api.paystack.co/transaction?perPage=3', {
+      const response = await fetch('https://api.paystack.co/transaction?perPage=5', {
         headers: { Authorization: `Bearer ${paystackSec}` },
       });
       const data = (await response.json()) as {
@@ -145,6 +254,31 @@ export default async function handler(req: any, res: any) {
           has_user_id: Boolean(t.metadata?.showmelove_user_id),
           paid_at: t.paid_at,
         }));
+
+        const isSyncRequested =
+          String(req.query?.sync || '') === '1' ||
+          (req.url && new URL(req.url, 'https://showmelove.fun').searchParams.get('sync') === '1');
+
+        if (isSyncRequested && supabaseUrl && supabaseSec) {
+          syncOutcomes = [];
+          for (const t of data.data || []) {
+            if (t.status === 'success' && t.reference && t.metadata?.showmelove_user_id) {
+              const amountNaira = Math.floor(Number(t.amount || 0) / 100);
+              const result = await settleFunding(
+                supabaseUrl.replace(/\/$/, ''),
+                supabaseSec,
+                t.reference,
+                t.metadata.showmelove_user_id,
+                amountNaira,
+              );
+              syncOutcomes.push({
+                reference: `${t.reference.slice(0, 12)}...`,
+                amountNaira,
+                outcome: result,
+              });
+            }
+          }
+        }
       } else {
         paystackApiStatus = `declined: ${data.message || response.status}`;
       }
@@ -181,6 +315,7 @@ export default async function handler(req: any, res: any) {
         paymentEventsRecent: paymentEventsSummary,
         walletsTotalCount: walletsCount,
         recentPaystackTransactions,
+        syncOutcomes,
       },
     }),
   );

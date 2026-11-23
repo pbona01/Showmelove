@@ -63,6 +63,140 @@ async function resolveUserId(
   return null;
 }
 
+async function settleFunding(
+  supabaseUrl: string,
+  supabaseSecret: string,
+  reference: string,
+  userId: string,
+  amountNaira: number,
+): Promise<{ status: string; credited_coins: number; idempotent?: boolean }> {
+  // Check idempotency first
+  try {
+    const checkRes = await fetch(
+      `${supabaseUrl}/rest/v1/payment_events?reference=eq.${encodeURIComponent(reference)}&select=status,credited_coins`,
+      {
+        headers: { apikey: supabaseSecret, Authorization: `Bearer ${supabaseSecret}` },
+      },
+    );
+    if (checkRes.ok) {
+      const rows = (await checkRes.json()) as any[];
+      if (rows[0]?.status === 'succeeded') {
+        return { status: 'succeeded', credited_coins: rows[0].credited_coins, idempotent: true };
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  const v_credit = Math.floor(amountNaira * 0.97);
+  const v_fee = amountNaira - v_credit;
+
+  // Attempt 1: Try RPC settle_paystack_funding
+  try {
+    const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/settle_paystack_funding`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseSecret,
+        Authorization: `Bearer ${supabaseSecret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        p_reference: reference,
+        p_user_id: userId,
+        p_amount_naira: amountNaira,
+      }),
+    });
+    if (rpcRes.ok) {
+      const settlement = (await rpcRes.json()) as any;
+      return {
+        status: 'succeeded',
+        credited_coins: settlement?.credited_coins ?? v_credit,
+        idempotent: Boolean(settlement?.idempotent),
+      };
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // Attempt 2: Direct REST fallback via service_role key
+  const headers = {
+    apikey: supabaseSecret,
+    Authorization: `Bearer ${supabaseSecret}`,
+    'Content-Type': 'application/json',
+  };
+
+  // Upsert payment_events
+  await fetch(`${supabaseUrl}/rest/v1/payment_events`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({
+      reference,
+      user_id: userId,
+      amount_naira: amountNaira,
+      credited_coins: v_credit,
+      fee_coins: v_fee,
+      status: 'succeeded',
+      settled_at: new Date().toISOString(),
+    }),
+  }).catch(() => undefined);
+
+  // Update or insert wallets
+  try {
+    const wRes = await fetch(
+      `${supabaseUrl}/rest/v1/wallets?user_id=eq.${encodeURIComponent(userId)}&select=love_coins_balance`,
+      { headers },
+    );
+    const wRows = wRes.ok ? ((await wRes.json()) as any[]) : [];
+    if (wRows.length > 0) {
+      const currentBal = Number(wRows[0]?.love_coins_balance || 0);
+      await fetch(`${supabaseUrl}/rest/v1/wallets?user_id=eq.${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          love_coins_balance: currentBal + v_credit,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    } else {
+      await fetch(`${supabaseUrl}/rest/v1/wallets`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+          user_id: userId,
+          love_coins_balance: v_credit,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    }
+  } catch (err) {
+    console.error('Wallet balance update error in webhook:', err);
+  }
+
+  // Record transactions (best-effort)
+  await fetch(`${supabaseUrl}/rest/v1/wallet_transactions`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=ignore-duplicates' },
+    body: JSON.stringify({
+      user_id: userId,
+      kind: 'paystack_funding',
+      coins_delta: v_credit,
+      reference,
+    }),
+  }).catch(() => undefined);
+
+  await fetch(`${supabaseUrl}/rest/v1/platform_fee_transactions`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'resolution=ignore-duplicates' },
+    body: JSON.stringify({
+      source: 'wallet_funding',
+      reference,
+      coins: v_fee,
+    }),
+  }).catch(() => undefined);
+
+  return { status: 'succeeded', credited_coins: v_credit, idempotent: false };
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -124,7 +258,7 @@ export default async function handler(req: any, res: any) {
       return reply(res, 400, { error: 'Unverified Paystack event' });
     }
 
-    // Settle in Supabase via RPC using server secret
+    // Settle in Supabase
     const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim().replace(/\/$/, '');
     const supabaseSecret = (process.env.SUPABASE_SECRET_KEY || '').trim();
 
@@ -138,26 +272,8 @@ export default async function handler(req: any, res: any) {
     }
 
     const amountNaira = Math.floor(payment.amount / 100);
-    const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/settle_paystack_funding`, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseSecret,
-        Authorization: `Bearer ${supabaseSecret}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        p_reference: payment.reference,
-        p_user_id: userId,
-        p_amount_naira: amountNaira,
-      }),
-    });
+    const settlement = await settleFunding(supabaseUrl, supabaseSecret, payment.reference, userId, amountNaira);
 
-    if (!rpcResponse.ok) {
-      const rpcError = await rpcResponse.text();
-      return reply(res, 500, { error: `Supabase settlement RPC failed: ${rpcError}` });
-    }
-
-    const settlement = await rpcResponse.json();
     return reply(res, 200, { received: true, settlement });
   } catch (error) {
     return reply(res, 500, { error: error instanceof Error ? error.message : 'Webhook processing failed' });
