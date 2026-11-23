@@ -204,9 +204,9 @@ export function createInitialStoreState(): ShowmeloveStoreState {
     roseCheckout.recipientEarningsNaira + teddyCheckout.recipientEarningsNaira;
 
   return {
-    activeRole: 'recipient',
-    signedInEmail: DEMO_USERS.recipient.email,
-    signedInName: DEMO_USERS.recipient.displayName,
+    activeRole: 'guest',
+    signedInEmail: '',
+    signedInName: 'Guest',
     activeSeasonalCollection: 'valentines',
     seasonalDropEnabled: true,
     catalog: INITIAL_CATALOG.map((item) => ({ ...item })),
@@ -284,3 +284,4 @@ export function createInitialStoreState(): ShowmeloveStoreState {
     defaultBankAccount: { ...DEMO_DEFAULT_BANK },
   };
 }
+
