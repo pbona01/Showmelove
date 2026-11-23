@@ -7,7 +7,14 @@ export function required(name: string): string {
 }
 
 export function json(res: any, status: number, body: unknown) {
-  res.status(status).setHeader('Content-Type', 'application/json').send(JSON.stringify(body));
+  const payload = JSON.stringify(body);
+  // Vercel can provide either its enhanced response object or Node's native
+  // ServerResponse. Support both so an error is always returned as JSON.
+  if (typeof res.status === 'function') res.status(status);
+  else res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  if (typeof res.send === 'function') res.send(payload);
+  else res.end(payload);
 }
 
 export async function readRawBody(req: any): Promise<string> {
