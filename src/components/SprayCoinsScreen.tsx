@@ -1,5 +1,5 @@
 import { ArrowLeft, LockKeyhole, Sparkles } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { SprayCoins } from './SprayCoins';
@@ -17,14 +17,23 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const [sprayAmountInput, setSprayAmountInput] = useState('20');
   const [recipientEmail, setRecipientEmail] = useState('');
 
+  // Eagerly preload all 5 theme coins and theme card artwork into memory
+  useEffect(() => {
+    SPRAY_LAYOUTS.forEach((item) => {
+      const coinImg = new Image();
+      coinImg.src = item.coinSrc;
+      const cardImg = new Image();
+      cardImg.src = item.artworkSrc;
+    });
+  }, []);
+
   const layout = SPRAY_LAYOUTS.find((item) => item.id === layoutId) ?? SPRAY_LAYOUTS[0];
   const parsedAmount = Math.floor(Number(sprayAmountInput)) || layout.minimumCoins;
 
   // Spraying can continue until the user's Love Coin balance reaches zero
   const userBalance = currentWallet.loveCoinsBalance;
   const hasBalance = userBalance > 0;
-  const isRecipientValid = Boolean(recipientEmail.trim() && recipientEmail.includes('@'));
-  const canSpray = isSignedIn && hasBalance && isRecipientValid;
+  const canSpray = hasBalance;
 
   // The effective amount per swipe uses the user's chosen amount or whatever balance remains
   const effectiveSprayAmount = Math.min(parsedAmount, userBalance);
@@ -78,7 +87,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           onSpray={(count) =>
             sprayLoveCoins({
               coins: count,
-              recipientEmail: recipientEmail.trim(),
+              recipientEmail: recipientEmail.trim() || undefined,
               layoutId,
             }).ok
           }
@@ -114,11 +123,11 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
             <p className="text-[11px] font-semibold text-white/95 text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {canSpray
                 ? `Swipe vertically to launch ${effectiveSprayAmount.toLocaleString('en-NG')} ${layout.coinLabel}`
-                : !isSignedIn
-                  ? 'Sign in below to unlock Love Coin Spray'
-                  : !isRecipientValid
-                    ? 'Enter recipient email below to start spraying'
-                    : 'Your balance is 0. Buy coins to continue spraying.'}
+                : userBalance <= 0
+                  ? 'Balance empty. Top up your wallet to continue spraying!'
+                  : !isSignedIn
+                    ? 'Sign in below to unlock Love Coin Spray'
+                    : 'Choose your flex below to spray'}
             </p>
           </div>
         </div>
@@ -173,10 +182,10 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           })}
         </div>
 
-        {/* Recipient Email Input */}
+        {/* Recipient Email Input (Optional) */}
         <div className="space-y-1">
           <label htmlFor="spray-recipient-email" className="block text-xs font-semibold text-[var(--text-secondary)]">
-            Send spray to (recipient email)
+            Send spray to (optional recipient)
           </label>
           <input
             id="spray-recipient-email"
@@ -184,9 +193,12 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
             autoComplete="email"
             value={recipientEmail}
             onChange={(e) => setRecipientEmail(e.target.value)}
-            placeholder="friend@example.com"
+            placeholder="friend@example.com (or leave blank to spray in the room)"
             className="w-full min-h-[44px] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3.5 text-sm font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
           />
+          <p className="text-[11px] text-[var(--text-secondary)]">
+            Leave blank to spray open coins in the room, or enter a friend's email to transfer coins to them.
+          </p>
         </div>
 
         {/* Coins Per Spray Input */}

@@ -49,7 +49,7 @@ interface ShowmeloveContextValue {
   resetDemo: () => Promise<void>;
   submitCheckout: (draft: ComposeGiftDraft) => CheckoutResult;
   purchaseLoveCoins: (coins: number) => { ok: boolean; error?: string };
-  sprayLoveCoins: (input: { coins: number; recipientEmail: string; layoutId: SprayLayoutId }) => { ok: boolean; error?: string };
+  sprayLoveCoins: (input: { coins: number; recipientEmail?: string; layoutId: SprayLayoutId }) => { ok: boolean; error?: string };
   markGiftRevealed: (giftId: string) => void;
   claimGift: (giftId: string, overrideEmail?: string) => ClaimResult;
   getGiftById: (giftId: string) => SentGift | undefined;
@@ -247,7 +247,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
   );
 
   const sprayLoveCoins = useCallback(
-    (input: { coins: number; recipientEmail: string; layoutId: SprayLayoutId }): { ok: boolean; error?: string } => {
+    (input: { coins: number; recipientEmail?: string; layoutId: SprayLayoutId }): { ok: boolean; error?: string } => {
       const prev = stateRef.current;
       const email = normalizeEmail(prev.signedInEmail);
       if (!email) return { ok: false, error: 'Sign in to spray Love Coins.' };
@@ -259,7 +259,23 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
         layoutId: input.layoutId,
         grossCoins: input.coins,
       });
-      if (result.ok) commitNext(result.nextState);
+      if (result.ok) {
+        commitNext(result.nextState);
+        // Persist decreased balance directly to Supabase so window focus never reverts it
+        const sb = supabase;
+        if (sb) {
+          const nextBal = result.nextState.walletsByEmail[email]?.loveCoinsBalance ?? 0;
+          void sb.auth.getSession().then(({ data }) => {
+            const uid = data?.session?.user?.id;
+            if (uid) {
+              void sb
+                .from('wallets')
+                .update({ love_coins_balance: nextBal, updated_at: new Date().toISOString() })
+                .eq('user_id', uid);
+            }
+          });
+        }
+      }
       return { ok: result.ok, error: result.error };
     },
     [commitNext],

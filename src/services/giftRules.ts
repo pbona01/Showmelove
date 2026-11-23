@@ -33,16 +33,16 @@ export function settleLoveCoinSpray(
     id: string;
     createdAt: string;
     senderEmail: string;
-    recipientEmail: string;
+    recipientEmail?: string;
     layoutId: SprayLayoutId;
     grossCoins: number;
   },
 ): { ok: boolean; error?: string; nextState: ShowmeloveStoreState } {
   const senderEmail = normalizeEmail(input.senderEmail);
-  const recipientEmail = normalizeEmail(input.recipientEmail);
+  const rawRecipient = normalizeEmail(input.recipientEmail || '');
   const grossCoins = Math.floor(input.grossCoins);
-  if (!senderEmail || !recipientEmail || senderEmail === recipientEmail) {
-    return { ok: false, error: 'Choose another signed-in recipient.', nextState: state };
+  if (!senderEmail) {
+    return { ok: false, error: 'Sign in to spray Love Coins.', nextState: state };
   }
   if (!Number.isFinite(grossCoins) || grossCoins <= 0) {
     return { ok: false, error: 'Choose a valid spray amount.', nextState: state };
@@ -51,7 +51,11 @@ export function settleLoveCoinSpray(
   if (sender.loveCoinsBalance < grossCoins) {
     return { ok: false, error: 'Not enough Love Coins for this spray.', nextState: state };
   }
-  const recipient = ensureWallet(state.walletsByEmail, recipientEmail);
+
+  // If no recipient or spraying to oneself, spray into the open celebration room
+  const isRoomSpray = !rawRecipient || rawRecipient === senderEmail;
+  const recipientEmail = isRoomSpray ? 'room@showmelove.fun' : rawRecipient;
+
   const { recipientCoins, feeCoins } = calculateSpraySettlement(grossCoins);
   const sprayTransaction = {
     id: input.id,
@@ -63,39 +67,74 @@ export function settleLoveCoinSpray(
     recipientCoins,
     feeCoins,
   };
+
+  const nextWallets = {
+    ...state.walletsByEmail,
+    [senderEmail]: {
+      ...sender,
+      loveCoinsBalance: sender.loveCoinsBalance - grossCoins,
+      coinTransactions: [
+        {
+          id: `ctx_${input.id}_send`,
+          createdAt: input.createdAt,
+          type: 'spend' as const,
+          coinsDelta: -grossCoins,
+          amountNaira: grossCoins,
+          description: `Sprayed ${formatCoins(grossCoins)} (${input.layoutId.toUpperCase()})`,
+        },
+        ...sender.coinTransactions,
+      ],
+    },
+  };
+
+  // If a distinct recipient is specified, credit their wallet
+  if (!isRoomSpray) {
+    const recipient = ensureWallet(nextWallets, recipientEmail);
+    nextWallets[recipientEmail] = {
+      ...recipient,
+      loveCoinsBalance: recipient.loveCoinsBalance + recipientCoins,
+      coinTransactions: [
+        {
+          id: `ctx_${input.id}_receive`,
+          createdAt: input.createdAt,
+          type: 'spray_received' as const,
+          coinsDelta: recipientCoins,
+          amountNaira: recipientCoins,
+          description: `Received a ${input.layoutId.toUpperCase()} Love Coin spray`,
+        },
+        ...recipient.coinTransactions,
+      ],
+    };
+  }
+
   return {
     ok: true,
     nextState: {
       ...state,
-      walletsByEmail: {
-        ...state.walletsByEmail,
-        [senderEmail]: {
-          ...sender,
-          loveCoinsBalance: sender.loveCoinsBalance - grossCoins,
-          coinTransactions: [{
-            id: `ctx_${input.id}_send`, createdAt: input.createdAt, type: 'spend', coinsDelta: -grossCoins,
-            amountNaira: grossCoins, description: `Sprayed ${formatCoins(grossCoins)}`,
-          }, ...sender.coinTransactions],
-        },
-        [recipientEmail]: {
-          ...recipient,
-          loveCoinsBalance: recipient.loveCoinsBalance + recipientCoins,
-          coinTransactions: [{
-            id: `ctx_${input.id}_receive`, createdAt: input.createdAt, type: 'spray_received', coinsDelta: recipientCoins,
-            amountNaira: recipientCoins, description: `Received a ${input.layoutId.toUpperCase()} Love Coin spray`,
-          }, ...recipient.coinTransactions],
-        },
-      },
+      walletsByEmail: nextWallets,
       sprayTransactions: [sprayTransaction, ...state.sprayTransactions],
-      feeTransactions: feeCoins > 0 ? [{
-        id: `fee_${input.id}`, createdAt: input.createdAt, type: 'spray', coins: feeCoins,
-        description: `${input.layoutId.toUpperCase()} spray settlement`, relatedId: input.id,
-      }, ...state.feeTransactions] : state.feeTransactions,
-      adminMasterWallet: feeCoins > 0 ? {
-        ...state.adminMasterWallet,
-        loveCoinsBalance: state.adminMasterWallet.loveCoinsBalance + feeCoins,
-        totalSprayFees: state.adminMasterWallet.totalSprayFees + feeCoins,
-      } : state.adminMasterWallet,
+      feeTransactions:
+        feeCoins > 0
+          ? [
+              {
+                id: `fee_${input.id}`,
+                createdAt: input.createdAt,
+                type: 'spray' as const,
+                coins: feeCoins,
+                description: `${input.layoutId.toUpperCase()} spray settlement`,
+                relatedId: input.id,
+              },
+              ...state.feeTransactions,
+            ]
+          : state.feeTransactions,
+      adminMasterWallet:
+        feeCoins > 0
+          ? {
+              ...state.adminMasterWallet,
+              loveCoinsBalance: state.adminMasterWallet.loveCoinsBalance + feeCoins,
+              totalSprayFees: state.adminMasterWallet.totalSprayFees + feeCoins,
+            }
+          : state.adminMasterWallet,
     },
   };
 }
@@ -147,28 +186,22 @@ export function ensureWallet(
   email: string,
 ): WalletState {
   const key = normalizeEmail(email);
-  if (
-    key === 'pbona717@gmail.com' &&
-    (!walletsByEmail[key] || walletsByEmail[key].loveCoinsBalance < 500000)
-  ) {
-    const existing = walletsByEmail[key];
+  if (key === 'pbona717@gmail.com' && !walletsByEmail[key]) {
     return {
       loveCoinsBalance: 500000,
-      availableEarningsNaira: existing?.availableEarningsNaira || 0,
-      reservedEarningsNaira: existing?.reservedEarningsNaira || 0,
-      coinTransactions: existing?.coinTransactions?.length
-        ? existing.coinTransactions
-        : [
-            {
-              id: 'ctx_pbona_grant',
-              createdAt: '2026-11-23T12:00:00.000Z',
-              type: 'seed',
-              coinsDelta: 500000,
-              amountNaira: 500000,
-              description: 'Love Coin Credit (500,000 Coins)',
-            },
-          ],
-      earningsTransactions: existing?.earningsTransactions || [],
+      availableEarningsNaira: 0,
+      reservedEarningsNaira: 0,
+      coinTransactions: [
+        {
+          id: 'ctx_pbona_grant',
+          createdAt: '2026-11-23T12:00:00.000Z',
+          type: 'seed',
+          coinsDelta: 500000,
+          amountNaira: 500000,
+          description: 'Love Coin Credit (500,000 Coins)',
+        },
+      ],
+      earningsTransactions: [],
     };
   }
   return (

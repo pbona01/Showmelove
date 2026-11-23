@@ -19,6 +19,7 @@ import {
   markGiftRevealed,
   requestWithdrawal,
   resolveWithdrawal,
+  settleLoveCoinSpray,
 } from './giftRules';
 
 test('economy config validates bounds and computes fee summary accurately', () => {
@@ -334,4 +335,36 @@ test('admin tools are hidden for recipient, sender, and guest unless demo admin 
   assert.equal(canAccessAdminTools('guest', false), false);
   assert.equal(canAccessAdminTools('admin', false), true);
   assert.equal(canAccessAdminTools('recipient', true), true);
+});
+
+test('settleLoveCoinSpray reduces sender balance and settles fees even with empty or self recipient', () => {
+  const initial = createInitialStoreState();
+  const senderEmail = 'pbona717@gmail.com';
+  const startBal = initial.walletsByEmail[senderEmail]?.loveCoinsBalance ?? 500000;
+
+  // 1. Room spray with no recipient email specified
+  const res1 = settleLoveCoinSpray(initial, {
+    id: 'test_spray_1',
+    createdAt: new Date().toISOString(),
+    senderEmail,
+    recipientEmail: '',
+    layoutId: 'classic',
+    grossCoins: 1000,
+  });
+  assert.equal(res1.ok, true);
+  assert.equal(res1.nextState.walletsByEmail[senderEmail].loveCoinsBalance, startBal - 1000);
+  assert.equal(res1.nextState.adminMasterWallet.loveCoinsBalance, 30); // 3% fee
+
+  // 2. Self spray (recipient === sender)
+  const res2 = settleLoveCoinSpray(res1.nextState, {
+    id: 'test_spray_2',
+    createdAt: new Date().toISOString(),
+    senderEmail,
+    recipientEmail: senderEmail,
+    layoutId: 'btc',
+    grossCoins: 10000,
+  });
+  assert.equal(res2.ok, true);
+  assert.equal(res2.nextState.walletsByEmail[senderEmail].loveCoinsBalance, startBal - 11000);
+  assert.equal(res2.nextState.adminMasterWallet.loveCoinsBalance, 330); // 30 + 300
 });

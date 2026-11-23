@@ -42,8 +42,8 @@ interface CoinParticle {
 const PARTICLE_LIFETIME_MS = 1200;
 const GRAVITY_PX_PER_SECOND = 800;
 const DRAG_PER_FRAME = 0.98;
-const SPRAY_COOLDOWN_MS = 300;
-const SWIPE_DISTANCE_PX = 44;
+const SPRAY_COOLDOWN_MS = 250;
+const SWIPE_DISTANCE_PX = 24;
 const HINT_STORAGE_KEY = 'showmelove_spray_coins_hint_seen';
 
 function randomBetween(min: number, max: number): number {
@@ -151,46 +151,39 @@ function CoinParticleView({
   }, [onComplete, particle]);
 
   return (
-    <motion.span
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.08 }}
-      className="absolute inset-0 pointer-events-none"
+    <div
+      ref={elementRef}
+      className="absolute left-0 top-0 h-10 w-10 select-none pointer-events-none drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)]"
+      style={{
+        opacity: 1,
+        transform: `translate3d(${particle.x}px, ${particle.y}px, 0) rotate(${particle.rotation}deg) scale(${particle.scale})`,
+        transformOrigin: 'center',
+        willChange: 'transform, opacity',
+      }}
     >
-      <div
-        ref={elementRef}
-        className="absolute left-0 top-0 h-10 w-10 select-none pointer-events-none drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)]"
-        style={{
-          opacity: 0,
-          transformOrigin: 'center',
-          willChange: 'transform, opacity',
+      <img
+        src={theme.coinSrc}
+        alt={symbol}
+        className="h-full w-full object-contain select-none pointer-events-none"
+        loading="eager"
+        decoding="sync"
+        onError={(e) => {
+          // Graceful fallback to CSS styled circle if image cannot be loaded
+          e.currentTarget.style.display = 'none';
+          const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+          if (fallback) fallback.style.display = 'grid';
         }}
+      />
+      <span
+        style={{ display: 'none' }}
+        className={`h-full w-full place-items-center rounded-full select-none ${theme.wrapper}`}
       >
-        <img
-          src={theme.coinSrc}
-          alt={symbol}
-          className="h-full w-full object-contain select-none pointer-events-none"
-          loading="eager"
-          decoding="async"
-          onError={(e) => {
-            // Graceful fallback to CSS styled circle if image cannot be loaded
-            e.currentTarget.style.display = 'none';
-            const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
-            if (fallback) fallback.style.display = 'grid';
-          }}
-        />
-        <span
-          style={{ display: 'none' }}
-          className={`h-full w-full place-items-center rounded-full select-none ${theme.wrapper}`}
-        >
-          <span className={`absolute inset-0.5 rounded-full pointer-events-none ${theme.inner}`} />
-          <span className={`relative leading-none select-none ${theme.text}`}>
-            {symbol}
-          </span>
+        <span className={`absolute inset-0.5 rounded-full pointer-events-none ${theme.inner}`} />
+        <span className={`relative leading-none select-none ${theme.text}`}>
+          {symbol}
         </span>
-      </div>
-    </motion.span>
+      </span>
+    </div>
   );
 }
 
@@ -372,8 +365,8 @@ export function SprayCoins({
     if (!first || !last) return;
     const deltaX = last.x - first.x;
     const deltaY = last.y - first.y;
-    // Strict vertical swipe only: prevents horizontal gestures or diagonal noise
-    if (Math.abs(deltaY) >= SWIPE_DISTANCE_PX && Math.abs(deltaY) > Math.abs(deltaX) * 1.25) {
+    // Vertical swipe: any vertical flick registers smoothly
+    if (Math.abs(deltaY) >= SWIPE_DISTANCE_PX && Math.abs(deltaY) >= Math.abs(deltaX) * 0.75) {
       emitSpray(history);
     }
   };
