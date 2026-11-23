@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertCircle,
@@ -55,8 +56,33 @@ export function WalletScreen({
   onOpenLeaderboard,
   onOpenSignIn,
 }: WalletScreenProps) {
-  const { state, currentWallet, switchRole } = useShowmelove();
+  const { state, currentWallet, switchRole, refreshLiveWallet } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
+
+  useEffect(() => {
+    void refreshLiveWallet();
+
+    // Check for any pending payments in localStorage to recover from redirects
+    try {
+      const rawPending = localStorage.getItem('showmelove_pending_payment');
+      if (rawPending) {
+        const parsed = JSON.parse(rawPending) as { reference?: string };
+        if (parsed?.reference) {
+          void fetch(`/api/paystack/status?reference=${encodeURIComponent(parsed.reference)}`)
+            .then((r) => r.json())
+            .then(async (data: { status?: string }) => {
+              if (data?.status === 'succeeded') {
+                localStorage.removeItem('showmelove_pending_payment');
+                await refreshLiveWallet();
+              }
+            })
+            .catch(() => undefined);
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [refreshLiveWallet]);
 
   const reducedMotion =
     typeof window !== 'undefined' &&

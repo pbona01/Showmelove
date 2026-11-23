@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertCircle,
@@ -30,8 +30,12 @@ interface BuyCoinsScreenProps {
 type CheckoutStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScreenProps) {
-  const { state, currentWallet, purchaseLoveCoins } = useShowmelove();
+  const { state, currentWallet, purchaseLoveCoins, refreshLiveWallet } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
+
+  useEffect(() => {
+    void refreshLiveWallet();
+  }, [refreshLiveWallet]);
 
   const [selectedCoins, setSelectedCoins] = useState<number>(500);
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -80,13 +84,23 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
           body: JSON.stringify({ amountNaira: coins }),
         });
         const raw = await response.text();
-        let result: { authorizationUrl?: string; error?: string } = {};
+        let result: { authorizationUrl?: string; reference?: string; error?: string } = {};
         try {
-          result = JSON.parse(raw) as { authorizationUrl?: string; error?: string };
+          result = JSON.parse(raw) as { authorizationUrl?: string; reference?: string; error?: string };
         } catch {
           throw new Error(`Checkout service is unavailable (${response.status}). Open Vercel → Functions → paystack/initialize to see the server error, then confirm the server-only Paystack and Supabase variables are set.`);
         }
         if (!response.ok || !result.authorizationUrl) throw new Error(result.error || 'Could not start secure checkout.');
+        if (result.reference) {
+          try {
+            localStorage.setItem(
+              'showmelove_pending_payment',
+              JSON.stringify({ reference: result.reference, amount: coins, time: Date.now() }),
+            );
+          } catch {
+            // Ignore storage errors
+          }
+        }
         window.location.assign(result.authorizationUrl);
         return;
       } catch (error) {

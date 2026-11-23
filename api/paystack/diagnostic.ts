@@ -55,29 +55,99 @@ export default async function handler(req: any, res: any) {
 
   // Ping Supabase database with service secret
   let supabaseDbStatus = 'not_checked';
+  let rpcStatus = 'not_checked';
+  let paymentEventsSummary: any = null;
+  let walletsCount = -1;
+
   if (supabaseUrl && supabaseSec) {
+    const sUrl = supabaseUrl.replace(/\/$/, '');
     try {
       const response = await fetch(
-        `${supabaseUrl.replace(/\/$/, '')}/rest/v1/payment_events?select=reference&limit=1`,
+        `${sUrl}/rest/v1/payment_events?select=reference,status,amount_naira,credited_coins,created_at&order=created_at.desc&limit=5`,
         {
           headers: { apikey: supabaseSec, Authorization: `Bearer ${supabaseSec}` },
         },
       );
-      supabaseDbStatus = response.ok ? 'connected' : `http_${response.status}`;
+      if (response.ok) {
+        const events = (await response.json()) as any[];
+        supabaseDbStatus = 'connected';
+        paymentEventsSummary = events.map((e) => ({
+          reference: e.reference ? `${String(e.reference).slice(0, 10)}...` : null,
+          status: e.status,
+          amount_naira: e.amount_naira,
+          credited_coins: e.credited_coins,
+          created_at: e.created_at,
+        }));
+      } else {
+        supabaseDbStatus = `http_${response.status}`;
+      }
     } catch (e) {
       supabaseDbStatus = `error: ${e instanceof Error ? e.message : 'unreachable'}`;
     }
+
+    // Check RPC settle_paystack_funding
+    try {
+      const rpcCheck = await fetch(`${sUrl}/rest/v1/rpc/settle_paystack_funding`, {
+        method: 'POST',
+        headers: { apikey: supabaseSec, Authorization: `Bearer ${supabaseSec}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const rpcText = await rpcCheck.text();
+      // If the function exists, PostgREST returns 400 with a parameter error or function signature error.
+      // If it DOES NOT exist, PostgREST returns 404 with "Could not find the function".
+      if (rpcCheck.status === 404 || rpcText.includes('Could not find')) {
+        rpcStatus = 'missing_rpc (settle_paystack_funding does not exist in public schema)';
+      } else {
+        rpcStatus = `exists (status: ${rpcCheck.status}, msg: ${rpcText.slice(0, 120)})`;
+      }
+    } catch (e) {
+      rpcStatus = `error: ${e instanceof Error ? e.message : 'unreachable'}`;
+    }
+
+    // Check wallets table
+    try {
+      const wCheck = await fetch(`${sUrl}/rest/v1/wallets?select=user_id`, {
+        headers: { apikey: supabaseSec, Authorization: `Bearer ${supabaseSec}`, Range: '0-0', Prefer: 'count=exact' },
+      });
+      const range = wCheck.headers.get('content-range') || '';
+      walletsCount = range.includes('/') ? parseInt(range.split('/')[1] || '-1', 10) : -1;
+    } catch {
+      // Ignore count error
+    }
   }
 
-  // Ping Paystack API
+  // Ping Paystack API and inspect recent transactions
   let paystackApiStatus = 'not_checked';
+  let recentPaystackTransactions: any = null;
   if (paystackSec) {
     try {
-      const response = await fetch('https://api.paystack.co/integration/payment_session_timeout', {
+      const response = await fetch('https://api.paystack.co/transaction?perPage=3', {
         headers: { Authorization: `Bearer ${paystackSec}` },
       });
-      const data = (await response.json()) as { status?: boolean; message?: string };
-      paystackApiStatus = response.ok && data.status ? 'connected' : `declined: ${data.message || response.status}`;
+      const data = (await response.json()) as {
+        status?: boolean;
+        message?: string;
+        data?: Array<{
+          status?: string;
+          reference?: string;
+          amount?: number;
+          metadata?: any;
+          paid_at?: string;
+        }>;
+      };
+      if (response.ok && data.status) {
+        paystackApiStatus = 'connected';
+        recentPaystackTransactions = (data.data || []).map((t) => ({
+          status: t.status,
+          reference: t.reference ? `${t.reference.slice(0, 12)}...` : null,
+          amount_kobo: t.amount,
+          amount_naira: typeof t.amount === 'number' ? t.amount / 100 : null,
+          has_user_id: Boolean(t.metadata?.showmelove_user_id),
+          paid_at: t.paid_at,
+        }));
+      } else {
+        paystackApiStatus = `declined: ${data.message || response.status}`;
+      }
     } catch (e) {
       paystackApiStatus = `error: ${e instanceof Error ? e.message : 'unreachable'}`;
     }
@@ -104,7 +174,13 @@ export default async function handler(req: any, res: any) {
       connectivity: {
         supabaseAuth: supabaseAuthStatus,
         supabaseDatabase: supabaseDbStatus,
+        supabaseRpcSettle: rpcStatus,
         paystackApi: paystackApiStatus,
+      },
+      dataSummary: {
+        paymentEventsRecent: paymentEventsSummary,
+        walletsTotalCount: walletsCount,
+        recentPaystackTransactions,
       },
     }),
   );

@@ -66,6 +66,7 @@ interface ShowmeloveContextValue {
   updateDefaultBankAccount: (bankAccount: DemoBankAccount) => void;
   updateCatalogItem: (id: string, patch: Partial<GiftCatalogItem>) => void;
   setSeasonalConfig: (collection: CollectionId, enabled: boolean) => void;
+  refreshLiveWallet: (userId?: string, email?: string) => Promise<void>;
 }
 
 const ShowmeloveContext = createContext<ShowmeloveContextValue | null>(null);
@@ -133,20 +134,27 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
 
   // Real Supabase sessions are the source of identity in production. The demo role
   // remains only as an offline-preview fallback; it is never used by Paystack APIs.
-  useEffect(() => {
-    if (!supabase) return;
-
-    const syncLiveWallet = async (userId: string, email: string) => {
-      if (!supabase || !userId || !email) return;
+  const refreshLiveWallet = useCallback(
+    async (userId?: string, email?: string) => {
+      if (!supabase) return;
       try {
-        const { data: walletData } = await supabase
+        let targetUserId = userId;
+        let targetEmail = email;
+        if (!targetUserId || !targetEmail) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          targetUserId = sessionData?.session?.user?.id;
+          targetEmail = sessionData?.session?.user?.email;
+        }
+        if (!targetUserId || !targetEmail) return;
+
+        const { data: walletData, error } = await supabase
           .from('wallets')
           .select('love_coins_balance')
-          .eq('user_id', userId)
+          .eq('user_id', targetUserId)
           .maybeSingle();
 
-        if (walletData && typeof walletData.love_coins_balance === 'number') {
-          const normEmail = normalizeEmail(email);
+        if (!error && walletData && typeof walletData.love_coins_balance === 'number') {
+          const normEmail = normalizeEmail(targetEmail);
           const prev = stateRef.current;
           const current = ensureWallet(prev.walletsByEmail, normEmail);
           if (current.loveCoinsBalance !== walletData.love_coins_balance) {
@@ -165,7 +173,12 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       } catch {
         // Fallback gracefully
       }
-    };
+    },
+    [commitNext],
+  );
+
+  useEffect(() => {
+    if (!supabase) return;
 
     let activeUserId = '';
     let activeUserEmail = '';
@@ -177,7 +190,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
         activeUserId = session?.user?.id || '';
         activeUserEmail = email;
         signInDemoEmail(email, displayName);
-        void syncLiveWallet(activeUserId, email);
+        void refreshLiveWallet(activeUserId, email);
       }
     };
 
@@ -191,7 +204,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
 
     const handleFocus = () => {
       if (activeUserId && activeUserEmail) {
-        void syncLiveWallet(activeUserId, activeUserEmail);
+        void refreshLiveWallet(activeUserId, activeUserEmail);
       }
     };
     window.addEventListener('focus', handleFocus);
@@ -200,7 +213,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       data.subscription.unsubscribe();
       window.removeEventListener('focus', handleFocus);
     };
-  }, [commitNext, signInDemoEmail]);
+  }, [refreshLiveWallet, signInDemoEmail]);
 
   const resetDemo = useCallback(async () => {
     await audioStorage.clearAll().catch(() => undefined);
@@ -401,6 +414,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
+      refreshLiveWallet,
     }),
     [
       state,
@@ -420,6 +434,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
+      refreshLiveWallet,
     ],
   );
 
