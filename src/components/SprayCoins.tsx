@@ -15,6 +15,7 @@ export interface SprayCoinsProps {
   sprayAmount?: number;
   particleSrc?: string;
   particleCrop?: boolean;
+  particleSymbol?: string;
   coinLabel?: string;
   onSpray: (count: number) => boolean;
 }
@@ -52,11 +53,13 @@ function CoinParticleView({
   particle,
   particleSrc,
   particleCrop,
+  particleSymbol,
   onComplete,
 }: {
   particle: CoinParticle;
   particleSrc: string;
   particleCrop: boolean;
+  particleSymbol?: string;
   onComplete: (id: string) => void;
 }) {
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -108,22 +111,9 @@ function CoinParticleView({
       transition={{ duration: 0.08 }}
       className="absolute inset-0 pointer-events-none"
     >
-      <img
-        ref={imageRef}
-        src={particleSrc}
-        alt=""
-        width={36}
-        height={36}
-        loading="eager"
-        decoding="async"
-        draggable={false}
-        className={`absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 ${particleCrop ? 'object-cover' : 'object-contain'} mix-blend-screen select-none`}
-        style={{
-          opacity: 0,
-          transformOrigin: 'center',
-          willChange: 'transform, opacity',
-        }}
-      />
+      {particleSymbol ? (
+        <span ref={imageRef as never} className="absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border-2 border-white/70 bg-gradient-to-br from-[#ffe899] via-[#f3a31a] to-[#a74a0b] text-base font-black text-[#482000] shadow-lg" style={{ opacity: 0, transformOrigin: 'center', willChange: 'transform, opacity' }}>{particleSymbol}</span>
+      ) : <img ref={imageRef} src={particleSrc} alt="" width={36} height={36} loading="eager" decoding="async" draggable={false} className={`absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 ${particleCrop ? 'object-cover' : 'object-contain'} mix-blend-screen select-none`} style={{ opacity: 0, transformOrigin: 'center', willChange: 'transform, opacity' }} />}
     </motion.span>
   );
 }
@@ -155,7 +145,7 @@ function playWhoosh() {
   }
 }
 
-export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, particleCrop = false, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
+export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, particleCrop = false, particleSymbol, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [particles, setParticles] = useState<CoinParticle[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -322,7 +312,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     >
       <AnimatePresence>
         {particles.map((particle) => (
-          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} particleCrop={particleCrop} onComplete={removeParticle} />
+          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} particleCrop={particleCrop} particleSymbol={particleSymbol} onComplete={removeParticle} />
         ))}
       </AnimatePresence>
 
