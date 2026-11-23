@@ -49,6 +49,7 @@ import { springs, usePrefersReducedMotion } from '../lib/animation';
 
 interface ComposeAndCheckoutScreenProps {
   initialGiftCatalogId?: string;
+  initialRecipientEmail?: string;
   onBackHome: () => void;
   onOpenGiftLink: (giftId: string) => void;
   onGoToCoins: () => void;
@@ -78,6 +79,7 @@ type CheckoutProcessingState = 'idle' | 'processing' | 'failed';
 
 export function ComposeAndCheckoutScreen({
   initialGiftCatalogId,
+  initialRecipientEmail,
   onBackHome,
   onOpenGiftLink,
   onGoToCoins,
@@ -101,7 +103,13 @@ export function ComposeAndCheckoutScreen({
     getDefaultSenderName(state.activeRole, state.signedInName),
   );
   const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState(initialRecipientEmail || '');
+
+  useEffect(() => {
+    if (initialRecipientEmail) {
+      setRecipientEmail(initialRecipientEmail);
+    }
+  }, [initialRecipientEmail]);
   const [promiseText, setPromiseText] = useState("Dinner's on me this weekend ✨");
   const [promiseCardStyle, setPromiseCardStyle] =
     useState<PromiseCardStyle>('silk-crimson');
@@ -533,6 +541,11 @@ export function ComposeAndCheckoutScreen({
         >
           <div className="apple-card rounded-[28px] p-5 sm:p-6 space-y-5">
             <div>
+              {initialRecipientEmail && (
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#FFE8F2] dark:bg-[#2A152C] px-3 py-1 text-xs font-semibold text-[#E61472] dark:text-[#FF559F]">
+                  <span>Sending gift to: {initialRecipientEmail}</span>
+                </div>
+              )}
               <h1
                 ref={stepHeadingRef}
                 tabIndex={-1}

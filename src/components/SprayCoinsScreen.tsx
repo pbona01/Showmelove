@@ -41,21 +41,31 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
         Back to Wallet Home
       </button>
 
-      {/* Main Interactive Spray Card */}
+      {/* Screen Title & Theme Description Outside Card */}
+      <div className="text-center space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--text-primary)]">
+          {layout.name} Spray
+        </h1>
+        <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+          {layout.description}
+        </p>
+      </div>
+
+      {/* Main Interactive Spray Theme Card - Exact 790:1024 Card Aspect Ratio */}
       <section
-        className="relative min-h-[580px] sm:min-h-[620px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/20 bg-black/90 text-center shadow-[0_26px_64px_-24px_rgba(0,0,0,0.6)]"
+        className="relative w-full max-w-[340px] sm:max-w-[370px] mx-auto aspect-[790/1024] touch-none overscroll-contain overflow-hidden rounded-[32px] sm:rounded-[36px] border-2 border-white/20 bg-black/90 text-center shadow-[0_24px_50px_-12px_rgba(0,0,0,0.65)] select-none"
       >
         {/* Real Themed Artwork Image */}
         <img
           key={layout.id}
           src={layout.artworkSrc}
           alt={layout.name}
-          className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none transition-opacity duration-300"
+          className="absolute inset-0 h-full w-full object-contain select-none pointer-events-none transition-opacity duration-300"
           loading="eager"
         />
 
-        {/* Contrast vignette for text & controls */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80 pointer-events-none" />
+        {/* Subtle top & bottom edge protection vignette; center 60% remains 100% clean */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent via-55% to-black/65 pointer-events-none" />
 
         {/* Swipe gesture overlay */}
         <SprayCoins
@@ -74,43 +84,36 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           }
         />
 
-        {/* Foreground Content */}
-        <div className="relative z-10 pointer-events-none flex min-h-[580px] sm:min-h-[620px] flex-col items-center justify-between p-6 sm:p-8">
+        {/* Foreground Content - Positioned only at top and bottom so coin and artwork are completely visible */}
+        <div className="relative z-10 pointer-events-none flex h-full flex-col items-center justify-between p-4 sm:p-5">
           {/* Top layout badge */}
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md border border-white/20">
-            <Sparkles className="h-3.5 w-3.5 text-white" />
-            <span>{layout.badge.toUpperCase()} · {layout.coinLabel.toUpperCase()} SPRAY</span>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-1 text-[11px] font-bold text-white shadow-lg backdrop-blur-md border border-white/20">
+            <Sparkles className="h-3 w-3 text-white" />
+            <span>{layout.badge.toUpperCase()} · {layout.coinLabel.toUpperCase()}</span>
           </div>
 
-          {/* Center: Open space to showcase the coin and artwork */}
-          <div className="my-auto text-center px-4">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-              {layout.name} Spray
-            </h1>
-            <p className="mt-1.5 max-w-xs text-xs sm:text-sm font-medium leading-relaxed text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-              {layout.description}
-            </p>
-          </div>
+          {/* Center area left completely open so coin medallion and faces are completely unobstructed */}
+          <div className="flex-1" aria-hidden="true" />
 
-          {/* Status & instructions */}
-          <div className="w-full max-w-sm space-y-3">
-            <div className="rounded-2xl bg-black/55 px-5 py-3 text-white backdrop-blur-md border border-white/20 shadow-xl">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
+          {/* Bottom Docked Live Balance & Swipe Instructions */}
+          <div className="w-full max-w-[290px] space-y-1.5 pb-1">
+            <div className="rounded-2xl bg-black/70 px-4 py-2 text-white backdrop-blur-md border border-white/25 shadow-xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">
                 Love Coins Available
               </p>
-              <p className="mt-0.5 text-3xl font-extrabold tabular-nums tracking-tight">
+              <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-white leading-tight">
                 {userBalance.toLocaleString('en-NG')}
               </p>
               {userBalance === 0 && (
-                <p className="text-xs font-semibold text-rose-300 mt-1">
-                  Balance empty. Top up your wallet to continue spraying!
+                <p className="text-[11px] font-semibold text-rose-300 mt-0.5">
+                  Balance empty. Top up to spray!
                 </p>
               )}
             </div>
 
-            <p className="text-xs font-medium text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
+            <p className="text-[11px] font-semibold text-white/95 text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               {canSpray
-                ? `Swipe vertically up or down to launch ${effectiveSprayAmount.toLocaleString('en-NG')} ${layout.coinLabel}`
+                ? `Swipe vertically to launch ${effectiveSprayAmount.toLocaleString('en-NG')} ${layout.coinLabel}`
                 : !isSignedIn
                   ? 'Sign in below to unlock Love Coin Spray'
                   : !isRecipientValid

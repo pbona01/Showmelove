@@ -30,7 +30,7 @@ import { isSupabaseAuthConfigured, supabase } from './lib/supabase';
 
 type AppRoute =
   | { page: 'home' }
-  | { page: 'send'; giftCatalogId?: string }
+  | { page: 'send'; giftCatalogId?: string; recipientEmail?: string }
   | { page: 'inbox' }
   | { page: 'wallet' }
   | { page: 'balance-info' }
@@ -71,7 +71,11 @@ function parseLocationRoute(): AppRoute {
     if (giftId) return { page: 'reveal', giftId };
   }
   if (path === '/send') {
-    return { page: 'send', giftCatalogId: params.get('gift') || undefined };
+    return {
+      page: 'send',
+      giftCatalogId: params.get('gift') || undefined,
+      recipientEmail: params.get('to') || params.get('recipient') || undefined,
+    };
   }
   if (path === '/inbox') return { page: 'inbox' };
   if (path === '/wallet') return { page: 'wallet' };
@@ -92,10 +96,13 @@ function routeToPath(route: AppRoute): string {
   switch (route.page) {
     case 'home':
       return '/';
-    case 'send':
-      return route.giftCatalogId
-        ? `/send?gift=${encodeURIComponent(route.giftCatalogId)}`
-        : '/send';
+    case 'send': {
+      const q = new URLSearchParams();
+      if (route.giftCatalogId) q.set('gift', route.giftCatalogId);
+      if (route.recipientEmail) q.set('to', route.recipientEmail);
+      const queryStr = q.toString();
+      return queryStr ? `/send?${queryStr}` : '/send';
+    }
     case 'inbox':
       return '/inbox';
     case 'wallet':
@@ -457,6 +464,7 @@ function ShowmeloveShell() {
             {route.page === 'send' && (
               <ComposeAndCheckoutScreen
                 initialGiftCatalogId={route.giftCatalogId}
+                initialRecipientEmail={route.recipientEmail}
                 onBackHome={() => navigate({ page: 'home' })}
                 onOpenGiftLink={(giftId) => navigate({ page: 'reveal', giftId })}
                 onGoToCoins={() => navigate({ page: 'buy-coins' })}

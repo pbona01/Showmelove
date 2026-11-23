@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertCircle,
   ArrowUpRight,
+  Check,
   CheckCircle2,
   ChevronRight,
+  Copy,
   Gift as GiftIcon,
   Info,
   Play,
   Plus,
   Send,
+  Share2,
   Sparkles,
   Trophy,
   UserCheck,
@@ -87,6 +90,40 @@ export function WalletScreen({
   const reducedMotion =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const userGiftLink =
+    typeof window !== 'undefined' && state.signedInEmail
+      ? `${window.location.origin}/send?to=${encodeURIComponent(state.signedInEmail)}`
+      : `https://showmelove.fun/send?to=${encodeURIComponent(state.signedInEmail || '')}`;
+
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(userGiftLink);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      }
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Show me love on Showmelove',
+          text: 'Send me Love Coins and gifts on Showmelove:',
+          url: userGiftLink,
+        });
+        return;
+      } catch {
+        // Fallback to copy if user dismissed or cancelled share dialog
+      }
+    }
+    await handleCopyLink();
+  };
 
   const coinsNairaEquivalent =
     currentWallet.loveCoinsBalance * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN;
@@ -380,8 +417,86 @@ export function WalletScreen({
             </button>
           </div>
 
-          {/* Right Column: Quick Send Gift Launcher + Recent Activity */}
+          {/* Right Column: Personal Gift Link + Quick Send Gift Launcher + Recent Activity */}
           <div className="lg:col-span-6 space-y-5">
+            {/* Dedicated Personal Gift Link Section */}
+            <section
+              aria-label="Your Personal Gift Link"
+              data-testid="wallet-share-link-section"
+              className="apple-card rounded-[28px] p-5 sm:p-6 space-y-3.5 relative overflow-hidden border border-[#FF2385]/20 bg-gradient-to-br from-[var(--bg-card)] via-[var(--bg-card)] to-[#FFE8F2]/30 dark:to-[#2A152C]/40 shadow-[0_12px_32px_-12px_rgba(255,35,133,0.15)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] flex items-center justify-center shrink-0 text-[#E10B5C] dark:text-[#FF176C] border border-[#FF2385]/20">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <span>Your Gift Link</span>
+                      <span className="inline-flex items-center rounded-full bg-[#FF2385]/10 px-2 py-0.5 text-[10px] font-bold text-[#E61472] dark:text-[#FF559F]">
+                        Live
+                      </span>
+                    </h2>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      Share with friends and admirers to receive Love Coins and gifts directly.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Link Box & Actions */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-1.5 sm:p-2">
+                  <span className="flex-1 truncate px-2.5 text-xs font-mono font-semibold text-[var(--text-primary)] select-all">
+                    {userGiftLink}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    data-testid="copy-personal-gift-link-btn"
+                    aria-label="Copy personal gift link"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-primary)] border border-[var(--border-subtle)] shadow-xs transition hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer shrink-0"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                        <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                        <span>Copy Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    onClick={handleShareLink}
+                    data-testid="share-personal-gift-link-btn"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share Link</span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      if (onOpenSendGift) onOpenSendGift();
+                    }}
+                    title="Send a gift to test"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Send Gift</span>
+                  </Button>
+                </div>
+              </div>
+            </section>
+
             {/* Quick Send Gift Strip (4 real transparent gift PNGs) */}
             <section className="apple-card rounded-[28px] p-5 space-y-4">
               <div className="flex items-center justify-between gap-2">

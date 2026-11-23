@@ -56,37 +56,42 @@ function getCoinThemeStyle(layoutId: SprayLayoutId = 'classic') {
       return {
         wrapper: 'border-2 border-sky-100/90 bg-gradient-to-br from-[#66BBFF] via-[#0767D7] to-[#012D78] text-white shadow-[0_6px_16px_rgba(7,103,215,0.45)]',
         inner: 'border border-sky-200/50',
-        text: 'font-black text-sm tracking-tight drop-shadow',
+        text: 'font-black text-xs tracking-tight drop-shadow',
         symbol: '₦50',
+        coinSrc: '/assets/spray/coins/coin-waso.png',
       };
     case 'figo':
       return {
         wrapper: 'border-2 border-purple-200/90 bg-gradient-to-br from-[#EDB8FF] via-[#8B27DF] to-[#351060] text-white shadow-[0_6px_16px_rgba(139,39,223,0.45)]',
         inner: 'border border-purple-200/40',
-        text: 'font-black text-xs tracking-tighter drop-shadow',
+        text: 'font-black text-[11px] tracking-tighter drop-shadow',
         symbol: '₦500',
+        coinSrc: '/assets/spray/coins/coin-figo.png',
       };
     case 'usd':
       return {
         wrapper: 'border-2 border-emerald-100/90 bg-gradient-to-br from-[#D4FFAE] via-[#2E9B4E] to-[#064528] text-white shadow-[0_6px_16px_rgba(46,155,78,0.45)]',
         inner: 'border border-emerald-200/50',
-        text: 'font-black text-sm drop-shadow',
-        symbol: '$',
+        text: 'font-black text-xs drop-shadow',
+        symbol: '$1',
+        coinSrc: '/assets/spray/coins/coin-usd.png',
       };
     case 'btc':
       return {
         wrapper: 'border-2 border-amber-200/90 bg-gradient-to-br from-[#FFD55A] via-[#F27E12] to-[#6A2705] text-amber-50 shadow-[0_6px_16px_rgba(242,126,18,0.5)]',
         inner: 'border border-amber-200/60',
-        text: 'font-black text-sm drop-shadow',
+        text: 'font-black text-xs drop-shadow',
         symbol: '₿',
+        coinSrc: '/assets/spray/coins/coin-btc.png',
       };
     case 'classic':
     default:
       return {
         wrapper: 'border-2 border-white/90 bg-gradient-to-br from-[#FF749F] via-[#FF176C] to-[#A30044] text-white shadow-[0_6px_16px_rgba(255,23,108,0.5)]',
         inner: 'border border-white/40',
-        text: 'font-black text-sm drop-shadow',
+        text: 'font-black text-xs drop-shadow',
         symbol: '♥',
+        coinSrc: '/assets/spray/coins/coin-classic.png',
       };
   }
 }
@@ -102,7 +107,7 @@ function CoinParticleView({
   particleSymbol?: string;
   onComplete: (id: string) => void;
 }) {
-  const elementRef = useRef<HTMLSpanElement | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
   const theme = getCoinThemeStyle(layoutId);
   const symbol = particleSymbol || theme.symbol;
 
@@ -153,20 +158,38 @@ function CoinParticleView({
       transition={{ duration: 0.08 }}
       className="absolute inset-0 pointer-events-none"
     >
-      <span
+      <div
         ref={elementRef}
-        className={`absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full select-none ${theme.wrapper}`}
+        className="absolute left-0 top-0 h-10 w-10 select-none pointer-events-none drop-shadow-[0_8px_16px_rgba(0,0,0,0.55)]"
         style={{
           opacity: 0,
           transformOrigin: 'center',
           willChange: 'transform, opacity',
         }}
       >
-        <span className={`absolute inset-0.5 rounded-full pointer-events-none ${theme.inner}`} />
-        <span className={`relative leading-none select-none ${theme.text}`}>
-          {symbol}
+        <img
+          src={theme.coinSrc}
+          alt={symbol}
+          className="h-full w-full object-contain select-none pointer-events-none"
+          loading="eager"
+          decoding="async"
+          onError={(e) => {
+            // Graceful fallback to CSS styled circle if image cannot be loaded
+            e.currentTarget.style.display = 'none';
+            const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+            if (fallback) fallback.style.display = 'grid';
+          }}
+        />
+        <span
+          style={{ display: 'none' }}
+          className={`h-full w-full place-items-center rounded-full select-none ${theme.wrapper}`}
+        >
+          <span className={`absolute inset-0.5 rounded-full pointer-events-none ${theme.inner}`} />
+          <span className={`relative leading-none select-none ${theme.text}`}>
+            {symbol}
+          </span>
         </span>
-      </span>
+      </div>
     </motion.span>
   );
 }
