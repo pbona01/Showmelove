@@ -10,6 +10,10 @@ interface SprayCoinsScreenProps {
   onSignIn: () => void;
 }
 
+function ThemeCoin({ symbol, themeClass, large = false }: { symbol: string; themeClass: string; large?: boolean }) {
+  return <span className={`relative grid place-items-center rounded-full border-4 border-white/75 bg-gradient-to-br ${themeClass} ${large ? 'h-32 w-32 text-5xl' : 'h-12 w-12 text-lg'} font-black text-white shadow-[0_16px_28px_rgba(0,0,0,0.28)]`}><span className="absolute inset-2 rounded-full border border-white/45" /> <span className="relative drop-shadow">{symbol}</span></span>;
+}
+
 export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
@@ -35,16 +39,16 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
         Back to Wallet Home
       </button>
 
-      <section className="relative min-h-[600px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/55 bg-[#16050d] p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] sm:p-9">
-        <img src={layout.artworkSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
+      <section className={`relative min-h-[600px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/55 bg-gradient-to-br ${layout.themeClass} p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] sm:p-9`}>
+        <div className="absolute -left-24 -top-20 h-80 w-[130%] rotate-[-18deg] rounded-full border border-white/35 bg-white/15" />
+        <div className="absolute -right-28 bottom-0 h-72 w-[130%] rotate-[18deg] rounded-full border border-white/25 bg-black/12" />
+        <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgba(255,255,255,.8)_1px,transparent_1px)] [background-size:16px_16px]" />
         <SprayCoins
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
           minimumSpray={layout.minimumCoins}
           sprayAmount={sprayAmount}
-          particleSrc={layout.particleSrc}
-          particleCrop={layout.id !== 'classic'}
+          particleSymbol={layout.symbol}
           coinLabel={layout.coinLabel}
           onSpray={(count) => sprayLoveCoins({ coins: count, recipientEmail, layoutId }).ok}
         />
@@ -54,6 +58,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
             <Sparkles className="h-4 w-4" />
             {layout.badge} · {layout.coinLabel.toUpperCase()} SPRAY
           </div>
+          <div className="mt-5"><ThemeCoin symbol={layout.symbol} themeClass={layout.themeClass} large /></div>
           <h1 className="mt-5 text-3xl font-bold tracking-tight text-white drop-shadow-md">
             {layout.name} Spray
           </h1>
@@ -83,10 +88,10 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
             const locked = currentWallet.loveCoinsBalance < item.minimumCoins;
             return (
               <button key={item.id} type="button" onClick={() => { setLayoutId(item.id); setSprayAmountInput(String(item.minimumCoins)); }} className={`relative min-h-[110px] overflow-hidden rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-[#FF2385] shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
-                <img src={item.artworkSrc} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" loading="lazy" decoding="async" />
-                <span className="absolute inset-0 bg-black/20" />
+                <span className={`absolute inset-0 bg-gradient-to-br ${item.themeClass}`} />
+                <span className="absolute inset-0 opacity-20 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:10px_10px]" />
                 {locked && <LockKeyhole className="absolute right-2 top-2 h-3 w-3" />}
-                <span className="relative block text-sm font-black">{item.name}</span>
+                <span className="relative flex items-center gap-2 text-sm font-black"><ThemeCoin symbol={item.symbol} themeClass={item.themeClass} />{item.name}</span>
                 <span className="relative mt-12 block text-[10px] font-bold opacity-90">{item.minimumCoins.toLocaleString('en-NG')} Coins min.</span>
               </button>
             );
