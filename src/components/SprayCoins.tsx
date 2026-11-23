@@ -14,6 +14,7 @@ export interface SprayCoinsProps {
   minimumSpray?: number;
   sprayAmount?: number;
   particleSrc?: string;
+  particleCrop?: boolean;
   coinLabel?: string;
   onSpray: (count: number) => boolean;
 }
@@ -50,10 +51,12 @@ function randomBetween(min: number, max: number): number {
 function CoinParticleView({
   particle,
   particleSrc,
+  particleCrop,
   onComplete,
 }: {
   particle: CoinParticle;
   particleSrc: string;
+  particleCrop: boolean;
   onComplete: (id: string) => void;
 }) {
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -114,7 +117,7 @@ function CoinParticleView({
         loading="eager"
         decoding="async"
         draggable={false}
-        className="absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 object-contain mix-blend-screen select-none"
+        className={`absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 ${particleCrop ? 'object-cover' : 'object-contain'} mix-blend-screen select-none`}
         style={{
           opacity: 0,
           transformOrigin: 'center',
@@ -152,7 +155,7 @@ function playWhoosh() {
   }
 }
 
-export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
+export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, particleCrop = false, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [particles, setParticles] = useState<CoinParticle[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -319,7 +322,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     >
       <AnimatePresence>
         {particles.map((particle) => (
-          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} onComplete={removeParticle} />
+          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} particleCrop={particleCrop} onComplete={removeParticle} />
         ))}
       </AnimatePresence>
 
