@@ -231,9 +231,16 @@ export function AdminScreen() {
                 className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div>
-                  <p className="text-base font-bold tabular-nums text-[var(--text-primary)]">
-                    {formatNaira(p.amountNaira)} · {p.recipientEmail}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-base font-bold tabular-nums text-[var(--text-primary)]">
+                      {formatNaira(p.amountNaira)} · {p.recipientEmail}
+                    </p>
+                    {p.riskLevel === 'manual_review' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                        Review Required
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-[var(--text-secondary)]">
                     {p.bankAccount.bankName} ({p.bankAccount.accountNumber}) · Status:{' '}
                     <strong className="text-[var(--text-primary)]">
@@ -244,6 +251,11 @@ export function AdminScreen() {
                           : 'Failed'}
                     </strong>
                   </p>
+                  {p.reviewNotes && p.reviewNotes.length > 0 && (
+                    <p className="text-[11px] text-amber-500/90 mt-0.5">
+                      ⚠️ {p.reviewNotes.join(' · ')}
+                    </p>
+                  )}
                 </div>
 
                 {p.status === 'pending' && (

@@ -137,6 +137,53 @@ export default async function handler(req: any, res: any) {
   const paystackPub = (process.env.VITE_PAYSTACK_PUBLIC_KEY || '').trim();
   const paystackCallback = (process.env.PAYSTACK_CALLBACK_URL || '').trim();
 
+  // Admin authorization check: require secret admin key for sensitive metrics, sync, and grants
+  const parsedUrl = req.url ? new URL(req.url, 'https://showmelove.fun') : null;
+  const adminSecret = (process.env.ADMIN_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY || '').trim();
+  const authHeader = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim();
+  const adminKeyHeader = String(req.headers['x-admin-key'] || '').trim();
+  const adminKeyQuery = String(parsedUrl?.searchParams.get('admin_key') || req.query?.admin_key || '').trim();
+
+  const providedKey = adminKeyHeader || adminKeyQuery || authHeader;
+  const isAuthorized = Boolean(
+    adminSecret &&
+    providedKey &&
+    (providedKey === adminSecret || (paystackSec && providedKey === paystackSec))
+  );
+
+  const grantEmail = (parsedUrl?.searchParams.get('grant_email') || req.query?.grant_email || '').trim().toLowerCase();
+  const grantCoins = parseInt(parsedUrl?.searchParams.get('grant_coins') || req.query?.grant_coins || '500000', 10);
+  const isSyncRequested =
+    String(req.query?.sync || '') === '1' ||
+    (parsedUrl?.searchParams.get('sync') === '1');
+
+  // Block unauthorized grant or sync attempts immediately
+  if ((grantEmail || isSyncRequested) && !isAuthorized) {
+    res.statusCode = 401;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.end(
+      JSON.stringify({
+        error: 'Unauthorized: A valid admin key (via x-admin-key header or admin_key parameter) is required for administrative operations.',
+      }),
+    );
+  }
+
+  // If not authorized and just a general health check probe, return safe public status
+  if (!isAuthorized) {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.end(
+      JSON.stringify({
+        status: 'ok',
+        service: 'showmelove-paystack-api',
+        timestamp: new Date().toISOString(),
+        healthy: true,
+        protected: true,
+        message: 'Operational. Provide admin key in x-admin-key header or admin_key query parameter for detailed metrics.',
+      }),
+    );
+  }
+
   // Validate format safely without showing the secret
   let paystackMode = 'missing';
   if (paystackSec) {
@@ -255,10 +302,6 @@ export default async function handler(req: any, res: any) {
           paid_at: t.paid_at,
         }));
 
-        const isSyncRequested =
-          String(req.query?.sync || '') === '1' ||
-          (req.url && new URL(req.url, 'https://showmelove.fun').searchParams.get('sync') === '1');
-
         if (isSyncRequested && supabaseUrl && supabaseSec) {
           syncOutcomes = [];
           for (const t of data.data || []) {
@@ -287,10 +330,7 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  // Support direct admin coin grants to a user by email
-  const parsedUrl = req.url ? new URL(req.url, 'https://showmelove.fun') : null;
-  const grantEmail = (parsedUrl?.searchParams.get('grant_email') || req.query?.grant_email || '').trim().toLowerCase();
-  const grantCoins = parseInt(parsedUrl?.searchParams.get('grant_coins') || req.query?.grant_coins || '500000', 10);
+  // Support direct admin coin grants to a user by email (authorized admin only)
   let grantResult: any = null;
 
   if (grantEmail && supabaseUrl && supabaseSec) {

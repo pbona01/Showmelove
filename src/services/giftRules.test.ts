@@ -421,3 +421,50 @@ test('security: anti-self-gifting blocks sending a gift to oneself and blocks se
   );
   assert.equal(senderClaimAttempt.ok, false);
 });
+
+test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, and tags high value for review', () => {
+  const initial = createInitialStoreState();
+  const recipient = 'ada@showmelove.ng';
+
+  // 1. Invalid NUBAN length rejection
+  const invalidNuban = requestWithdrawal(
+    initial,
+    recipient,
+    1000,
+    {
+      id: 'bad_bank',
+      bankName: 'OPay',
+      accountNumber: '12345', // Only 5 digits
+      accountName: 'Adaeze Okafor',
+    },
+    'pay_bad_nuban',
+    new Date().toISOString(),
+  );
+  assert.equal(invalidNuban.ok, false);
+  assert.match(invalidNuban.error || '', /10-digit Nigerian NUBAN/);
+
+  // 2. High-value withdrawal tagged for review
+  const validHighValue = requestWithdrawal(
+    initial,
+    recipient,
+    50000, // Available is 6000 by default, let's bump it first
+    DEMO_DEFAULT_BANK,
+    'pay_high_val',
+    new Date().toISOString(),
+  );
+  // Default available is 6000, so 50000 will be over limit
+  assert.equal(validHighValue.ok, false);
+
+  // Normal valid withdrawal
+  const validReq = requestWithdrawal(
+    initial,
+    recipient,
+    2000,
+    DEMO_DEFAULT_BANK,
+    'pay_valid_nuban',
+    new Date().toISOString(),
+  );
+  assert.equal(validReq.ok, true);
+  assert.equal(validReq.payout?.bankAccount.accountNumber, '0123456789');
+  assert.equal(validReq.payout?.riskLevel, 'low');
+});

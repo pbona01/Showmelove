@@ -141,6 +141,8 @@ export interface PayoutRequest {
   bankAccount: DemoBankAccount;
   status: PayoutStatus;
   failureReason?: string;
+  riskLevel?: 'low' | 'manual_review';
+  reviewNotes?: string[];
 }
 
 export interface WalletState {

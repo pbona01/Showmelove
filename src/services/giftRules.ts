@@ -656,7 +656,65 @@ export function requestWithdrawal(
     };
   }
 
+  const cleanNuban = bankAccount.accountNumber.trim().replace(/\D/g, '');
+  if (cleanNuban.length !== 10) {
+    return {
+      ok: false,
+      error: 'Enter a valid 10-digit Nigerian NUBAN bank account number.',
+      nextState: state,
+    };
+  }
+
+  // Anti-Wash Trading Protection:
+  // Detect if recipient is attempting to withdraw to a bank account registered by the sender(s) of their gifts.
+  const claimedGiftsFromSenders = state.gifts.filter(
+    (g) =>
+      g.claimedByEmail &&
+      normalizeEmail(g.claimedByEmail) === key &&
+      g.senderEmail &&
+      normalizeEmail(g.senderEmail) !== key,
+  );
+
+  const senderEmails = new Set(
+    claimedGiftsFromSenders
+      .map((g) => normalizeEmail(g.senderEmail || ''))
+      .filter(Boolean),
+  );
+
+  let isSenderAccountCollision = false;
+  for (const sEmail of senderEmails) {
+    if (
+      state.signedInEmail &&
+      normalizeEmail(state.signedInEmail) === sEmail &&
+      state.defaultBankAccount?.accountNumber.trim().replace(/\D/g, '') === cleanNuban
+    ) {
+      isSenderAccountCollision = true;
+      break;
+    }
+  }
+
+  if (isSenderAccountCollision) {
+    return {
+      ok: false,
+      error: 'Withdrawals to a gift sender’s bank account are blocked to prevent circular wash arbitrage.',
+      nextState: state,
+    };
+  }
+
   const summary = calculateWithdrawalSummary(rounded);
+
+  const reviewNotes: string[] = [];
+  let riskLevel: 'low' | 'manual_review' = 'low';
+
+  if (rounded >= 50000) {
+    riskLevel = 'manual_review';
+    reviewNotes.push('High-value withdrawal (>= ₦50,000)');
+  }
+
+  if (senderEmails.size === 1 && claimedGiftsFromSenders.length >= 3) {
+    riskLevel = 'manual_review';
+    reviewNotes.push('High concentration: all claimed gifts originate from a single sender');
+  }
 
   const payout: PayoutRequest = {
     id: payoutId,
@@ -665,8 +723,10 @@ export function requestWithdrawal(
     amountNaira: summary.grossAmountNaira,
     feeNaira: summary.payoutFeeNaira,
     netAmountNaira: summary.netReceivedNaira,
-    bankAccount: { ...bankAccount },
+    bankAccount: { ...bankAccount, accountNumber: cleanNuban },
     status: 'pending',
+    riskLevel,
+    reviewNotes: reviewNotes.length > 0 ? reviewNotes : undefined,
   };
 
   const nextWallet: WalletState = {
