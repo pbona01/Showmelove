@@ -35,6 +35,7 @@ import {
 import { BUNDLED_SAMPLE_GIFT, DEMO_USERS } from '../services/seedData';
 import { showmeloveStorage } from '../services/storage';
 import { audioStorage } from '../services/audioStorage';
+import { supabase } from '../lib/supabase';
 import {
   fetchSharedGiftFromSupabase,
   publishGiftToSupabase,
@@ -129,6 +130,22 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
     },
     [commitNext],
   );
+
+  // Real Supabase sessions are the source of identity in production. The demo role
+  // remains only as an offline-preview fallback; it is never used by Paystack APIs.
+  useEffect(() => {
+    if (!supabase) return;
+    const applySession = (email?: string, displayName?: string) => {
+      if (email) signInDemoEmail(email, displayName);
+    };
+    void supabase.auth.getSession().then(({ data }) => {
+      applySession(data.session?.user.email, String(data.session?.user.user_metadata?.full_name || ''));
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session?.user.email, String(session?.user.user_metadata?.full_name || ''));
+    });
+    return () => data.subscription.unsubscribe();
+  }, [signInDemoEmail]);
 
   const resetDemo = useCallback(async () => {
     await audioStorage.clearAll().catch(() => undefined);
@@ -361,3 +378,4 @@ export function useShowmelove() {
   }
   return ctx;
 }
+
