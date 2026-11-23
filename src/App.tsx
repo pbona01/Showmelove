@@ -13,6 +13,8 @@ import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
+import { AuthScreen } from './components/AuthScreen';
+import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
 import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
@@ -37,6 +39,8 @@ type AppRoute =
   | { page: 'admin' }
   | { page: 'spray-coins' }
   | { page: 'leaderboard' }
+  | { page: 'sign-in' }
+  | { page: 'payment-verify' }
   | { page: 'reveal'; giftId: string };
 
 function parseLocationRoute(): AppRoute {
@@ -77,6 +81,8 @@ function parseLocationRoute(): AppRoute {
   if (path === '/admin') return { page: 'admin' };
   if (path === '/spray-coins') return { page: 'spray-coins' };
   if (path === '/leaderboard') return { page: 'leaderboard' };
+  if (path === '/sign-in') return { page: 'sign-in' };
+  if (path === '/payments/verify') return { page: 'payment-verify' };
 
   return { page: 'home' };
 }
@@ -107,6 +113,10 @@ function routeToPath(route: AppRoute): string {
       return '/spray-coins';
     case 'leaderboard':
       return '/leaderboard';
+    case 'sign-in':
+      return '/sign-in';
+    case 'payment-verify':
+      return '/payments/verify';
     case 'reveal':
       return `/gift/${encodeURIComponent(route.giftId)}`;
   }
@@ -435,8 +445,13 @@ function ShowmeloveShell() {
               <BuyCoinsScreen
                 onBack={() => navigate({ page: 'home' })}
                 onGoToSendGift={() => navigate({ page: 'send' })}
+                onSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
+
+            {route.page === 'sign-in' && <AuthScreen onBack={() => navigate({ page: 'home' })} />}
+
+            {route.page === 'payment-verify' && <PaymentVerificationScreen onDone={() => navigate({ page: 'home' })} />}
 
             {route.page === 'withdraw' && (
               <WithdrawScreen
@@ -552,3 +567,4 @@ export default function App() {
     </ShowmeloveProvider>
   );
 }
+
