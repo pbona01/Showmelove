@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, Home, Inbox, Loader2, Send, User } from 'lucide-react';
+import { Bell, Home, Inbox, Loader2, Send, ShieldAlert, User } from 'lucide-react';
+import { isUserAdmin } from './config/admin';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
 import { InboxAndWalletScreen } from './components/InboxAndWalletScreen';
@@ -48,20 +49,6 @@ function parseLocationRoute(): AppRoute {
   if (typeof window === 'undefined') return { page: 'home' };
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const params = new URLSearchParams(window.location.search);
-
-  if (params.get('admin') === '1') {
-    try {
-      window.localStorage.setItem('showmelove_demo_admin', '1');
-    } catch {
-      // Ignore storage errors
-    }
-  } else if (params.get('admin') === '0') {
-    try {
-      window.localStorage.removeItem('showmelove_demo_admin');
-    } catch {
-      // Ignore storage errors
-    }
-  }
 
   if (path === '/sample' || path === '/gift/sample') {
     return { page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id };
@@ -517,7 +504,49 @@ function ShowmeloveShell() {
               />
             )}
 
-            {route.page === 'admin' && <AdminScreen />}
+            {route.page === 'admin' && (
+              isUserAdmin(state.signedInEmail) ? (
+                <AdminScreen />
+              ) : (
+                <div className="max-w-md mx-auto py-12 px-4 text-center space-y-5 apple-card rounded-3xl p-8 border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-xl my-6">
+                  <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20 shadow-inner">
+                    <ShieldAlert className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-2">
+                    <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)]">
+                      Admin Access Restricted
+                    </h1>
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                      {state.signedInEmail ? (
+                        <>
+                          The account <strong className="text-[var(--text-primary)]">{state.signedInEmail}</strong> is not on the authorized administrator whitelist.
+                        </>
+                      ) : (
+                        <>You must sign in with an authorized Showmelove administrator account to access this console.</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate({ page: 'home' })}
+                      className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
+                    >
+                      Return to Dashboard
+                    </button>
+                    {!state.signedInEmail && (
+                      <button
+                        type="button"
+                        onClick={() => navigate({ page: 'sign-in' })}
+                        className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-2xl cta-pink-surface text-sm font-semibold text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
+                      >
+                        Sign in as Admin
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
 
             {route.page === 'spray-coins' && (
               <SprayCoinsScreen onBack={() => navigate({ page: 'home' })} onSignIn={() => navigate({ page: 'sign-in' })} />

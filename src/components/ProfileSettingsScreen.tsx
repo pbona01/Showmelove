@@ -11,6 +11,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
+import { isUserAdmin } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { canAccessAdminTools } from '../services/giftRules';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
@@ -51,11 +52,8 @@ export function ProfileSettingsScreen({
   const [txFilter, setTxFilter] = useState<TxFilter>('all');
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
-  const demoAdminEnabled =
-    typeof window !== 'undefined' &&
-    (window.localStorage.getItem('showmelove_demo_admin') === '1' ||
-      new URLSearchParams(window.location.search).get('admin') === '1');
-  const showAdminTools = canAccessAdminTools(state.activeRole, demoAdminEnabled);
+  const showAdminTools = isUserAdmin(state.signedInEmail);
+  const demoAdminEnabled = showAdminTools;
 
   const roles: Array<{ id: UserRole; label: string; hint: string }> = [
     { id: 'recipient', label: 'Recipient', hint: 'ada@showmelove.ng' },

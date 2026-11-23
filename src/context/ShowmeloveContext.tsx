@@ -185,7 +185,13 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
 
     const applySession = (session: any) => {
       const email = session?.user?.email;
-      const displayName = String(session?.user?.user_metadata?.full_name || '');
+      const metadata = session?.user?.user_metadata || {};
+      const displayName = String(
+        metadata.username ||
+        metadata.display_name ||
+        metadata.full_name ||
+        (email ? email.split('@')[0] : '')
+      );
       if (email) {
         activeUserId = session?.user?.id || '';
         activeUserEmail = email;
