@@ -2,12 +2,14 @@ import type { SentGift } from '../types/showmelove';
 
 /**
  * Clean backend boundary for cross-device gift sharing via Supabase REST + Storage.
- * When VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are omitted (default preview),
+ * When VITE_SUPABASE_URL and a publishable (or legacy anon) key are omitted,
  * all operations resolve cleanly with `isConfigured: false` and the app falls back
  * to local browser storage without throwing or blocking any user flow.
  */
 const SUPABASE_URL = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_URL?.trim() || '';
-const SUPABASE_ANON_KEY = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_ANON_KEY?.trim() || '';
+const SUPABASE_ANON_KEY = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
+  || (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_SUPABASE_ANON_KEY?.trim()
+  || '';
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
@@ -107,3 +109,4 @@ export async function fetchSharedGiftFromSupabase(giftId: string): Promise<SentG
     return null;
   }
 }
+
