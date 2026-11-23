@@ -43,15 +43,18 @@ export interface SprayLayout {
   description: string;
   gradient: string;
   symbol: string;
+  artworkSrc: string;
+  particleSrc: string;
+  coinLabel: string;
 }
 
 /** Original note-inspired art directions; no real currency design is reproduced. */
 export const SPRAY_LAYOUTS: readonly SprayLayout[] = [
-  { id: 'classic', name: 'Love Coin', minimumCoins: 12, badge: 'Classic', description: 'The original Showmelove flex.', gradient: 'from-[#F9CE72] via-[#EC83A9] to-[#4A244A]', symbol: '♥' },
-  { id: 'waso', name: 'Waso', minimumCoins: 50, badge: '₦50 energy', description: 'Small note, loud love.', gradient: 'from-[#7AB48B] via-[#D4C873] to-[#2D604A]', symbol: '₦' },
-  { id: 'figo', name: 'Figo', minimumCoins: 500, badge: '₦500 energy', description: 'A premium green-note-inspired flex.', gradient: 'from-[#3E8D66] via-[#A4C56A] to-[#164737]', symbol: '500' },
-  { id: 'usd', name: 'USD', minimumCoins: 1500, badge: 'Dollar mode', description: 'Big green energy for the timeline.', gradient: 'from-[#1D7655] via-[#9BCB7C] to-[#0B3D30]', symbol: '$' },
-  { id: 'btc', name: 'BTC', minimumCoins: 10000, badge: 'Baller tier', description: 'The no-small-talk Bitcoin-inspired flex.', gradient: 'from-[#F5A524] via-[#CE6A23] to-[#28152C]', symbol: '₿' },
+  { id: 'classic', name: 'Love Coin', minimumCoins: 12, badge: 'Classic', description: 'The original Showmelove flex.', gradient: 'from-[#F9CE72] via-[#EC83A9] to-[#4A244A]', symbol: '♥', artworkSrc: '/assets/aistudio/spray-love-coin.jpeg', particleSrc: '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.webp', coinLabel: 'Love Coins' },
+  { id: 'waso', name: 'Waso', minimumCoins: 50, badge: '₦50 energy', description: 'Small note, loud love.', gradient: 'from-[#7AB48B] via-[#D4C873] to-[#2D604A]', symbol: '₦', artworkSrc: '/assets/aistudio/spray-waso.png', particleSrc: '/assets/aistudio/spray-waso.png', coinLabel: 'Waso Coins' },
+  { id: 'figo', name: 'Figo', minimumCoins: 500, badge: '₦500 energy', description: 'A premium purple-note flex.', gradient: 'from-[#3E8D66] via-[#A4C56A] to-[#164737]', symbol: '500', artworkSrc: '/assets/aistudio/spray-figo.png', particleSrc: '/assets/aistudio/spray-figo.png', coinLabel: 'Figo Coins' },
+  { id: 'usd', name: 'USD', minimumCoins: 1500, badge: 'Dollar mode', description: 'Big green energy for the timeline.', gradient: 'from-[#1D7655] via-[#9BCB7C] to-[#0B3D30]', symbol: '$', artworkSrc: '/assets/aistudio/spray-usd.png', particleSrc: '/assets/aistudio/spray-usd.png', coinLabel: 'USD Coins' },
+  { id: 'btc', name: 'BTC', minimumCoins: 10000, badge: 'Baller tier', description: 'The no-small-talk Bitcoin-inspired flex.', gradient: 'from-[#F5A524] via-[#CE6A23] to-[#28152C]', symbol: '₿', artworkSrc: '/assets/aistudio/spray-btc.png', particleSrc: '/assets/aistudio/spray-btc.png', coinLabel: 'BTC Coins' },
 ] as const;
 
 export interface CoinPackage {
@@ -191,3 +194,4 @@ export function calculateWithdrawalSummary(grossAmountNaira: number): Withdrawal
     netReceivedNaira,
   };
 }
+
