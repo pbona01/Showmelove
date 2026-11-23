@@ -45,15 +45,16 @@ export interface SprayLayout {
   symbol: string;
   coinLabel: string;
   themeClass: string;
+  artworkSrc: string;
 }
 
 /** Original note-inspired art directions; no real currency design is reproduced. */
 export const SPRAY_LAYOUTS: readonly SprayLayout[] = [
-  { id: 'classic', name: 'Love Coin', minimumCoins: 12, badge: 'Classic', description: 'Warm, playful, unmistakably Showmelove.', gradient: 'from-[#ff749f] via-[#f62b6c] to-[#8c104b]', symbol: '♥', coinLabel: 'Love Coins', themeClass: 'from-[#ffb3c9]/85 via-[#ff3c76] to-[#b10b57]' },
-  { id: 'waso', name: 'Waso', minimumCoins: 50, badge: '₦50 energy', description: 'Cool blue note energy with a loud finish.', gradient: 'from-[#66bbff] via-[#0767d7] to-[#012d78]', symbol: '₦', coinLabel: 'Waso Coins', themeClass: 'from-[#b5e3ff]/75 via-[#147fec] to-[#052f86]' },
-  { id: 'figo', name: 'Figo', minimumCoins: 500, badge: '₦500 energy', description: 'Deep violet, premium Nigerian flex.', gradient: 'from-[#edb8ff] via-[#8b27df] to-[#351060]', symbol: '₦500', coinLabel: 'Figo Coins', themeClass: 'from-[#e5b9ff]/70 via-[#9a37ef] to-[#431273]' },
-  { id: 'usd', name: 'USD', minimumCoins: 1500, badge: 'Dollar mode', description: 'Emerald reserve energy for the timeline.', gradient: 'from-[#d4ffae] via-[#39a95a] to-[#064528]', symbol: '$', coinLabel: 'USD Coins', themeClass: 'from-[#d6ffb7]/75 via-[#49ae67] to-[#07502e]' },
-  { id: 'btc', name: 'BTC', minimumCoins: 10000, badge: 'Baller tier', description: 'Amber circuitry for the no-small-talk tier.', gradient: 'from-[#ffd55a] via-[#f27e12] to-[#562007]', symbol: '₿', coinLabel: 'BTC Coins', themeClass: 'from-[#ffe88a]/80 via-[#ff9f14] to-[#733007]' },
+  { id: 'classic', name: 'Love Coin', minimumCoins: 12, badge: 'Classic', description: 'Warm, playful, unmistakably Showmelove.', gradient: 'from-[#ff749f] via-[#f62b6c] to-[#8c104b]', symbol: '♥', coinLabel: 'Love Coins', themeClass: 'from-[#ffb3c9]/85 via-[#ff3c76] to-[#b10b57]', artworkSrc: '/assets/spray/spray-love-coin.jpg' },
+  { id: 'waso', name: 'Waso', minimumCoins: 50, badge: '₦50 energy', description: 'Cool blue note energy with a loud finish.', gradient: 'from-[#66bbff] via-[#0767d7] to-[#012d78]', symbol: '₦50', coinLabel: 'Waso Coins', themeClass: 'from-[#b5e3ff]/75 via-[#147fec] to-[#052f86]', artworkSrc: '/assets/spray/spray-waso.jpg' },
+  { id: 'figo', name: 'Figo', minimumCoins: 500, badge: '₦500 energy', description: 'Deep violet, premium Nigerian flex.', gradient: 'from-[#edb8ff] via-[#8b27df] to-[#351060]', symbol: '₦500', coinLabel: 'Figo Coins', themeClass: 'from-[#e5b9ff]/70 via-[#9a37ef] to-[#431273]', artworkSrc: '/assets/spray/spray-figo.jpg' },
+  { id: 'usd', name: 'USD', minimumCoins: 1500, badge: 'Dollar mode', description: 'Emerald reserve energy for the timeline.', gradient: 'from-[#d4ffae] via-[#39a95a] to-[#064528]', symbol: '$1', coinLabel: 'USD Coins', themeClass: 'from-[#d6ffb7]/75 via-[#49ae67] to-[#07502e]', artworkSrc: '/assets/spray/spray-usd.jpg' },
+  { id: 'btc', name: 'BTC', minimumCoins: 10000, badge: 'Baller tier', description: 'Amber circuitry for the no-small-talk tier.', gradient: 'from-[#ffd55a] via-[#f27e12] to-[#562007]', symbol: '₿', coinLabel: 'BTC Coins', themeClass: 'from-[#ffe88a]/80 via-[#ff9f14] to-[#733007]', artworkSrc: '/assets/spray/spray-btc.jpg' },
 ] as const;
 
 export interface CoinPackage {

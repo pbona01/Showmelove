@@ -10,131 +10,6 @@ interface SprayCoinsScreenProps {
   onSignIn: () => void;
 }
 
-function ThemedHeroCoin({ layoutId, large = false }: { layoutId: SprayLayoutId; large?: boolean }) {
-  switch (layoutId) {
-    case 'waso':
-      return (
-        <span
-          className={`relative grid place-items-center rounded-full border-4 border-sky-100/90 bg-gradient-to-br from-[#66BBFF] via-[#0767D7] to-[#012D78] ${
-            large ? 'h-28 w-28 text-4xl' : 'h-10 w-10 text-base'
-          } font-black text-white shadow-[0_16px_36px_rgba(7,103,215,0.45)]`}
-        >
-          <span className="absolute inset-2 rounded-full border border-sky-200/40" />
-          <span className="relative drop-shadow">₦50</span>
-        </span>
-      );
-    case 'figo':
-      return (
-        <span
-          className={`relative grid place-items-center rounded-full border-4 border-purple-200/90 bg-gradient-to-br from-[#EDB8FF] via-[#8B27DF] to-[#351060] ${
-            large ? 'h-28 w-28 text-3xl' : 'h-10 w-10 text-sm'
-          } font-black text-white shadow-[0_16px_36px_rgba(139,39,223,0.45)]`}
-        >
-          <span className="absolute inset-2 rounded-full border border-purple-200/40" />
-          <span className="relative drop-shadow">₦500</span>
-        </span>
-      );
-    case 'usd':
-      return (
-        <span
-          className={`relative grid place-items-center rounded-full border-4 border-emerald-100/90 bg-gradient-to-br from-[#D4FFAE] via-[#2E9B4E] to-[#064528] ${
-            large ? 'h-28 w-28 text-4xl' : 'h-10 w-10 text-base'
-          } font-black text-white shadow-[0_16px_36px_rgba(46,155,78,0.45)]`}
-        >
-          <span className="absolute inset-2 rounded-full border border-emerald-200/40" />
-          <span className="relative drop-shadow">$</span>
-        </span>
-      );
-    case 'btc':
-      return (
-        <span
-          className={`relative grid place-items-center rounded-full border-4 border-amber-200/95 bg-gradient-to-br from-[#FFD55A] via-[#F27E12] to-[#6A2705] ${
-            large ? 'h-28 w-28 text-4xl' : 'h-10 w-10 text-base'
-          } font-black text-amber-50 shadow-[0_16px_36px_rgba(242,126,18,0.5)]`}
-        >
-          <span className="absolute inset-2 rounded-full border border-amber-200/50" />
-          <span className="relative drop-shadow">₿</span>
-        </span>
-      );
-    case 'classic':
-    default:
-      return (
-        <span
-          className={`relative grid place-items-center rounded-full border-4 border-white/90 bg-gradient-to-br from-[#FF749F] via-[#FF176C] to-[#A30044] ${
-            large ? 'h-28 w-28 text-4xl' : 'h-10 w-10 text-base'
-          } font-black text-white shadow-[0_16px_36px_rgba(255,23,108,0.45)]`}
-        >
-          <span className="absolute inset-2 rounded-full border border-white/40" />
-          <span className="relative drop-shadow">♥</span>
-        </span>
-      );
-  }
-}
-
-function CardArtworkBackground({ layoutId }: { layoutId: SprayLayoutId }) {
-  switch (layoutId) {
-    case 'waso':
-      return (
-        <>
-          <div className="absolute -left-20 -top-20 h-80 w-[140%] rotate-[-14deg] rounded-full border border-sky-300/30 bg-sky-400/10" />
-          <div className="absolute -right-24 bottom-0 h-72 w-[140%] rotate-[14deg] rounded-full border border-sky-200/25 bg-blue-950/25" />
-          <div className="absolute inset-x-0 top-1/3 h-12 bg-gradient-to-r from-transparent via-sky-200/15 to-transparent border-y border-sky-200/20" />
-          <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(#bae6fd_1px,transparent_1px)] [background-size:18px_18px]" />
-          <div className="absolute top-4 right-5 text-[10px] font-black uppercase tracking-[0.28em] text-sky-200/40 select-none">
-            ₦50 ENERGY · LAGOS BLUE NOTE
-          </div>
-        </>
-      );
-    case 'figo':
-      return (
-        <>
-          <div className="absolute -left-20 -top-20 h-80 w-[140%] rotate-[-16deg] rounded-full border border-purple-300/30 bg-purple-400/10" />
-          <div className="absolute -right-24 bottom-0 h-72 w-[140%] rotate-[16deg] rounded-full border border-purple-200/25 bg-[#25073c]/35" />
-          <div className="absolute inset-4 rounded-[26px] border border-purple-200/20 pointer-events-none" />
-          <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(#f5d0fe_1px,transparent_1px)] [background-size:20px_20px]" />
-          <div className="absolute top-4 right-5 text-[10px] font-black uppercase tracking-[0.28em] text-purple-200/40 select-none">
-            ₦500 FLEX · HIGH VALUE RESERVE
-          </div>
-        </>
-      );
-    case 'usd':
-      return (
-        <>
-          <div className="absolute -left-20 -top-20 h-80 w-[140%] rotate-[-12deg] rounded-full border border-emerald-300/30 bg-emerald-400/10" />
-          <div className="absolute -right-24 bottom-0 h-72 w-[140%] rotate-[12deg] rounded-full border border-emerald-200/25 bg-[#032314]/35" />
-          <div className="absolute inset-3 rounded-[26px] border-2 border-dashed border-emerald-200/20 pointer-events-none" />
-          <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(#a7f3d0_1px,transparent_1px)] [background-size:18px_18px]" />
-          <div className="absolute top-4 right-5 text-[10px] font-black uppercase tracking-[0.28em] text-emerald-200/40 select-none">
-            USD RESERVE · GREENBACK FLEX
-          </div>
-        </>
-      );
-    case 'btc':
-      return (
-        <>
-          <div className="absolute -left-20 -top-20 h-80 w-[140%] rotate-[-15deg] rounded-full border border-amber-300/30 bg-amber-400/10" />
-          <div className="absolute -right-24 bottom-0 h-72 w-[140%] rotate-[15deg] rounded-full border border-amber-200/25 bg-[#381203]/40" />
-          <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(to_right,#fef08a_1px,transparent_1px),linear-gradient(to_bottom,#fef08a_1px,transparent_1px)] [background-size:24px_24px]" />
-          <div className="absolute top-4 right-5 text-[10px] font-black uppercase tracking-[0.28em] text-amber-200/40 select-none">
-            PROOF-OF-LOVE · BLOCK 840,000
-          </div>
-        </>
-      );
-    case 'classic':
-    default:
-      return (
-        <>
-          <div className="absolute -left-24 -top-20 h-80 w-[130%] rotate-[-18deg] rounded-full border border-white/35 bg-white/15" />
-          <div className="absolute -right-28 bottom-0 h-72 w-[130%] rotate-[18deg] rounded-full border border-white/25 bg-black/15" />
-          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:16px_16px]" />
-          <div className="absolute top-4 right-5 text-[10px] font-black uppercase tracking-[0.28em] text-white/40 select-none">
-            SHOWMELOVE ORIGINAL · LOVE COIN
-          </div>
-        </>
-      );
-  }
-}
-
 export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
@@ -168,9 +43,19 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
 
       {/* Main Interactive Spray Card */}
       <section
-        className={`relative min-h-[620px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/40 bg-gradient-to-br ${layout.themeClass} p-6 text-center shadow-[0_26px_64px_-24px_rgba(0,0,0,0.5)] sm:p-9`}
+        className="relative min-h-[580px] sm:min-h-[620px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/20 bg-black/90 text-center shadow-[0_26px_64px_-24px_rgba(0,0,0,0.6)]"
       >
-        <CardArtworkBackground layoutId={layout.id} />
+        {/* Real Themed Artwork Image */}
+        <img
+          key={layout.id}
+          src={layout.artworkSrc}
+          alt={layout.name}
+          className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none transition-opacity duration-300"
+          loading="eager"
+        />
+
+        {/* Contrast vignette for text & controls */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-transparent to-black/80 pointer-events-none" />
 
         {/* Swipe gesture overlay */}
         <SprayCoins
@@ -190,41 +75,40 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
         />
 
         {/* Foreground Content */}
-        <div className="relative z-10 pointer-events-none flex min-h-[560px] flex-col items-center justify-between pb-2">
+        <div className="relative z-10 pointer-events-none flex min-h-[580px] sm:min-h-[620px] flex-col items-center justify-between p-6 sm:p-8">
           {/* Top layout badge */}
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm backdrop-blur-md border border-white/20">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-4 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md border border-white/20">
             <Sparkles className="h-3.5 w-3.5 text-white" />
-            <span>{layout.badge} · {layout.coinLabel.toUpperCase()} SPRAY</span>
+            <span>{layout.badge.toUpperCase()} · {layout.coinLabel.toUpperCase()} SPRAY</span>
           </div>
 
-          {/* Center visual hero coin */}
-          <div className="my-auto flex flex-col items-center">
-            <ThemedHeroCoin layoutId={layout.id} large />
-            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white drop-shadow-md">
+          {/* Center: Open space to showcase the coin and artwork */}
+          <div className="my-auto text-center px-4">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
               {layout.name} Spray
             </h1>
-            <p className="mt-2 max-w-xs text-sm leading-relaxed text-white/90 drop-shadow">
+            <p className="mt-1.5 max-w-xs text-xs sm:text-sm font-medium leading-relaxed text-white/90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
               {layout.description}
             </p>
           </div>
 
           {/* Status & instructions */}
           <div className="w-full max-w-sm space-y-3">
-            <div className="rounded-2xl bg-black/30 px-5 py-3 text-white backdrop-blur-md border border-white/15">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
+            <div className="rounded-2xl bg-black/55 px-5 py-3 text-white backdrop-blur-md border border-white/20 shadow-xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">
                 Love Coins Available
               </p>
-              <p className="mt-0.5 text-3xl font-extrabold tabular-nums">
+              <p className="mt-0.5 text-3xl font-extrabold tabular-nums tracking-tight">
                 {userBalance.toLocaleString('en-NG')}
               </p>
               {userBalance === 0 && (
-                <p className="text-xs font-semibold text-rose-200 mt-1">
+                <p className="text-xs font-semibold text-rose-300 mt-1">
                   Balance empty. Top up your wallet to continue spraying!
                 </p>
               )}
             </div>
 
-            <p className="text-xs font-medium text-white/85 drop-shadow">
+            <p className="text-xs font-medium text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
               {canSpray
                 ? `Swipe vertically up or down to launch ${effectiveSprayAmount.toLocaleString('en-NG')} ${layout.coinLabel}`
                 : !isSignedIn
@@ -246,7 +130,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           </p>
         </div>
 
-        {/* 5 Theme Buttons */}
+        {/* 5 Theme Buttons with real image artwork thumbnails */}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
           {SPRAY_LAYOUTS.map((item) => {
             const isSelected = layoutId === item.id;
@@ -260,22 +144,26 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   setLayoutId(item.id);
                   setSprayAmountInput(String(item.minimumCoins));
                 }}
-                className={`relative min-h-[115px] overflow-hidden rounded-2xl bg-gradient-to-br ${item.gradient} p-2.5 text-left text-white ring-2 transition-all cursor-pointer ${
-                  isSelected ? 'ring-[#FF2385] shadow-lg scale-[1.02]' : 'ring-transparent opacity-85 hover:opacity-100'
+                className={`group relative min-h-[135px] overflow-hidden rounded-2xl p-2.5 text-left text-white ring-2 transition-all cursor-pointer ${
+                  isSelected ? 'ring-[#FF2385] shadow-xl scale-[1.03]' : 'ring-transparent opacity-80 hover:opacity-100 hover:scale-[1.01]'
                 }`}
               >
-                <span className={`absolute inset-0 bg-gradient-to-br ${item.themeClass}`} />
-                <span className="absolute inset-0 opacity-15 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:8px_8px]" />
-                {isUnderMin && <LockKeyhole className="absolute right-2 top-2 h-3.5 w-3.5 opacity-80" />}
-                <div className="relative flex items-center gap-1.5">
-                  <ThemedHeroCoin layoutId={item.id} />
-                  <span className="text-xs font-black truncate">{item.name}</span>
-                </div>
-                <div className="relative mt-8">
-                  <span className="block text-[11px] font-bold opacity-95">
-                    {item.minimumCoins.toLocaleString('en-NG')} min
-                  </span>
-                  <span className="block text-[9px] opacity-75">{item.badge}</span>
+                <img
+                  src={item.artworkSrc}
+                  alt={item.name}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+                <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
+                {isUnderMin && <LockKeyhole className="absolute right-2 top-2 h-3.5 w-3.5 text-white/90 drop-shadow" />}
+                <div className="relative z-10 flex flex-col justify-between h-full">
+                  <span className="text-xs font-black drop-shadow-md text-white">{item.name}</span>
+                  <div className="mt-8">
+                    <span className="block text-[11px] font-bold text-white drop-shadow">
+                      {item.minimumCoins.toLocaleString('en-NG')} min
+                    </span>
+                    <span className="block text-[9px] font-semibold text-white/80 drop-shadow">{item.badge}</span>
+                  </div>
                 </div>
               </button>
             );
