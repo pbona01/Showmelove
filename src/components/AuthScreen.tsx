@@ -19,7 +19,7 @@ import { Button, InputField } from './ui/DesignSystem';
 type AuthMode = 'sign_in' | 'sign_up' | 'magic_link';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
-  const [mode, setMode] = useState<AuthMode>('sign_in');
+  const [mode, setMode] = useState<AuthMode>('magic_link');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -198,70 +198,69 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             <Sparkles className="w-3.5 h-3.5" /> Showmelove
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            {mode === 'sign_in'
-              ? 'Sign in to Showmelove'
-              : mode === 'sign_up'
-                ? 'Create your account'
-                : 'Passwordless Sign In'}
+            {mode === 'magic_link'
+              ? 'Instant Sign In'
+              : mode === 'sign_in'
+                ? 'Sign in with Password'
+                : 'Create your account'}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
-            {mode === 'sign_in'
-              ? 'Enter your email and password to access your Love Coins and gifts.'
-              : mode === 'sign_up'
-                ? 'Choose a unique username and enter your email to get started.'
-                : 'Enter your email to receive an instant one-time login link.'}
+            {mode === 'magic_link'
+              ? 'No password needed. Enter your email to receive an instant one-click login link.'
+              : mode === 'sign_in'
+                ? 'Enter your email and password to access your Love Coins and gifts.'
+                : 'Choose a unique username and enter your email to get started.'}
           </p>
         </div>
 
-        {/* Mode Selector Tabs */}
-        {mode !== 'magic_link' ? (
-          <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)]">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('sign_in');
-                setMessage('');
-                setStatus('idle');
-              }}
-              className={`py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
-                mode === 'sign_in'
-                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('sign_up');
-                setMessage('');
-                setStatus('idle');
-              }}
-              className={`py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
-                mode === 'sign_up'
-                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Create Account
-            </button>
-          </div>
-        ) : (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('sign_in');
-                setMessage('');
-                setStatus('idle');
-              }}
-              className="text-xs font-semibold text-[#E61472] dark:text-[#FF2385] hover:underline inline-flex items-center gap-1 cursor-pointer"
-            >
-              <KeyRound className="w-3.5 h-3.5" /> Back to password sign-in
-            </button>
-          </div>
-        )}
+        {/* 3-Mode Selector Tabs */}
+        <div className="grid grid-cols-3 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('magic_link');
+              setMessage('');
+              setStatus('idle');
+            }}
+            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
+              mode === 'magic_link'
+                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Magic Link
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('sign_in');
+              setMessage('');
+              setStatus('idle');
+            }}
+            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
+              mode === 'sign_in'
+                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Password
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('sign_up');
+              setMessage('');
+              setStatus('idle');
+            }}
+            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
+              mode === 'sign_up'
+                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Sign Up
+          </button>
+        </div>
 
         {!isSupabaseAuthConfigured ? (
           <div role="alert" className="rounded-2xl bg-[#FFEAF2] p-4 text-sm text-[#9D174D] space-y-1">
@@ -398,6 +397,11 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
 
             {/* Footer switcher */}
             <div className="pt-2 text-center text-xs text-[var(--text-secondary)] space-y-1">
+              {mode === 'magic_link' && (
+                <p className="text-[11px] text-[var(--text-secondary)]">
+                  Instant email sign-in · No password required
+                </p>
+              )}
               {mode === 'sign_in' && (
                 <button
                   type="button"
