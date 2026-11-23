@@ -2,16 +2,16 @@ import { ArrowLeft, LockKeyhole, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { GoldLoveCoinSvg } from './GiftArtwork';
 import { SprayCoins } from './SprayCoins';
 import { Button } from './ui/DesignSystem';
 
 interface SprayCoinsScreenProps {
   onBack: () => void;
+  onSignIn: () => void;
 }
 
-export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
-  const { state, currentWallet, sprayLoveCoins, switchRole } = useShowmelove();
+export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
+  const { state, currentWallet, sprayLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const [layoutId, setLayoutId] = useState<SprayLayoutId>('classic');
   const [sprayAmountInput, setSprayAmountInput] = useState('20');
@@ -35,32 +35,33 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
         Back to Wallet Home
       </button>
 
-      <section className={`relative min-h-[440px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-[#F3B843]/45 bg-gradient-to-br ${layout.gradient} p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] sm:p-9`}>
+      <section className="relative min-h-[600px] touch-none overscroll-contain overflow-hidden rounded-[32px] border border-white/55 bg-[#16050d] p-6 text-center shadow-[0_26px_64px_-28px_rgba(225,119,41,0.85)] sm:p-9">
+        <img src={layout.artworkSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
         <SprayCoins
           isEnabled={canSpray}
           coinBalance={currentWallet.loveCoinsBalance}
           minimumSpray={layout.minimumCoins}
           sprayAmount={sprayAmount}
+          particleSrc={layout.particleSrc}
+          coinLabel={layout.coinLabel}
           onSpray={(count) => sprayLoveCoins({ coins: count, recipientEmail, layoutId }).ok}
         />
 
-        <div className="relative z-10 pointer-events-none flex min-h-[390px] flex-col items-center justify-center">
+        <div className="relative z-10 pointer-events-none flex min-h-[550px] flex-col items-center justify-end pb-4">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/60 px-3 py-1.5 text-xs font-bold text-[#633417] shadow-sm backdrop-blur-md dark:bg-white/10 dark:text-[#FFE4A6]">
             <Sparkles className="h-4 w-4" />
-            {layout.badge} · LOVE COIN SPRAY
+            {layout.badge} · {layout.coinLabel.toUpperCase()} SPRAY
           </div>
-          <div className="mt-6 flex h-28 w-28 items-center justify-center rounded-full bg-white/20 text-6xl font-black text-white shadow-[0_18px_18px_rgba(89,38,21,0.3)] backdrop-blur-sm">
-            {layout.id === 'classic' ? <GoldLoveCoinSvg className="h-28 w-28" priority /> : layout.symbol}
-          </div>
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-[#28140F] dark:text-white">
+          <h1 className="mt-5 text-3xl font-bold tracking-tight text-white drop-shadow-md">
             {layout.name} Spray
           </h1>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#643528] dark:text-[#F5DDE7]">
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/95 drop-shadow-md">
             {canSpray
-              ? `Swipe up or down to launch ${sprayAmount.toLocaleString('en-NG')} Love Coins. ${layout.description}`
+              ? `Swipe up or down to launch ${sprayAmount.toLocaleString('en-NG')} ${layout.coinLabel}. ${layout.description}`
               : isSignedIn
                 ? `You need at least ${layout.minimumCoins.toLocaleString('en-NG')} Love Coins for this layout.`
-                : 'Sign in to a demo account to unlock Love Coin Spray.'}
+                : 'Sign in to unlock Love Coin Spray.'}
           </p>
           <div className="mt-5 rounded-2xl bg-white/60 px-5 py-3 text-[#4D2519] shadow-sm backdrop-blur-md dark:bg-black/20 dark:text-white">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">Love Coins available</p>
@@ -80,18 +81,20 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
           {SPRAY_LAYOUTS.map((item) => {
             const locked = currentWallet.loveCoinsBalance < item.minimumCoins;
             return (
-              <button key={item.id} type="button" onClick={() => { setLayoutId(item.id); setSprayAmountInput(String(item.minimumCoins)); }} className={`relative min-h-[82px] rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-white shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
+              <button key={item.id} type="button" onClick={() => { setLayoutId(item.id); setSprayAmountInput(String(item.minimumCoins)); }} className={`relative min-h-[110px] overflow-hidden rounded-2xl bg-gradient-to-br ${item.gradient} p-2 text-left text-white ring-2 transition ${layoutId === item.id ? 'ring-[#FF2385] shadow-lg' : 'ring-transparent opacity-85 hover:opacity-100'}`}>
+                <img src={item.artworkSrc} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" loading="lazy" decoding="async" />
+                <span className="absolute inset-0 bg-black/20" />
                 {locked && <LockKeyhole className="absolute right-2 top-2 h-3 w-3" />}
-                <span className="block text-sm font-black">{item.name}</span>
-                <span className="mt-3 block text-[10px] font-bold opacity-90">{item.minimumCoins.toLocaleString('en-NG')} Coins min.</span>
+                <span className="relative block text-sm font-black">{item.name}</span>
+                <span className="relative mt-12 block text-[10px] font-bold opacity-90">{item.minimumCoins.toLocaleString('en-NG')} Coins min.</span>
               </button>
             );
           })}
         </div>
         <label className="block text-xs font-semibold text-[var(--text-secondary)]">
-          Love Coins per spray
+          {layout.coinLabel} per spray
           <input type="number" min={layout.minimumCoins} max={currentWallet.loveCoinsBalance || layout.minimumCoins} step={1} value={sprayAmountInput} onChange={(event) => setSprayAmountInput(event.target.value)} className="mt-1.5 min-h-[44px] w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 text-base font-bold tabular-nums text-[var(--text-primary)]" />
-          <span className="mt-1 block font-normal">Minimum: {layout.minimumCoins.toLocaleString('en-NG')} Coins · Available: {currentWallet.loveCoinsBalance.toLocaleString('en-NG')} Coins</span>
+          <span className="mt-1 block font-normal">Minimum: {layout.minimumCoins.toLocaleString('en-NG')} Coins · Available: {currentWallet.loveCoinsBalance.toLocaleString('en-NG')} Love Coins</span>
         </label>
         <label className="block text-xs font-semibold text-[var(--text-secondary)]">
           Send spray to
@@ -103,10 +106,11 @@ export function SprayCoinsScreen({ onBack }: SprayCoinsScreenProps) {
       </section>
 
       {!isSignedIn && (
-        <Button variant="primary" size="lg" fullWidth onClick={() => switchRole('recipient')}>
+        <Button variant="primary" size="lg" fullWidth onClick={onSignIn}>
           Sign in to start spraying
         </Button>
       )}
     </div>
   );
 }
+
