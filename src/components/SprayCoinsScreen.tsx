@@ -44,6 +44,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           minimumSpray={layout.minimumCoins}
           sprayAmount={sprayAmount}
           particleSrc={layout.particleSrc}
+          particleCrop={layout.id !== 'classic'}
           coinLabel={layout.coinLabel}
           onSpray={(count) => sprayLoveCoins({ coins: count, recipientEmail, layoutId }).ok}
         />
