@@ -13,6 +13,8 @@ export interface SprayCoinsProps {
   coinBalance: number;
   minimumSpray?: number;
   sprayAmount?: number;
+  particleSrc?: string;
+  coinLabel?: string;
   onSpray: (count: number) => boolean;
 }
 
@@ -33,8 +35,7 @@ interface CoinParticle {
   scale: number;
 }
 
-const COIN_ASSET =
-  '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.webp';
+const COIN_ASSET = '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.webp';
 const PARTICLE_LIFETIME_MS = 1200;
 const GRAVITY_PX_PER_SECOND = 800;
 const DRAG_PER_FRAME = 0.98;
@@ -48,9 +49,11 @@ function randomBetween(min: number, max: number): number {
 
 function CoinParticleView({
   particle,
+  particleSrc,
   onComplete,
 }: {
   particle: CoinParticle;
+  particleSrc: string;
   onComplete: (id: string) => void;
 }) {
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -104,7 +107,7 @@ function CoinParticleView({
     >
       <img
         ref={imageRef}
-        src={COIN_ASSET}
+        src={particleSrc}
         alt=""
         width={36}
         height={36}
@@ -149,7 +152,7 @@ function playWhoosh() {
   }
 }
 
-export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, onSpray }: SprayCoinsProps) {
+export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [particles, setParticles] = useState<CoinParticle[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -202,7 +205,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
 
       lastSprayAtRef.current = now;
       if (!onSpray(count)) return;
-      setAnnouncement(`${count} Love Coins sprayed. ${Math.max(0, balanceRef.current - count)} remaining.`);
+      setAnnouncement(`${count} ${coinLabel} sprayed. ${Math.max(0, balanceRef.current - count)} remaining.`);
       setShowHint(false);
 
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -234,7 +237,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
       });
       setParticles((current) => [...current, ...nextParticles]);
     },
-    [isEnabled, minimumSpray, onSpray, reducedMotion, sprayAmount],
+    [coinLabel, isEnabled, minimumSpray, onSpray, reducedMotion, sprayAmount],
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -316,7 +319,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     >
       <AnimatePresence>
         {particles.map((particle) => (
-          <CoinParticleView key={particle.id} particle={particle} onComplete={removeParticle} />
+          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} onComplete={removeParticle} />
         ))}
       </AnimatePresence>
 
@@ -330,7 +333,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
             className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#20111D]/72 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md whitespace-nowrap shadow-lg"
             data-testid="spray-coins-hint"
           >
-            Swipe up or down to spray Love Coins
+            Swipe up or down to spray {coinLabel}
           </motion.div>
         )}
       </AnimatePresence>
@@ -341,3 +344,4 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     </div>
   );
 }
+
