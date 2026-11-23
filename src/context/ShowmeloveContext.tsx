@@ -135,17 +135,72 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
   // remains only as an offline-preview fallback; it is never used by Paystack APIs.
   useEffect(() => {
     if (!supabase) return;
-    const applySession = (email?: string, displayName?: string) => {
-      if (email) signInDemoEmail(email, displayName);
+
+    const syncLiveWallet = async (userId: string, email: string) => {
+      if (!supabase || !userId || !email) return;
+      try {
+        const { data: walletData } = await supabase
+          .from('wallets')
+          .select('love_coins_balance')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (walletData && typeof walletData.love_coins_balance === 'number') {
+          const normEmail = normalizeEmail(email);
+          const prev = stateRef.current;
+          const current = ensureWallet(prev.walletsByEmail, normEmail);
+          if (current.loveCoinsBalance !== walletData.love_coins_balance) {
+            commitNext({
+              ...prev,
+              walletsByEmail: {
+                ...prev.walletsByEmail,
+                [normEmail]: {
+                  ...current,
+                  loveCoinsBalance: walletData.love_coins_balance,
+                },
+              },
+            });
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
     };
-    void supabase.auth.getSession().then(({ data }) => {
-      applySession(data.session?.user.email, String(data.session?.user.user_metadata?.full_name || ''));
+
+    let activeUserId = '';
+    let activeUserEmail = '';
+
+    const applySession = (session: any) => {
+      const email = session?.user?.email;
+      const displayName = String(session?.user?.user_metadata?.full_name || '');
+      if (email) {
+        activeUserId = session?.user?.id || '';
+        activeUserEmail = email;
+        signInDemoEmail(email, displayName);
+        void syncLiveWallet(activeUserId, email);
+      }
+    };
+
+    void supabase.auth.getSession().then(({ data }: { data: any }) => {
+      applySession(data.session);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      applySession(session?.user.email, String(session?.user.user_metadata?.full_name || ''));
+
+    const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+      applySession(session);
     });
-    return () => data.subscription.unsubscribe();
-  }, [signInDemoEmail]);
+
+    const handleFocus = () => {
+      if (activeUserId && activeUserEmail) {
+        void syncLiveWallet(activeUserId, activeUserEmail);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      data.subscription.unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [commitNext, signInDemoEmail]);
 
   const resetDemo = useCallback(async () => {
     await audioStorage.clearAll().catch(() => undefined);

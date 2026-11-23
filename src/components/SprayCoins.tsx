@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import type { SprayLayoutId } from '../config/economy';
 import { usePrefersReducedMotion } from '../lib/animation';
 
 export interface SprayCoinsProps {
@@ -13,6 +14,7 @@ export interface SprayCoinsProps {
   coinBalance: number;
   minimumSpray?: number;
   sprayAmount?: number;
+  layoutId?: SprayLayoutId;
   particleSrc?: string;
   particleCrop?: boolean;
   particleSymbol?: string;
@@ -37,32 +39,72 @@ interface CoinParticle {
   scale: number;
 }
 
-const COIN_ASSET = '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.webp';
 const PARTICLE_LIFETIME_MS = 1200;
 const GRAVITY_PX_PER_SECOND = 800;
 const DRAG_PER_FRAME = 0.98;
 const SPRAY_COOLDOWN_MS = 300;
-const SWIPE_DISTANCE_PX = 48;
+const SWIPE_DISTANCE_PX = 44;
 const HINT_STORAGE_KEY = 'showmelove_spray_coins_hint_seen';
 
 function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
+function getCoinThemeStyle(layoutId: SprayLayoutId = 'classic') {
+  switch (layoutId) {
+    case 'waso':
+      return {
+        wrapper: 'border-2 border-sky-100/90 bg-gradient-to-br from-[#66BBFF] via-[#0767D7] to-[#012D78] text-white shadow-[0_6px_16px_rgba(7,103,215,0.45)]',
+        inner: 'border border-sky-200/50',
+        text: 'font-black text-sm tracking-tight drop-shadow',
+        symbol: '₦50',
+      };
+    case 'figo':
+      return {
+        wrapper: 'border-2 border-purple-200/90 bg-gradient-to-br from-[#EDB8FF] via-[#8B27DF] to-[#351060] text-white shadow-[0_6px_16px_rgba(139,39,223,0.45)]',
+        inner: 'border border-purple-200/40',
+        text: 'font-black text-xs tracking-tighter drop-shadow',
+        symbol: '₦500',
+      };
+    case 'usd':
+      return {
+        wrapper: 'border-2 border-emerald-100/90 bg-gradient-to-br from-[#D4FFAE] via-[#2E9B4E] to-[#064528] text-white shadow-[0_6px_16px_rgba(46,155,78,0.45)]',
+        inner: 'border border-emerald-200/50',
+        text: 'font-black text-sm drop-shadow',
+        symbol: '$',
+      };
+    case 'btc':
+      return {
+        wrapper: 'border-2 border-amber-200/90 bg-gradient-to-br from-[#FFD55A] via-[#F27E12] to-[#6A2705] text-amber-50 shadow-[0_6px_16px_rgba(242,126,18,0.5)]',
+        inner: 'border border-amber-200/60',
+        text: 'font-black text-sm drop-shadow',
+        symbol: '₿',
+      };
+    case 'classic':
+    default:
+      return {
+        wrapper: 'border-2 border-white/90 bg-gradient-to-br from-[#FF749F] via-[#FF176C] to-[#A30044] text-white shadow-[0_6px_16px_rgba(255,23,108,0.5)]',
+        inner: 'border border-white/40',
+        text: 'font-black text-sm drop-shadow',
+        symbol: '♥',
+      };
+  }
+}
+
 function CoinParticleView({
   particle,
-  particleSrc,
-  particleCrop,
+  layoutId = 'classic',
   particleSymbol,
   onComplete,
 }: {
   particle: CoinParticle;
-  particleSrc: string;
-  particleCrop: boolean;
+  layoutId?: SprayLayoutId;
   particleSymbol?: string;
   onComplete: (id: string) => void;
 }) {
-  const imageRef = useRef<HTMLImageElement | null>(null);
+  const elementRef = useRef<HTMLSpanElement | null>(null);
+  const theme = getCoinThemeStyle(layoutId);
+  const symbol = particleSymbol || theme.symbol;
 
   useEffect(() => {
     let frameId = 0;
@@ -86,10 +128,10 @@ function CoinParticleView({
       y += velocityY * deltaSeconds;
       rotation += particle.rotationVelocity * deltaSeconds;
 
-      if (imageRef.current) {
+      if (elementRef.current) {
         const progress = Math.min(1, age / PARTICLE_LIFETIME_MS);
-        imageRef.current.style.opacity = String(1 - progress);
-        imageRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rotation}deg) scale(${particle.scale})`;
+        elementRef.current.style.opacity = String(1 - progress);
+        elementRef.current.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rotation}deg) scale(${particle.scale})`;
       }
 
       if (age < PARTICLE_LIFETIME_MS) {
@@ -111,9 +153,20 @@ function CoinParticleView({
       transition={{ duration: 0.08 }}
       className="absolute inset-0 pointer-events-none"
     >
-      {particleSymbol ? (
-        <span ref={imageRef as never} className="absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border-2 border-white/70 bg-gradient-to-br from-[#ffe899] via-[#f3a31a] to-[#a74a0b] text-base font-black text-[#482000] shadow-lg" style={{ opacity: 0, transformOrigin: 'center', willChange: 'transform, opacity' }}>{particleSymbol}</span>
-      ) : <img ref={imageRef} src={particleSrc} alt="" width={36} height={36} loading="eager" decoding="async" draggable={false} className={`absolute left-0 top-0 h-8 w-8 sm:h-9 sm:w-9 ${particleCrop ? 'object-cover' : 'object-contain'} mix-blend-screen select-none`} style={{ opacity: 0, transformOrigin: 'center', willChange: 'transform, opacity' }} />}
+      <span
+        ref={elementRef}
+        className={`absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full select-none ${theme.wrapper}`}
+        style={{
+          opacity: 0,
+          transformOrigin: 'center',
+          willChange: 'transform, opacity',
+        }}
+      >
+        <span className={`absolute inset-0.5 rounded-full pointer-events-none ${theme.inner}`} />
+        <span className={`relative leading-none select-none ${theme.text}`}>
+          {symbol}
+        </span>
+      </span>
     </motion.span>
   );
 }
@@ -145,7 +198,16 @@ function playWhoosh() {
   }
 }
 
-export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmount, particleSrc = COIN_ASSET, particleCrop = false, particleSymbol, coinLabel = 'Love Coins', onSpray }: SprayCoinsProps) {
+export function SprayCoins({
+  isEnabled,
+  coinBalance,
+  minimumSpray = 12,
+  sprayAmount,
+  layoutId = 'classic',
+  particleSymbol,
+  coinLabel = 'Love Coins',
+  onSpray,
+}: SprayCoinsProps) {
   const reducedMotion = usePrefersReducedMotion();
   const [particles, setParticles] = useState<CoinParticle[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -179,13 +241,11 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
       const now = performance.now();
       if (!isEnabled || now - lastSprayAtRef.current < SPRAY_COOLDOWN_MS) return;
 
-      const desiredCount = Number.isFinite(sprayAmount)
-        ? Math.max(minimumSpray, Math.floor(sprayAmount ?? minimumSpray))
-        : minimumSpray <= 20
-          ? Math.floor(randomBetween(minimumSpray, 21))
-          : minimumSpray;
-      // Every valid swipe can use the remaining balance; the final swipe simply
-      // emits however many coins are left instead of imposing an artificial cap.
+      const desiredCount = Number.isFinite(sprayAmount) && sprayAmount! > 0
+        ? Math.floor(sprayAmount!)
+        : minimumSpray;
+
+      // Allow spraying remaining balance down to 0
       const count = Math.min(desiredCount, balanceRef.current);
       if (count <= 0) return;
 
@@ -198,16 +258,22 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
 
       lastSprayAtRef.current = now;
       if (!onSpray(count)) return;
+
       setAnnouncement(`${count} ${coinLabel} sprayed. ${Math.max(0, balanceRef.current - count)} remaining.`);
       setShowHint(false);
 
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate([10, 5, 10]);
+        try {
+          navigator.vibrate([10, 5, 10]);
+        } catch {
+          // Ignore vibration permission issues
+        }
       }
       playWhoosh();
 
       if (reducedMotion) return;
 
+      // Cap DOM particles around 20 visible coins for peak 60fps performance
       const visibleCount = Math.min(count, 20);
       const nextParticles = Array.from({ length: visibleCount }, (_, index): CoinParticle => {
         const pathIndex = visibleCount === 1 ? 0 : (index / (visibleCount - 1)) * (history.length - 1);
@@ -225,9 +291,10 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
           velocityY: velocityY * 0.18 - randomBetween(190, 390),
           rotation: randomBetween(-15, 15),
           rotationVelocity: randomBetween(-240, 240),
-          scale: randomBetween(0.6, 1),
+          scale: randomBetween(0.7, 1.05),
         };
       });
+
       setParticles((current) => [...current, ...nextParticles]);
     },
     [coinLabel, isEnabled, minimumSpray, onSpray, reducedMotion, sprayAmount],
@@ -282,6 +349,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     if (!first || !last) return;
     const deltaX = last.x - first.x;
     const deltaY = last.y - first.y;
+    // Strict vertical swipe only: prevents horizontal gestures or diagonal noise
     if (Math.abs(deltaY) >= SWIPE_DISTANCE_PX && Math.abs(deltaY) > Math.abs(deltaX) * 1.25) {
       emitSpray(history);
     }
@@ -290,10 +358,8 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
   return (
     <div
       className={`absolute inset-0 z-20 overflow-hidden rounded-[28px] select-none ${
-        isEnabled ? 'cursor-ew-resize' : 'pointer-events-none'
+        isEnabled ? 'cursor-ns-resize' : 'pointer-events-none'
       }`}
-      // Spray has its own dedicated page, so it must own the full gesture.
-      // This prevents mobile browsers from turning a swipe into page scroll/zoom.
       style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -308,11 +374,17 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
         }
       }}
       data-testid="spray-coins-overlay"
-      aria-label={isEnabled ? 'Swipe vertically to spray Love Coins' : undefined}
+      aria-label={isEnabled ? 'Swipe vertically up or down to spray coins' : undefined}
     >
       <AnimatePresence>
         {particles.map((particle) => (
-          <CoinParticleView key={particle.id} particle={particle} particleSrc={particleSrc} particleCrop={particleCrop} particleSymbol={particleSymbol} onComplete={removeParticle} />
+          <CoinParticleView
+            key={particle.id}
+            particle={particle}
+            layoutId={layoutId}
+            particleSymbol={particleSymbol}
+            onComplete={removeParticle}
+          />
         ))}
       </AnimatePresence>
 
@@ -323,7 +395,7 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
             animate={reducedMotion ? { opacity: 1 } : { opacity: [0.72, 1, 0.72], y: 0 }}
             exit={{ opacity: 0 }}
             transition={reducedMotion ? { duration: 0 } : { duration: 1.6, repeat: Infinity }}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#20111D]/72 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md whitespace-nowrap shadow-lg"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#20111D]/80 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md whitespace-nowrap shadow-lg border border-white/10"
             data-testid="spray-coins-hint"
           >
             Swipe up or down to spray {coinLabel}
@@ -337,4 +409,3 @@ export function SprayCoins({ isEnabled, coinBalance, minimumSpray = 12, sprayAmo
     </div>
   );
 }
-

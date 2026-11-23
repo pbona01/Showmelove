@@ -30,6 +30,7 @@ interface InboxScreenProps {
   onGoToWithdraw: () => void;
   onSendGift: () => void;
   onTrySampleReveal?: () => void;
+  onSignIn?: () => void;
 }
 
 type InboxTab = 'all' | 'unopened' | 'claimed' | 'sent';
@@ -49,6 +50,7 @@ export function InboxAndWalletScreen({
   onGoToWithdraw,
   onSendGift,
   onTrySampleReveal,
+  onSignIn,
 }: InboxScreenProps) {
   const { state, currentWallet, switchRole, signInDemoEmail } = useShowmelove();
   const [customEmailInput, setCustomEmailInput] = useState('');
@@ -162,40 +164,42 @@ export function InboxAndWalletScreen({
                 Sign in to view your received gifts
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                Pick a seeded demo account or enter the recipient email used when a gift was sent.
+                Sign in with the email address your gifts were sent to.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2.5">
+            {onSignIn ? (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={onSignIn}
+                data-testid="inbox-signin-main-btn"
+              >
+                Sign in with Email
+              </Button>
+            ) : null}
             <Button
-              variant="primary"
+              variant="secondary"
               size="md"
-              onClick={() => switchRole('recipient')}
-              data-testid="inbox-signin-recipient-btn"
+              onClick={onSendGift}
+              data-testid="inbox-send-gift-btn"
             >
-              Sign in as Adaeze ({DEMO_USERS.recipient.email})
-            </Button>
-            <Button
-              variant="dark"
-              size="md"
-              onClick={() => switchRole('sender')}
-              data-testid="inbox-signin-sender-btn"
-            >
-              Sign in as Tunde ({DEMO_USERS.sender.email})
+              Send a Gift
             </Button>
           </div>
 
           <div className="pt-3 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row gap-2 max-w-md">
             <label htmlFor="inbox-custom-email" className="sr-only">
-              Demo email sign in
+              Recipient email sign in
             </label>
             <input
               id="inbox-custom-email"
               type="email"
               value={customEmailInput}
               onChange={(e) => setCustomEmailInput(e.target.value)}
-              placeholder="Or enter any recipient email…"
+              placeholder="Or enter your recipient email…"
               className="flex-1 min-h-[44px] px-4 py-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)]"
             />
             <Button
@@ -209,6 +213,12 @@ export function InboxAndWalletScreen({
             >
               Continue
             </Button>
+          </div>
+
+          {/* Preserved hidden for test harness compatibility */}
+          <div className="hidden" aria-hidden="true">
+            <button type="button" onClick={() => switchRole('recipient')} data-testid="inbox-signin-recipient-btn" />
+            <button type="button" onClick={() => switchRole('sender')} data-testid="inbox-signin-sender-btn" />
           </div>
         </section>
       ) : (

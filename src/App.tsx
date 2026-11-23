@@ -252,13 +252,19 @@ function ShowmeloveShell() {
 
   useEffect(() => {
     if (!supabase) return;
-    void supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }: { data: any }) => {
       setHasLiveSession(Boolean(data.session));
       setAuthChecked(true);
+      if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setHasLiveSession(Boolean(session));
       setAuthChecked(true);
+      if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
     });
     return () => data.subscription.unsubscribe();
   }, []);
@@ -267,10 +273,7 @@ function ShowmeloveShell() {
     return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
   }
 
-  if (isSupabaseAuthConfigured && !hasLiveSession && route.page !== 'sign-in') {
-    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
-  }
-
+  // Recipients must be able to view their gift reveal without being forced to sign in upfront
   if (route.page === 'reveal') {
     return (
       <RevealRouteView
@@ -279,6 +282,20 @@ function ShowmeloveShell() {
         onGoToInbox={() => navigate({ page: 'inbox' })}
       />
     );
+  }
+
+  // Payment callback route
+  if (route.page === 'payment-verify') {
+    return <PaymentVerificationScreen onDone={() => navigate({ page: 'wallet' })} />;
+  }
+
+  // When Supabase Auth is enabled, unauthenticated visitors must land on custom AuthScreen
+  if (isSupabaseAuthConfigured && !hasLiveSession) {
+    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
+  }
+
+  if (route.page === 'sign-in') {
+    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
   }
 
   const isHomeTab =
@@ -433,6 +450,7 @@ function ShowmeloveShell() {
                 }
                 onOpenSpray={() => navigate({ page: 'spray-coins' })}
                 onOpenLeaderboard={() => navigate({ page: 'leaderboard' })}
+                onOpenSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
 
@@ -454,6 +472,7 @@ function ShowmeloveShell() {
                 onTrySampleReveal={() =>
                   navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
                 }
+                onSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
 
@@ -472,10 +491,6 @@ function ShowmeloveShell() {
                 onSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
-
-            {route.page === 'sign-in' && <AuthScreen onBack={() => navigate({ page: 'home' })} />}
-
-            {route.page === 'payment-verify' && <PaymentVerificationScreen onDone={() => navigate({ page: 'home' })} />}
 
             {route.page === 'withdraw' && (
               <WithdrawScreen

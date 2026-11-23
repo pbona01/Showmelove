@@ -83,7 +83,7 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
             </div>
 
             <p className="text-xs text-[var(--text-secondary)] tabular-nums">
-              All values use Love Coins · {feePercent}% demo platform fee · No account needed to send
+              All values use Love Coins · {feePercent}% platform fee · No account needed to send
             </p>
           </div>
 

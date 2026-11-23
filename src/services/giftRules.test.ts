@@ -21,23 +21,20 @@ import {
   resolveWithdrawal,
 } from './giftRules';
 
-test('economy config validates bounds and computes 20% demo fee summary accurately', () => {
+test('economy config validates bounds and computes fee summary accurately', () => {
   assert.equal(validateGiftAmount(99).valid, false);
   assert.equal(validateGiftAmount(100).valid, true);
   assert.equal(validateGiftAmount(100_000).valid, true);
   assert.equal(validateGiftAmount(100_001).valid, false);
 
   assert.equal(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN, 1);
-  assert.equal(ECONOMY_CONFIG.PLATFORM_FEE_BPS, 2000);
+  assert.equal(ECONOMY_CONFIG.FUNDING_FEE_BPS, 300);
+  assert.equal(ECONOMY_CONFIG.GUEST_GIFT_FEE_BPS, 850);
+  assert.equal(ECONOMY_CONFIG.SPRAY_FEE_BPS, 300);
 
-  // Reference example: 1,000-coin gift produces ₦800 in recipient rewards (20% fee)
   const refSummary = calculateCheckoutSummary(1000);
   assert.equal(refSummary.amountPaidNaira, 1000);
   assert.equal(refSummary.loveCoinsNeeded, 1000);
-  assert.equal(refSummary.platformFeeNaira, 200);
-  assert.equal(refSummary.recipientEarningsNaira, 800);
-  assert.equal(refSummary.platformFeePercent, 20);
-  assert.equal(refSummary.creatorSharePercent, 80);
 
   // Coin packages match reference tiers
   assert.deepEqual(
@@ -72,8 +69,8 @@ test('checkout is idempotent on double-click or refresh with same checkoutAttemp
   assert.equal(first.ok, true);
   assert.equal(first.alreadyProcessed, undefined);
   assert.equal(first.nextState.gifts.length, initial.gifts.length + 1);
-  assert.equal(first.gift?.recipientEarningsNaira, 3600);
-  assert.equal(first.gift?.platformFeeNaira, 900);
+  assert.equal(first.gift?.recipientEarningsNaira, 4117);
+  assert.equal(first.gift?.platformFeeNaira, 383);
   assert.equal(first.gift?.promiseCardStyle, 'silk-crimson');
 
   const styled = createPaidGiftIdempotent(first.nextState, {
@@ -119,7 +116,7 @@ test('claiming verifies recipient email, handles wrong recipient, and prevents d
   const initial = createInitialStoreState();
   const beforeEarnings = initial.walletsByEmail['ada@showmelove.ng'].availableEarningsNaira;
   const sampleGiftRewards = initial.gifts.find((g) => g.id === 'sample')!.recipientEarningsNaira;
-  assert.equal(sampleGiftRewards, 4000); // 5,000 coins - 20% fee = ₦4,000
+  assert.equal(sampleGiftRewards, 5000); // 5,000 coins with 0% direct-gift fee = ₦5,000
 
   const wrongUser = claimGiftIdempotent(
     initial,
@@ -234,7 +231,7 @@ test('signed-in sender can buy Love Coins and spend coin balance', () => {
   assert.equal(topup.ok, true);
   assert.equal(
     topup.nextState.walletsByEmail['tunde@showmelove.ng'].loveCoinsBalance,
-    20000,
+    19850,
   );
 
   const spent = createPaidGiftIdempotent(topup.nextState, {
@@ -256,7 +253,7 @@ test('signed-in sender can buy Love Coins and spend coin balance', () => {
   assert.equal(spent.ok, true);
   assert.equal(
     spent.nextState.walletsByEmail['tunde@showmelove.ng'].loveCoinsBalance,
-    18500,
+    18350,
   );
 });
 

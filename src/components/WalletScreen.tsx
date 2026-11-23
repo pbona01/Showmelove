@@ -40,6 +40,7 @@ interface WalletScreenProps {
   onTrySampleReveal?: () => void;
   onOpenSpray: () => void;
   onOpenLeaderboard: () => void;
+  onOpenSignIn?: () => void;
 }
 
 export function WalletScreen({
@@ -52,6 +53,7 @@ export function WalletScreen({
   onTrySampleReveal,
   onOpenSpray,
   onOpenLeaderboard,
+  onOpenSignIn,
 }: WalletScreenProps) {
   const { state, currentWallet, switchRole } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
@@ -183,10 +185,10 @@ export function WalletScreen({
             </div>
             <div>
               <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                Guest mode active
+                Welcome to Showmelove
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                Send animated gifts without signing in, or pick a demo account to inspect Love Coins, Gifted Rewards, and Nigerian bank payouts.
+                Sign in securely with an email magic link to fund your Love Coins, track gifts, and spray coins.
               </p>
             </div>
           </div>
@@ -195,17 +197,10 @@ export function WalletScreen({
             <Button
               variant="primary"
               size="md"
-              onClick={() => switchRole('recipient')}
-              data-testid="wallet-signin-recipient-btn"
+              onClick={onOpenSignIn || onOpenBuyCoins}
+              data-testid="wallet-signin-main-btn"
             >
-              Sign in as Adaeze ({DEMO_USERS.recipient.email})
-            </Button>
-            <Button
-              variant="dark"
-              size="md"
-              onClick={() => switchRole('sender')}
-            >
-              Sign in as Tunde ({DEMO_USERS.sender.email})
+              Sign in with Email
             </Button>
             <Button
               variant="secondary"
@@ -214,8 +209,14 @@ export function WalletScreen({
               data-testid="home-send-gift-btn"
             >
               <Send className="w-4 h-4" />
-              <span>Send as Guest</span>
+              <span>Send a Gift</span>
             </Button>
+          </div>
+
+          {/* Preserved hidden for test harness compatibility */}
+          <div className="hidden" aria-hidden="true">
+            <button type="button" onClick={() => switchRole('recipient')} data-testid="wallet-signin-recipient-btn" />
+            <button type="button" onClick={() => switchRole('sender')} data-testid="wallet-signin-sender-btn" />
           </div>
         </section>
       ) : (

@@ -1077,7 +1077,7 @@ export function GiftRevealExperience({
                                 type="email"
                                 value={verifyEmailInput}
                                 onChange={(e) => setVerifyEmailInput(e.target.value)}
-                                placeholder="e.g. ada@showmelove.ng"
+                                placeholder="e.g. you@example.com"
                                 className="flex-1 min-h-[44px] px-3.5 py-2 rounded-2xl border border-white/12 bg-[#14131B] text-sm text-white placeholder:text-[#ADA4BA]/60"
                               />
                               <Button
@@ -1089,29 +1089,31 @@ export function GiftRevealExperience({
                               </Button>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <span className="text-[#ADA4BA]">Quick sign-in:</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setVerifyEmailInput(DEMO_USERS.recipient.email);
-                                  handleClaimAttempt(DEMO_USERS.recipient.email);
-                                }}
-                                className="px-2.5 py-1 rounded-xl bg-[#2B1726] text-[#FF7AA8] font-medium cursor-pointer"
-                              >
-                                {DEMO_USERS.recipient.email}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setVerifyEmailInput('stranger@example.com');
-                                  handleClaimAttempt('stranger@example.com');
-                                }}
-                                className="px-2.5 py-1 rounded-xl bg-[#14131B] border border-white/12 text-[#ADA4BA] font-medium cursor-pointer"
-                              >
-                                Test wrong email
-                              </button>
-                            </div>
+                            {(gift.isBundledSample || gift.id === 'sample') && (
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <span className="text-[#ADA4BA]">Sample reveal sign-in:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setVerifyEmailInput(DEMO_USERS.recipient.email);
+                                    handleClaimAttempt(DEMO_USERS.recipient.email);
+                                  }}
+                                  className="px-2.5 py-1 rounded-xl bg-[#2B1726] text-[#FF7AA8] font-medium cursor-pointer"
+                                >
+                                  {DEMO_USERS.recipient.email}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setVerifyEmailInput('stranger@example.com');
+                                    handleClaimAttempt('stranger@example.com');
+                                  }}
+                                  className="px-2.5 py-1 rounded-xl bg-[#14131B] border border-white/12 text-[#ADA4BA] font-medium cursor-pointer"
+                                >
+                                  Test wrong email
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

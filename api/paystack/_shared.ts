@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import crypto from 'crypto';
 
 export function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -8,17 +8,17 @@ export function required(name: string): string {
 
 export function json(res: any, status: number, body: unknown) {
   const payload = JSON.stringify(body);
-  // Vercel can provide either its enhanced response object or Node's native
-  // ServerResponse. Support both so an error is always returned as JSON.
   if (typeof res.status === 'function') res.status(status);
   else res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   if (typeof res.send === 'function') res.send(payload);
   else res.end(payload);
 }
 
 export async function readRawBody(req: any): Promise<string> {
   if (typeof req.body === 'string') return req.body;
+  if (Buffer.isBuffer(req.body)) return req.body.toString('utf8');
   if (req.body && typeof req.body === 'object') return JSON.stringify(req.body);
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -30,18 +30,16 @@ export async function readRawBody(req: any): Promise<string> {
 
 export function validWebhookSignature(raw: string, signature: string | undefined): boolean {
   if (!signature) return false;
-  // Older Paystack projects sign with the API secret; newer projects may expose a
-  // dedicated webhook secret. Prefer the dedicated value but stay compatible.
   const secret = process.env.PAYSTACK_WEBHOOK_SECRET?.trim() || required('PAYSTACK_SECRET_KEY');
-  const expected = createHmac('sha512', secret).update(raw).digest('hex');
+  const expected = crypto.createHmac('sha512', secret).update(raw).digest('hex');
   const actualBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expected);
-  return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+  return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
 export async function getSupabaseUser(accessToken: string) {
   const base = required('SUPABASE_URL').replace(/\/$/, '');
-  const publishable = required('SUPABASE_PUBLISHABLE_KEY');
+  const publishable = process.env.SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || '';
   const response = await fetch(`${base}/auth/v1/user`, { headers: { apikey: publishable, Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) return null;
   return response.json() as Promise<{ id: string; email?: string }>;
@@ -54,4 +52,3 @@ export async function supabaseRpc(name: string, body: unknown) {
   if (!response.ok) throw new Error(`Supabase RPC ${name} failed (${response.status}).`);
   return response.json();
 }
-

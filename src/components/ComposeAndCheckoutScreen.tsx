@@ -366,9 +366,9 @@ export function ComposeAndCheckoutScreen({
     id: 'preview_only',
     checkoutAttemptId: 'preview_only',
     createdAt: new Date().toISOString(),
-    senderName: senderName.trim() || 'Bene',
-    recipientName: recipientName.trim() || 'Adaeze',
-    recipientEmail: recipientEmail.trim() || 'ada@showmelove.ng',
+    senderName: senderName.trim() || 'You',
+    recipientName: recipientName.trim() || 'Your loved one',
+    recipientEmail: recipientEmail.trim() || 'friend@example.com',
     promiseText: promiseText.trim() || "Dinner's on me this weekend ✨",
     promiseCardStyle,
     messageText: messageText.trim() || undefined,
@@ -443,8 +443,8 @@ export function ComposeAndCheckoutScreen({
   ];
 
   // Promise Card signature is ALWAYS the sender, never the recipient
-  const displayPreviewRecipient = recipientName.trim() || 'Adaeze';
-  const displayPreviewSender = senderName.trim() || 'Bene';
+  const displayPreviewRecipient = recipientName.trim() || 'Your loved one';
+  const displayPreviewSender = senderName.trim() || 'You';
 
   return (
     <div className="max-w-xl mx-auto pb-10 space-y-5">
@@ -765,7 +765,7 @@ export function ComposeAndCheckoutScreen({
               type="text"
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="e.g. Adaeze"
+              placeholder="e.g. Chioma"
             />
             <InputField
               id="sender-name-input"
