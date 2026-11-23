@@ -236,6 +236,11 @@ export function ComposeAndCheckoutScreen({
       setFormError('Enter a valid recipient email so they can claim their rewards.');
       return false;
     }
+    const currentSenderEmail = state.signedInEmail?.trim().toLowerCase();
+    if (currentSenderEmail && currentSenderEmail === email) {
+      setFormError('You cannot send a gift to your own email address. Enter a friend or creator email.');
+      return false;
+    }
     if (!promiseText.trim()) {
       setFormError('Write a short Digital Promise Card message.');
       return false;

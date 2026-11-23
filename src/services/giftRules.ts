@@ -305,12 +305,20 @@ export function createPaidGiftIdempotent(
     };
   }
 
+  const senderKey = draft.senderEmail ? normalizeEmail(draft.senderEmail) : '';
+  if (senderKey && senderKey === recipientEmail) {
+    return {
+      ok: false,
+      error: 'You cannot send a gift to yourself. Enter a friend or creator email.',
+      nextState: state,
+    };
+  }
+
   const summary = calculateCheckoutSummary(amountCheck.normalized);
   const isGuestGift = draft.paymentMode === 'flutterwave_guest';
   const guestSettlement = isGuestGift
     ? calculateGuestGiftSettlement(summary.loveCoinsNeeded)
     : { recipientCoins: summary.loveCoinsNeeded, feeCoins: 0 };
-  const senderKey = draft.senderEmail ? normalizeEmail(draft.senderEmail) : '';
   const wallets = { ...state.walletsByEmail };
 
   if (draft.paymentMode === 'coin_balance') {
@@ -543,6 +551,17 @@ export function claimGiftIdempotent(
       ok: false,
       status: 'wrong_recipient',
       error: `This gift was addressed to ${gift.recipientEmail}, not ${normalizedClaimer}.`,
+      gift,
+      nextState: state,
+    };
+  }
+
+  // Anti-self-claim protection: sender cannot claim their own gift even if recipient field was spoofed
+  if (gift.senderEmail && normalizeEmail(gift.senderEmail) === normalizedClaimer) {
+    return {
+      ok: false,
+      status: 'wrong_recipient',
+      error: 'You cannot claim a gift you sent. This gift must be claimed by the recipient.',
       gift,
       nextState: state,
     };

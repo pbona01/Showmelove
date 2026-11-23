@@ -368,3 +368,56 @@ test('settleLoveCoinSpray reduces sender balance and settles fees even with empt
   assert.equal(res2.nextState.walletsByEmail[senderEmail].loveCoinsBalance, startBal - 11000);
   assert.equal(res2.nextState.adminMasterWallet.loveCoinsBalance, 330); // 30 + 300
 });
+
+test('security: anti-self-gifting blocks sending a gift to oneself and blocks sender from claiming own gift', () => {
+  const initial = createInitialStoreState();
+  const userEmail = 'tunde@showmelove.ng';
+
+  // 1. Sending gift where senderEmail === recipientEmail is rejected
+  const selfGiftAttempt = createPaidGiftIdempotent(initial, {
+    checkoutAttemptId: 'chk_self_gift_attack',
+    giftId: 'sml_self_gift',
+    createdAt: new Date().toISOString(),
+    catalogItem: initial.catalog[0],
+    senderName: 'Tunde',
+    senderEmail: userEmail,
+    recipientName: 'Tunde Self',
+    recipientEmail: userEmail,
+    promiseText: 'Dinner with myself',
+    emote: 'heart-burst',
+    amountNaira: 1000,
+    hasVoiceNote: false,
+    voiceNoteSource: 'none',
+    paymentMode: 'coin_balance',
+  });
+  assert.equal(selfGiftAttempt.ok, false);
+  assert.match(selfGiftAttempt.error || '', /cannot send a gift to yourself/i);
+
+  // 2. Sender attempting to claim their own sent gift is rejected
+  const validGiftCreation = createPaidGiftIdempotent(initial, {
+    checkoutAttemptId: 'chk_valid_to_ada',
+    giftId: 'sml_gift_ada',
+    createdAt: new Date().toISOString(),
+    catalogItem: initial.catalog[0],
+    senderName: 'Tunde',
+    senderEmail: userEmail,
+    recipientName: 'Adaeze',
+    recipientEmail: 'ada@showmelove.ng',
+    promiseText: 'For Ada',
+    emote: 'heart-burst',
+    amountNaira: 1000,
+    hasVoiceNote: false,
+    voiceNoteSource: 'none',
+    paymentMode: 'coin_balance',
+  });
+  assert.equal(validGiftCreation.ok, true);
+
+  // If sender Tunde tries to claim the gift meant for Adaeze
+  const senderClaimAttempt = claimGiftIdempotent(
+    validGiftCreation.nextState,
+    'sml_gift_ada',
+    userEmail,
+    new Date().toISOString(),
+  );
+  assert.equal(senderClaimAttempt.ok, false);
+});
