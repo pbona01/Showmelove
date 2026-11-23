@@ -26,6 +26,7 @@ import {
 } from './components/PageTransition';
 import { springs, usePrefersReducedMotion } from './lib/animation';
 import { Shimmer } from './components/ui/MotionPrimitives';
+import { isSupabaseAuthConfigured, supabase } from './lib/supabase';
 
 type AppRoute =
   | { page: 'home' }
@@ -217,6 +218,8 @@ function getProfileInitials(name: string): string {
 function ShowmeloveShell() {
   const [route, setRoute] = useState<AppRoute>(() => parseLocationRoute());
   const { state } = useShowmelove();
+  const [authChecked, setAuthChecked] = useState(!isSupabaseAuthConfigured);
+  const [hasLiveSession, setHasLiveSession] = useState(false);
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -246,6 +249,27 @@ function ShowmeloveShell() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => {
+      setHasLiveSession(Boolean(data.session));
+      setAuthChecked(true);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasLiveSession(Boolean(session));
+      setAuthChecked(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  if (!authChecked) {
+    return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
+  }
+
+  if (isSupabaseAuthConfigured && !hasLiveSession && route.page !== 'sign-in') {
+    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
+  }
 
   if (route.page === 'reveal') {
     return (
@@ -473,7 +497,7 @@ function ShowmeloveShell() {
             {route.page === 'admin' && <AdminScreen />}
 
             {route.page === 'spray-coins' && (
-              <SprayCoinsScreen onBack={() => navigate({ page: 'home' })} />
+              <SprayCoinsScreen onBack={() => navigate({ page: 'home' })} onSignIn={() => navigate({ page: 'sign-in' })} />
             )}
 
             {route.page === 'leaderboard' && (
