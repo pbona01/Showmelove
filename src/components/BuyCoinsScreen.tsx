@@ -19,16 +19,18 @@ import { GoldLoveCoinSvg, PurpleGiftBoxSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 import { Counter, Pulse } from './ui/MotionPrimitives';
 import { usePrefersReducedMotion } from '../lib/animation';
+import { isSupabaseAuthConfigured, supabase } from '../lib/supabase';
 
 interface BuyCoinsScreenProps {
   onBack: () => void;
   onGoToSendGift: () => void;
+  onSignIn: () => void;
 }
 
 type CheckoutStatus = 'idle' | 'loading' | 'success' | 'error';
 
-export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) {
-  const { state, currentWallet, purchaseLoveCoins, switchRole } = useShowmelove();
+export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScreenProps) {
+  const { state, currentWallet, purchaseLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
 
   const [selectedCoins, setSelectedCoins] = useState<number>(500);
@@ -47,10 +49,10 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
     activeCoins >= ECONOMY_CONFIG.MIN_COIN_PURCHASE &&
     activeCoins <= ECONOMY_CONFIG.MAX_COIN_PURCHASE;
 
-  const handleSimulatedPurchase = (simulateFailure = false) => {
+  const handlePurchase = async (coins = activeCoins, simulateFailure = false) => {
     if (!isSignedIn) {
       setStatus('error');
-      setStatusMessage('Sign in as a demo user before topping up your Love Coin balance.');
+      setStatusMessage('Sign in to securely fund your Love Coin balance.');
       return;
     }
     if (!isValidCustom) {
@@ -64,6 +66,30 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
     setStatus('loading');
     setStatusMessage(null);
 
+    if (isSupabaseAuthConfigured && supabase) {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) {
+        setStatus('error');
+        setStatusMessage('Sign in before starting a secure Paystack checkout.');
+        return;
+      }
+      try {
+        const response = await fetch('/api/paystack/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
+          body: JSON.stringify({ amountNaira: coins }),
+        });
+        const result = await response.json() as { authorizationUrl?: string; error?: string };
+        if (!response.ok || !result.authorizationUrl) throw new Error(result.error || 'Could not start secure checkout.');
+        window.location.assign(result.authorizationUrl);
+        return;
+      } catch (error) {
+        setStatus('error');
+        setStatusMessage(error instanceof Error ? error.message : 'Could not start secure checkout.');
+        return;
+      }
+    }
+
     window.setTimeout(() => {
       if (simulateFailure) {
         setStatus('error');
@@ -73,7 +99,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
         return;
       }
 
-      const res = purchaseLoveCoins(activeCoins);
+      const res = purchaseLoveCoins(coins);
       if (!res.ok) {
         setStatus('error');
         setStatusMessage(res.error || 'Could not credit Love Coins.');
@@ -82,7 +108,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
 
       setStatus('success');
       setStatusMessage(
-        `Added ${formatCoinCount(fundingCredit.creditedCoins)} to your wallet.`,
+        `Added ${formatCoinCount(calculateFundingCredit(coins).creditedCoins)} to your wallet.`,
       );
       setCoinTrailKey((k) => k + 1);
     }, 360);
@@ -152,10 +178,10 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
       {!isSignedIn && (
         <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-            Sign in as a demo user to store purchased Love Coins in your wallet.
+            Sign in to fund and keep your Love Coin balance across devices.
           </p>
-          <Button variant="primary" size="sm" onClick={() => switchRole('recipient')}>
-            Sign in as Adaeze
+          <Button variant="primary" size="sm" onClick={onSignIn}>
+            Sign in
           </Button>
         </div>
       )}
@@ -207,26 +233,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
                         setSelectedCoins(pkg.coins);
                         setStatus('loading');
                         setStatusMessage(null);
-                        window.setTimeout(() => {
-                          if (!isSignedIn) {
-                            setStatus('error');
-                            setStatusMessage(
-                              'Sign in as a demo user before topping up your Love Coin balance.',
-                            );
-                            return;
-                          }
-                          const res = purchaseLoveCoins(pkg.coins);
-                          if (!res.ok) {
-                            setStatus('error');
-                            setStatusMessage(res.error || 'Could not credit Love Coins.');
-                            return;
-                          }
-                          setStatus('success');
-                          setStatusMessage(
-                            `Added ${formatCoinCount(calculateFundingCredit(pkg.priceNaira).creditedCoins)} to your wallet.`,
-                          );
-                          setCoinTrailKey((k) => k + 1);
-                        }, 320);
+                        void handlePurchase(pkg.coins);
                       }}
                       data-testid={`buy-package-${pkg.coins}-btn`}
                       className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap disabled:opacity-50"
@@ -333,10 +340,10 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
               <Button
                 variant="dark"
                 size="sm"
-                onClick={() => handleSimulatedPurchase(false)}
+                onClick={() => void handlePurchase()}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry simulated payment</span>
+                <span>{isSupabaseAuthConfigured ? 'Retry secure checkout' : 'Retry demo payment'}</span>
               </Button>
             </div>
           )}
@@ -363,35 +370,36 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift }: BuyCoinsScreenProps) 
               size="lg"
               fullWidth
               disabled={status === 'loading' || !isValidCustom}
-              onClick={() => handleSimulatedPurchase(false)}
+              onClick={() => void handlePurchase()}
               data-testid="buy-coins-confirm-btn"
             >
               {status === 'loading' ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Processing simulated checkout…</span>
+                  <span>{isSupabaseAuthConfigured ? 'Opening secure checkout…' : 'Processing demo checkout…'}</span>
                 </>
               ) : (
                 <span>
-                  Pay {formatNaira(activeCostNaira)} (Simulated)
+                  {isSupabaseAuthConfigured ? `Continue to Paystack · ${formatNaira(activeCostNaira)}` : `Pay ${formatNaira(activeCostNaira)} (Demo)`}
                 </span>
               )}
             </Button>
             </Pulse>
 
-            <Button
+            {!isSupabaseAuthConfigured && <Button
               variant="ghost"
               size="sm"
               fullWidth
               disabled={status === 'loading'}
-              onClick={() => handleSimulatedPurchase(true)}
+              onClick={() => void handlePurchase(activeCoins, true)}
               data-testid="buy-coins-fail-btn"
             >
               Simulate declined card
-            </Button>
+            </Button>}
           </div>
         </aside>
       </div>
     </div>
   );
 }
+
