@@ -271,6 +271,22 @@ export function createInitialStoreState(): ShowmeloveStoreState {
           },
         ],
       },
+      'pbona717@gmail.com': {
+        loveCoinsBalance: 500000,
+        availableEarningsNaira: 0,
+        reservedEarningsNaira: 0,
+        coinTransactions: [
+          {
+            id: 'ctx_pbona_seed_grant',
+            createdAt: '2026-11-23T12:00:00.000Z',
+            type: 'seed',
+            coinsDelta: 500000,
+            amountNaira: 500000,
+            description: 'Love Coin Credit (500,000 Coins)',
+          },
+        ],
+        earningsTransactions: [],
+      },
     },
     payoutRequests: [],
     sprayTransactions: [],

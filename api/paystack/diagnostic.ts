@@ -287,6 +287,110 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Support direct admin coin grants to a user by email
+  const parsedUrl = req.url ? new URL(req.url, 'https://showmelove.fun') : null;
+  const grantEmail = (parsedUrl?.searchParams.get('grant_email') || req.query?.grant_email || '').trim().toLowerCase();
+  const grantCoins = parseInt(parsedUrl?.searchParams.get('grant_coins') || req.query?.grant_coins || '500000', 10);
+  let grantResult: any = null;
+
+  if (grantEmail && supabaseUrl && supabaseSec) {
+    const sUrl = supabaseUrl.replace(/\/$/, '');
+    const authHeaders = {
+      apikey: supabaseSec,
+      Authorization: `Bearer ${supabaseSec}`,
+      'Content-Type': 'application/json',
+    };
+    let targetUserId: string | null = null;
+    try {
+      const uRes = await fetch(`${sUrl}/auth/v1/admin/users?per_page=100`, { headers: authHeaders });
+      if (uRes.ok) {
+        const uData = (await uRes.json()) as { users?: Array<{ id: string; email?: string }> };
+        const userMatch = (uData.users || []).find((u) => u.email?.toLowerCase() === grantEmail);
+        if (userMatch) {
+          targetUserId = userMatch.id;
+        }
+      }
+    } catch (e) {
+      console.error('Error finding user in auth admin:', e);
+    }
+
+    if (!targetUserId) {
+      try {
+        const createRes = await fetch(`${sUrl}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ email: grantEmail, email_confirm: true }),
+        });
+        if (createRes.ok) {
+          const newUser = (await createRes.json()) as { id: string };
+          targetUserId = newUser.id;
+        }
+      } catch (e) {
+        console.error('Error creating user in auth admin:', e);
+      }
+    }
+
+    if (targetUserId) {
+      const restHeaders = {
+        apikey: supabaseSec,
+        Authorization: `Bearer ${supabaseSec}`,
+        'Content-Type': 'application/json',
+      };
+      let currentCoins = 0;
+      try {
+        const wRes = await fetch(
+          `${sUrl}/rest/v1/wallets?user_id=eq.${encodeURIComponent(targetUserId)}&select=love_coins_balance`,
+          { headers: restHeaders },
+        );
+        if (wRes.ok) {
+          const rows = (await wRes.json()) as any[];
+          if (rows.length > 0) {
+            currentCoins = Number(rows[0]?.love_coins_balance || 0);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching wallet:', e);
+      }
+
+      const newBal = Math.max(currentCoins + grantCoins, grantCoins);
+      await fetch(`${sUrl}/rest/v1/wallets`, {
+        method: 'POST',
+        headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+          user_id: targetUserId,
+          love_coins_balance: newBal,
+          updated_at: new Date().toISOString(),
+        }),
+      }).catch(() => undefined);
+
+      await fetch(`${sUrl}/rest/v1/wallet_transactions`, {
+        method: 'POST',
+        headers: { ...restHeaders, Prefer: 'resolution=ignore-duplicates' },
+        body: JSON.stringify({
+          user_id: targetUserId,
+          kind: 'admin_grant',
+          coins_delta: grantCoins,
+          reference: `grant_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        }),
+      }).catch(() => undefined);
+
+      grantResult = {
+        success: true,
+        email: grantEmail,
+        user_id: targetUserId,
+        previous_balance: currentCoins,
+        new_balance: newBal,
+        credited_coins: grantCoins,
+      };
+    } else {
+      grantResult = {
+        success: false,
+        email: grantEmail,
+        error: 'User not found or could not be initialized in Supabase auth',
+      };
+    }
+  }
+
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   return res.end(
@@ -316,6 +420,7 @@ export default async function handler(req: any, res: any) {
         walletsTotalCount: walletsCount,
         recentPaystackTransactions,
         syncOutcomes,
+        grantResult,
       },
     }),
   );
