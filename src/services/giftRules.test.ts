@@ -23,8 +23,8 @@ import {
 } from './giftRules';
 
 test('economy config validates bounds and computes fee summary accurately', () => {
-  assert.equal(validateGiftAmount(99).valid, false);
-  assert.equal(validateGiftAmount(100).valid, true);
+  assert.equal(validateGiftAmount(9).valid, false);
+  assert.equal(validateGiftAmount(10).valid, true);
   assert.equal(validateGiftAmount(100_000).valid, true);
   assert.equal(validateGiftAmount(100_001).valid, false);
 

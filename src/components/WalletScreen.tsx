@@ -92,10 +92,38 @@ export function WalletScreen({
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedUsername, setCopiedUsername] = useState(false);
+  const [selectedOccasion, setSelectedOccasion] = useState('Birthday');
+
+  const OCCASIONS = [
+    { id: 'birthday', label: '🎂 Birthday', name: 'Birthday' },
+    { id: 'graduation', label: '🎓 Graduation', name: 'Graduation' },
+    { id: 'wedding', label: '💍 Wedding', name: 'Wedding' },
+    { id: 'launch', label: '🚀 Launch', name: 'New Launch' },
+    { id: 'love', label: '❤️ Love', name: 'Showing Love' },
+  ];
+
+  const userHandle =
+    state.signedInName.replace(/\s+/g, '').toLowerCase() ||
+    state.signedInEmail.split('@')[0] ||
+    'creator';
+
   const userGiftLink =
     typeof window !== 'undefined' && state.signedInEmail
-      ? `${window.location.origin}/send?to=${encodeURIComponent(state.signedInEmail)}`
-      : `https://showmelove.fun/send?to=${encodeURIComponent(state.signedInEmail || '')}`;
+      ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(selectedOccasion)}&name=${encodeURIComponent(state.signedInName)}&email=${encodeURIComponent(state.signedInEmail)}`
+      : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(selectedOccasion)}&name=${encodeURIComponent(state.signedInName)}`;
+
+  const handleCopyUsername = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(`@${userHandle}`);
+        setCopiedUsername(true);
+        setTimeout(() => setCopiedUsername(false), 2000);
+      }
+    } catch {
+      // Fallback
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -168,11 +196,36 @@ export function WalletScreen({
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
             Wallet Home
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
-            {isSignedIn
-              ? `${state.signedInName} · ${state.signedInEmail}`
-              : 'Guest mode · Send gifts instantly or sign in for balances'}
-          </p>
+          {isSignedIn ? (
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <span className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+                {state.signedInName}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyUsername}
+                title="Copy username"
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-mono font-bold text-[var(--text-primary)] hover:border-[#FF2385]/60 transition-all cursor-pointer shadow-2xs"
+              >
+                {copiedUsername ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-500 stroke-[2.5]" />
+                    <span className="text-emerald-500">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[#FF2385]">@</span>
+                    <span>{userHandle}</span>
+                    <Copy className="w-3 h-3 opacity-60" />
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
+              Guest mode · Send gifts instantly or sign in for balances
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -251,7 +304,7 @@ export function WalletScreen({
                 Welcome to Showmelove
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                Sign in securely with an email magic link to fund your Love Coins, track gifts, and spray coins.
+                Sign in securely with your username or email to fund your Love Coins, track gifts, and spray coins.
               </p>
             </div>
           </div>
@@ -445,7 +498,32 @@ export function WalletScreen({
               </div>
 
               {/* Link Box & Actions */}
-              <div className="space-y-2.5">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Customize Celebration:
+                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {OCCASIONS.map((occ) => {
+                      const isSelected = selectedOccasion === occ.name;
+                      return (
+                        <button
+                          key={occ.id}
+                          type="button"
+                          onClick={() => setSelectedOccasion(occ.name)}
+                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'cta-pink-surface text-white shadow-xs scale-105'
+                              : 'bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
+                          }`}
+                        >
+                          {occ.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-1.5 sm:p-2">
                   <span className="flex-1 truncate px-2.5 text-xs font-mono font-semibold text-[var(--text-primary)] select-all">
                     {userGiftLink}

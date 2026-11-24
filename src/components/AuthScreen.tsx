@@ -5,24 +5,25 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  KeyRound,
   Loader2,
   Lock,
   Mail,
   Sparkles,
+  User,
   UserPlus,
 } from 'lucide-react';
 import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
 import { LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
-type AuthMode = 'sign_in' | 'sign_up' | 'magic_link';
+type AuthMode = 'sign_in' | 'sign_up';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
-  const [mode, setMode] = useState<AuthMode>('magic_link');
-  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<AuthMode>('sign_in');
+  const [identifier, setIdentifier] = useState(''); // Email or Username
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [signUpUsername, setSignUpUsername] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -40,17 +41,71 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     });
   }, []);
 
-  const handlePasswordSignIn = async () => {
-    if (!supabase || !email.trim() || !password) {
+  const resolveEmailFromIdentifier = async (id: string): Promise<string | null> => {
+    const clean = id.trim().replace(/^@/, '');
+    if (clean.includes('@')) {
+      return clean.toLowerCase();
+    }
+
+    // Check local storage mapping first
+    try {
+      const rawMap = localStorage.getItem('showmelove_user_map');
+      if (rawMap) {
+        const parsed = JSON.parse(rawMap) as Record<string, string>;
+        if (parsed[clean.toLowerCase()]) return parsed[clean.toLowerCase()];
+      }
+    } catch {
+      // Ignore storage error
+    }
+
+    // Check serverless username resolver
+    try {
+      const res = await fetch(`/api/auth/resolve?username=${encodeURIComponent(clean)}`);
+      if (res.ok) {
+        const data = (await res.json()) as { email?: string };
+        if (data.email) return data.email;
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Default admin and demo shortcuts fallback
+    const WELL_KNOWN: Record<string, string> = {
+      pbona: 'pbona717@gmail.com',
+      pbona717: 'pbona717@gmail.com',
+      '1virtue1x': '1virtue1x@gmail.com',
+      virtue: '1virtue1x@gmail.com',
+      ada: 'ada@showmelove.ng',
+      tunde: 'tunde@showmelove.ng',
+    };
+    if (WELL_KNOWN[clean.toLowerCase()]) {
+      return WELL_KNOWN[clean.toLowerCase()];
+    }
+
+    return null;
+  };
+
+  const handleSignIn = async () => {
+    if (!supabase || !identifier.trim() || !password) {
       setStatus('error');
-      setMessage('Enter your email and password to sign in.');
+      setMessage('Enter your username or email and password to sign in.');
       return;
     }
     setStatus('loading');
     setMessage('');
 
+    let targetEmail: string | null = identifier.trim();
+    if (!targetEmail.includes('@')) {
+      targetEmail = await resolveEmailFromIdentifier(targetEmail);
+      if (!targetEmail) {
+        setStatus('error');
+        setMessage(`Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address instead.`);
+        return;
+      }
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: targetEmail,
       password,
     });
 
@@ -58,6 +113,18 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       setStatus('error');
       setMessage(error.message);
       return;
+    }
+
+    // Cache username-to-email mapping locally
+    if (data.user?.user_metadata?.username && data.user?.email) {
+      try {
+        const rawMap = localStorage.getItem('showmelove_user_map');
+        const map = rawMap ? JSON.parse(rawMap) : {};
+        map[data.user.user_metadata.username.toLowerCase()] = data.user.email;
+        localStorage.setItem('showmelove_user_map', JSON.stringify(map));
+      } catch {
+        // Ignore storage error
+      }
     }
 
     setStatus('success');
@@ -72,7 +139,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
 
   const handleSignUp = async () => {
     if (!supabase) return;
-    const cleanUsername = username.trim().replace(/^@/, '');
+    const cleanUsername = signUpUsername.trim().replace(/^@/, '');
 
     if (!cleanUsername || cleanUsername.length < 3) {
       setStatus('error');
@@ -84,7 +151,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       setMessage('Username can only contain letters, numbers, and underscores (3-20 characters).');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+    if (!signUpEmail.trim() || !signUpEmail.includes('@')) {
       setStatus('error');
       setMessage('Enter a valid email address.');
       return;
@@ -104,7 +171,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
         : `${window.location.origin}/`;
 
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
+      email: signUpEmail.trim(),
       password,
       options: {
         emailRedirectTo: redirectUrl,
@@ -122,6 +189,16 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       return;
     }
 
+    // Save username-to-email mapping
+    try {
+      const rawMap = localStorage.getItem('showmelove_user_map');
+      const map = rawMap ? JSON.parse(rawMap) : {};
+      map[cleanUsername.toLowerCase()] = signUpEmail.trim().toLowerCase();
+      localStorage.setItem('showmelove_user_map', JSON.stringify(map));
+    } catch {
+      // Ignore storage error
+    }
+
     if (data.session) {
       setStatus('success');
       setMessage(`Account created! Welcome to Showmelove, @${cleanUsername}.`);
@@ -131,48 +208,17 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     } else {
       setStatus('success');
       setMessage(
-        `Account created for @${cleanUsername}! Please check your email (${email.trim()}) to confirm your account and sign in.`,
+        `Account created for @${cleanUsername}! Check your email (${signUpEmail.trim()}) to confirm your account and sign in.`,
       );
     }
-  };
-
-  const handleMagicLink = async () => {
-    if (!supabase || !email.trim()) {
-      setStatus('error');
-      setMessage('Enter your email address to continue.');
-      return;
-    }
-    setStatus('loading');
-    setMessage('');
-
-    const redirectUrl =
-      typeof window !== 'undefined' && window.location.origin.includes('showmelove.fun')
-        ? 'https://showmelove.fun/'
-        : `${window.location.origin}/`;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectUrl },
-    });
-
-    if (error) {
-      setStatus('error');
-      setMessage(error.message);
-      return;
-    }
-
-    setStatus('success');
-    setMessage(`We sent a one-time sign-in link to ${email.trim()}. Open the link in your email to access your wallet.`);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'sign_in') {
-      void handlePasswordSignIn();
-    } else if (mode === 'sign_up') {
-      void handleSignUp();
+      void handleSignIn();
     } else {
-      void handleMagicLink();
+      void handleSignUp();
     }
   };
 
@@ -198,38 +244,17 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             <Sparkles className="w-3.5 h-3.5" /> Showmelove
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            {mode === 'magic_link'
-              ? 'Instant Sign In'
-              : mode === 'sign_in'
-                ? 'Sign in with Password'
-                : 'Create your account'}
+            {mode === 'sign_in' ? 'Sign In' : 'Create Account'}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
-            {mode === 'magic_link'
-              ? 'No password needed. Enter your email to receive an instant one-click login link.'
-              : mode === 'sign_in'
-                ? 'Enter your email and password to access your Love Coins and gifts.'
-                : 'Choose a unique username and enter your email to get started.'}
+            {mode === 'sign_in'
+              ? 'Enter your username or email and password to access your wallet.'
+              : 'Choose a unique username and enter your email to get started.'}
           </p>
         </div>
 
-        {/* 3-Mode Selector Tabs */}
-        <div className="grid grid-cols-3 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('magic_link');
-              setMessage('');
-              setStatus('idle');
-            }}
-            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
-              mode === 'magic_link'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Magic Link
-          </button>
+        {/* 2-Mode Selector Tabs */}
+        <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center">
           <button
             type="button"
             onClick={() => {
@@ -237,13 +262,13 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               setMessage('');
               setStatus('idle');
             }}
-            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
+            className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'sign_in'
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            Password
+            Sign In
           </button>
           <button
             type="button"
@@ -252,13 +277,13 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               setMessage('');
               setStatus('idle');
             }}
-            className={`py-2 px-1 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer truncate ${
+            className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
               mode === 'sign_up'
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            Sign Up
+            Create Account
           </button>
         </div>
 
@@ -272,80 +297,102 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username field (Sign Up only) */}
+            {/* SIGN IN VIEW */}
+            {mode === 'sign_in' && (
+              <>
+                <InputField
+                  id="sign-in-identifier"
+                  label="Username or Email"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="e.g. pbona or you@example.com"
+                  hint="Enter your @username or email address"
+                />
+
+                <div className="space-y-1.5">
+                  <label htmlFor="sign-in-password" className="block text-sm font-medium text-[var(--text-primary)]">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="sign-in-password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full min-h-[46px] px-4 pr-11 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:ring-2 focus:ring-[#E10B5C]/30 focus:border-[#E10B5C] transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* SIGN UP VIEW */}
             {mode === 'sign_up' && (
-              <div className="space-y-1.5">
+              <>
                 <InputField
                   id="sign-up-username"
                   label="Choose a Username"
                   type="text"
                   autoComplete="username"
                   required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_@]/g, ''))}
+                  value={signUpUsername}
+                  onChange={(e) => setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9_@]/g, ''))}
                   placeholder="e.g. pbona"
                   hint="Letters, numbers, and underscores (3-20 characters)"
                 />
-              </div>
-            )}
 
-            {/* Email field */}
-            <InputField
-              id="sign-in-email"
-              label="Email Address"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+                <InputField
+                  id="sign-up-email"
+                  label="Email Address"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={signUpEmail}
+                  onChange={(e) => setSignUpEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
 
-            {/* Password field (Sign In & Sign Up) */}
-            {mode !== 'magic_link' && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="auth-password" className="block text-sm font-medium text-[var(--text-primary)]">
-                    Password
+                <div className="space-y-1.5">
+                  <label htmlFor="sign-up-password" className="block text-sm font-medium text-[var(--text-primary)]">
+                    Create Password
                   </label>
-                  {mode === 'sign_in' && (
+                  <div className="relative">
+                    <input
+                      id="sign-up-password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      className="w-full min-h-[46px] px-4 pr-11 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:ring-2 focus:ring-[#E10B5C]/30 focus:border-[#E10B5C] transition-colors"
+                    />
                     <button
                       type="button"
-                      onClick={() => {
-                        setMode('magic_link');
-                        setMessage('');
-                        setStatus('idle');
-                      }}
-                      className="text-xs font-medium text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1"
                     >
-                      Forgot password?
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    id="auth-password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete={mode === 'sign_in' ? 'current-password' : 'new-password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={mode === 'sign_up' ? 'Minimum 6 characters' : 'Enter your password'}
-                    className="w-full min-h-[46px] px-4 pr-11 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:ring-2 focus:ring-[#E10B5C]/30 focus:border-[#E10B5C] transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {mode === 'sign_up' && (
+                  </div>
                   <p className="text-xs text-[var(--text-secondary)]">Must be at least 6 characters</p>
-                )}
-              </div>
+                </div>
+              </>
             )}
 
             {/* Status / Error Message */}
@@ -374,48 +421,37 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               {status === 'loading' ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  {mode === 'sign_in'
-                    ? 'Signing in…'
-                    : mode === 'sign_up'
-                      ? 'Creating account…'
-                      : 'Sending link…'}
+                  {mode === 'sign_in' ? 'Signing in…' : 'Creating account…'}
                 </>
               ) : mode === 'sign_in' ? (
                 <>
                   <Lock className="w-4 h-4 mr-2" /> Sign In
                 </>
-              ) : mode === 'sign_up' ? (
-                <>
-                  <UserPlus className="w-4 h-4 mr-2" /> Create Account
-                </>
               ) : (
                 <>
-                  <Mail className="w-4 h-4 mr-2" /> Send One-Time Sign-In Link
+                  <UserPlus className="w-4 h-4 mr-2" /> Create Account
                 </>
               )}
             </Button>
 
             {/* Footer switcher */}
             <div className="pt-2 text-center text-xs text-[var(--text-secondary)] space-y-1">
-              {mode === 'magic_link' && (
-                <p className="text-[11px] text-[var(--text-secondary)]">
-                  Instant email sign-in · No password required
+              {mode === 'sign_in' ? (
+                <p>
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('sign_up');
+                      setMessage('');
+                      setStatus('idle');
+                    }}
+                    className="font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
+                  >
+                    Create one now
+                  </button>
                 </p>
-              )}
-              {mode === 'sign_in' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('magic_link');
-                    setMessage('');
-                    setStatus('idle');
-                  }}
-                  className="text-xs text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer block mx-auto"
-                >
-                  Or sign in with a passwordless email link
-                </button>
-              )}
-              {mode === 'sign_up' && (
+              ) : (
                 <p>
                   Already have an account?{' '}
                   <button

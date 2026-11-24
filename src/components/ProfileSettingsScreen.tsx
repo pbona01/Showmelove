@@ -41,6 +41,7 @@ export function ProfileSettingsScreen({
     currentWallet,
     switchRole,
     updateDefaultBankAccount,
+    updateUserProfile,
     resetDemo,
   } = useShowmelove();
 
@@ -50,6 +51,45 @@ export function ProfileSettingsScreen({
   const [bankSaved, setBankSaved] = useState(false);
   const [bankError, setBankError] = useState<string | null>(null);
   const [txFilter, setTxFilter] = useState<TxFilter>('all');
+
+  const [profileName, setProfileName] = useState(state.signedInName);
+  const [profileUsername, setProfileUsername] = useState(() => {
+    return state.signedInEmail.split('@')[0] || '';
+  });
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  const handleSaveProfile = async () => {
+    const cleanUser = profileUsername.trim().replace(/^@/, '');
+    if (!cleanUser || cleanUser.length < 3) {
+      setProfileError('Username must be at least 3 characters.');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(cleanUser)) {
+      setProfileError('Username can only contain letters, numbers, and underscores.');
+      return;
+    }
+    if (!profileName.trim()) {
+      setProfileError('Display name is required.');
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileError(null);
+    try {
+      await updateUserProfile({
+        displayName: profileName.trim(),
+        username: cleanUser,
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch {
+      setProfileError('Failed to save profile changes.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const showAdminTools = isUserAdmin(state.signedInEmail);
@@ -151,6 +191,54 @@ export function ProfileSettingsScreen({
                 )}
               </div>
             </div>
+
+            {isSignedIn && (
+              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Edit Profile &amp; Username
+                  </p>
+                </div>
+                <div className="space-y-2.5">
+                  <InputField
+                    id="profile-username"
+                    label="Username"
+                    type="text"
+                    value={profileUsername}
+                    onChange={(e) => setProfileUsername(e.target.value.replace(/[^a-zA-Z0-9_@]/g, ''))}
+                    placeholder="e.g. pbona"
+                    hint="Your public @username handle on Showmelove"
+                  />
+                  <InputField
+                    id="profile-display-name"
+                    label="Display Name"
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="e.g. Pbona"
+                  />
+                </div>
+
+                {profileError && (
+                  <p className="text-xs font-semibold text-rose-500">{profileError}</p>
+                )}
+                {profileSaved && (
+                  <p className="text-xs font-semibold text-emerald-500 inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Profile updated successfully!
+                  </p>
+                )}
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  onClick={handleSaveProfile}
+                  disabled={profileSaving}
+                >
+                  {profileSaving ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
+            )}
 
             {demoAdminEnabled ? (
               <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">

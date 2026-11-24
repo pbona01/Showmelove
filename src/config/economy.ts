@@ -20,8 +20,8 @@ export const ECONOMY_CONFIG = {
   /** Payout processing copy reflecting demo / production policy */
   PAYOUT_PROCESSING_COPY:
     'Demo requests start as Pending and settle immediately when approved. Standard Nigerian bank transfers clear within 1–2 business days.',
-  /** Minimum allowed gift value in Naira */
-  MIN_GIFT_NAIRA: 100,
+  /** Minimum allowed gift value in Naira (10 Love Coins) */
+  MIN_GIFT_NAIRA: 10,
   /** Maximum allowed gift value in Naira */
   MAX_GIFT_NAIRA: 100_000,
   /** Minimum & maximum coin top-up bounds */

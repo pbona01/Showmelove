@@ -66,6 +66,7 @@ interface ShowmeloveContextValue {
   updateDefaultBankAccount: (bankAccount: DemoBankAccount) => void;
   updateCatalogItem: (id: string, patch: Partial<GiftCatalogItem>) => void;
   setSeasonalConfig: (collection: CollectionId, enabled: boolean) => void;
+  updateUserProfile: (profile: { displayName?: string; username?: string }) => Promise<void>;
   refreshLiveWallet: (userId?: string, email?: string) => Promise<void>;
 }
 
@@ -412,6 +413,48 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
     [commitNext],
   );
 
+  const updateUserProfile = useCallback(
+    async (profile: { displayName?: string; username?: string }) => {
+      const prev = stateRef.current;
+      const cleanUsername = profile.username
+        ? profile.username.trim().replace(/^@/, '').toLowerCase()
+        : undefined;
+      const cleanName = profile.displayName
+        ? profile.displayName.trim()
+        : cleanUsername || prev.signedInName;
+
+      commitNext({
+        ...prev,
+        signedInName: cleanName,
+      });
+
+      if (supabase) {
+        try {
+          await supabase.auth.updateUser({
+            data: {
+              ...(cleanUsername ? { username: cleanUsername } : {}),
+              ...(cleanName ? { display_name: cleanName, full_name: cleanName } : {}),
+            },
+          });
+        } catch {
+          // Fallback
+        }
+      }
+
+      if (cleanUsername && prev.signedInEmail) {
+        try {
+          const rawMap = localStorage.getItem('showmelove_user_map');
+          const map = rawMap ? JSON.parse(rawMap) : {};
+          map[cleanUsername] = prev.signedInEmail.toLowerCase();
+          localStorage.setItem('showmelove_user_map', JSON.stringify(map));
+        } catch {
+          // Ignore
+        }
+      }
+    },
+    [commitNext],
+  );
+
   const currentWallet = useMemo(
     () => ensureWallet(state.walletsByEmail, state.signedInEmail),
     [state.walletsByEmail, state.signedInEmail],
@@ -436,6 +479,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
+      updateUserProfile,
       refreshLiveWallet,
     }),
     [
@@ -456,6 +500,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       updateDefaultBankAccount,
       updateCatalogItem,
       setSeasonalConfig,
+      updateUserProfile,
       refreshLiveWallet,
     ],
   );

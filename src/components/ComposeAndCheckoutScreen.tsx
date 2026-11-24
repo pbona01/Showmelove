@@ -50,6 +50,8 @@ import { springs, usePrefersReducedMotion } from '../lib/animation';
 interface ComposeAndCheckoutScreenProps {
   initialGiftCatalogId?: string;
   initialRecipientEmail?: string;
+  initialRecipientName?: string;
+  initialOccasion?: string;
   onBackHome: () => void;
   onOpenGiftLink: (giftId: string) => void;
   onGoToCoins: () => void;
@@ -62,11 +64,72 @@ const PROMISE_IDEAS = [
   'Spa treat so you can unwind properly.',
 ];
 
+export interface PromiseWishlistItem {
+  id: string;
+  title: string;
+  emoji: string;
+  coins: number;
+  description: string;
+  defaultPromiseText: string;
+}
+
+export const PROMISE_CARD_WISHLIST: PromiseWishlistItem[] = [
+  {
+    id: 'coffee_breakfast',
+    title: 'Coffee & Treat',
+    emoji: '☕',
+    coins: 50,
+    description: 'Hot coffee & morning pastries',
+    defaultPromiseText: 'Coffee & pastries on your break today! Start your day with good vibes ✨',
+  },
+  {
+    id: 'cinema_popcorn',
+    title: 'Cinema & Popcorn',
+    emoji: '🎬',
+    coins: 200,
+    description: 'Movie ticket + giant popcorn treat',
+    defaultPromiseText: 'Weekend cinema tickets + popcorn on me! Enjoy the movie 🍿🎬',
+  },
+  {
+    id: 'lunch_drinks',
+    title: 'Lunch Treat',
+    emoji: '🍕',
+    coins: 500,
+    description: 'Delicious lunch + cold drinks',
+    defaultPromiseText: "Lunch is on me today! Pick your favorite spot and enjoy a good meal 🍕🥤",
+  },
+  {
+    id: 'celebration_cake',
+    title: 'Celebration Cake',
+    emoji: '🎂',
+    coins: 1000,
+    description: 'Sweet cake & celebratory goodies',
+    defaultPromiseText: 'A sweet celebration cake just for you! Wishing you love and laughter 🎂❤️',
+  },
+  {
+    id: 'sneakers_fits',
+    title: 'Fresh Fits',
+    emoji: '👟',
+    coins: 2500,
+    description: 'Sneakers or wardrobe shopping',
+    defaultPromiseText: 'Pick out that fresh fit or sneaker you’ve been eyeing! Looking sharp always ✨👟',
+  },
+  {
+    id: 'vip_celebration',
+    title: 'VIP Sponsor',
+    emoji: '👑',
+    coins: 5000,
+    description: 'All-out VIP celebration treat',
+    defaultPromiseText: 'Big spender VIP treat! You deserve nothing but the absolute finest 👑🥂',
+  },
+];
+
 const PRESET_AMOUNTS = [
+  { value: 10, label: '10 Coins' },
+  { value: 50, label: '50 Coins' },
   { value: 100, label: '100 Coins' },
   { value: 500, label: '500 Coins' },
   { value: 1000, label: '1,000 Coins' },
-  { value: 5000, label: '5,000 Coins' },
 ];
 
 const storedValueToCoins = (amount: number) =>
@@ -80,12 +143,32 @@ type CheckoutProcessingState = 'idle' | 'processing' | 'failed';
 export function ComposeAndCheckoutScreen({
   initialGiftCatalogId,
   initialRecipientEmail,
+  initialRecipientName,
+  initialOccasion,
   onBackHome,
   onOpenGiftLink,
   onGoToCoins,
 }: ComposeAndCheckoutScreenProps) {
   const prefersReduced = usePrefersReducedMotion();
   const { state, currentWallet, submitCheckout } = useShowmelove();
+
+  const searchParams =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const paramRecipientEmail =
+    initialRecipientEmail ||
+    searchParams?.get('email') ||
+    searchParams?.get('to') ||
+    '';
+  const paramRecipientName =
+    initialRecipientName || searchParams?.get('name') || '';
+  const paramOccasion =
+    initialOccasion ||
+    searchParams?.get('for') ||
+    searchParams?.get('occasion') ||
+    '';
+  const paramHandle = searchParams?.get('to') || '';
 
   const availableGifts = state.catalog.filter((g) => g.available);
   const defaultGift =
@@ -97,19 +180,37 @@ export function ComposeAndCheckoutScreen({
   const selectedItem =
     state.catalog.find((g) => g.id === selectedCatalogId) ?? defaultGift;
 
+  const [giftMode, setGiftMode] = useState<'digital_gift' | 'promise_card'>(
+    paramOccasion ? 'promise_card' : 'digital_gift',
+  );
+  const [selectedWishlistId, setSelectedWishlistId] = useState<string | null>(
+    null,
+  );
+
   const [step, setStep] = useState<ComposerStep>('choose');
   // Never pre-fill senderName with a signed-in recipient's name
   const [senderName, setSenderName] = useState(() =>
     getDefaultSenderName(state.activeRole, state.signedInName),
   );
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientEmail, setRecipientEmail] = useState(initialRecipientEmail || '');
+  const [recipientName, setRecipientName] = useState(
+    () => paramRecipientName || (paramHandle && !paramHandle.includes('@') ? paramHandle : ''),
+  );
+  const [recipientEmail, setRecipientEmail] = useState(() => {
+    if (paramRecipientEmail && paramRecipientEmail.includes('@')) return paramRecipientEmail;
+    return '';
+  });
 
   useEffect(() => {
     if (initialRecipientEmail) {
       setRecipientEmail(initialRecipientEmail);
     }
   }, [initialRecipientEmail]);
+
+  useEffect(() => {
+    if (initialRecipientName) {
+      setRecipientName(initialRecipientName);
+    }
+  }, [initialRecipientName]);
   const [promiseText, setPromiseText] = useState("Dinner's on me this weekend ✨");
   const [promiseCardStyle, setPromiseCardStyle] =
     useState<PromiseCardStyle>('silk-crimson');
@@ -203,6 +304,7 @@ export function ComposeAndCheckoutScreen({
 
   const handleSelectGift = (giftId: string) => {
     setSelectedCatalogId(giftId);
+    setSelectedWishlistId(null);
     const found = state.catalog.find((g) => g.id === giftId);
     if (found) {
       const defaultCoinAmount = storedValueToCoins(found.defaultPriceNaira);
@@ -212,13 +314,21 @@ export function ComposeAndCheckoutScreen({
     setFormError(null);
   };
 
+  const handleSelectWishlistItem = (item: PromiseWishlistItem) => {
+    setSelectedWishlistId(item.id);
+    setAmountInput(String(item.coins));
+    setPromiseText(item.defaultPromiseText);
+    setShowCustomAmount(false);
+    setFormError(null);
+  };
+
   const validateStepOne = (): boolean => {
-    if (!selectedItem.available) {
+    if (giftMode === 'digital_gift' && !selectedItem.available) {
       setFormError('This gift is currently paused. Please choose another gift.');
       return false;
     }
     if (!amountValidation.valid) {
-      setFormError(amountValidation.error || 'Enter a gift amount between 100 and 100,000 Love Coins.');
+      setFormError(amountValidation.error || 'Enter a gift amount between 10 and 100,000 Love Coins.');
       return false;
     }
     setFormError(null);
@@ -533,7 +643,7 @@ export function ComposeAndCheckoutScreen({
         </nav>
       </div>
 
-      {/* STEP 1: Select Gift + Gift Value */}
+      {/* STEP 1: Select Gift / Promise Wishlist + Gift Value */}
       {step === 'choose' && (
         <motion.section
           key="step-choose"
@@ -545,37 +655,151 @@ export function ComposeAndCheckoutScreen({
           data-testid="send-step-1"
         >
           <div className="apple-card rounded-[28px] p-5 sm:p-6 space-y-5">
-            <div>
-              {initialRecipientEmail && (
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#FFE8F2] dark:bg-[#2A152C] px-3 py-1 text-xs font-semibold text-[#E61472] dark:text-[#FF559F]">
-                  <span>Sending gift to: {initialRecipientEmail}</span>
+            {/* Recipient Profile Card Banner (Works for guests & accounts alike) */}
+            {(recipientName || paramHandle || paramOccasion) && (
+              <div className="rounded-[24px] border border-[#FF2385]/25 bg-gradient-to-r from-[#FFEAF2] via-[#FFF5FA] to-[#F3E8FF] dark:from-[#2B1426] dark:via-[#1F172E] dark:to-[#17132B] p-4 sm:p-5 flex items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-md">
+                    {(recipientName || paramHandle || 'U').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] truncate">
+                        {recipientName || paramHandle}
+                      </h2>
+                      {paramHandle && (
+                        <span className="text-xs font-semibold text-[#7C3AED] dark:text-[#C084FC]">
+                          @{paramHandle.replace(/^@/, '')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {paramOccasion ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-[#E61472] dark:text-[#FF4F9A]">
+                          🎉 Occasion: {paramOccasion}
+                        </span>
+                      ) : (
+                        "Gift without an account — send love directly!"
+                      )}
+                    </p>
+                  </div>
                 </div>
-              )}
+                {paramOccasion && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/70 dark:bg-black/40 text-[var(--text-primary)] border border-[#FF2385]/20 shrink-0">
+                    {paramOccasion}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div>
               <h1
                 ref={stepHeadingRef}
                 tabIndex={-1}
                 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] focus:outline-none"
               >
-                Choose a gift
+                Show some love
               </h1>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-                Pick an animated gift and set its Love Coin value.
+                Send an animated digital gift or sponsor an item from their Promise Card wishlist.
               </p>
             </div>
 
-            {/* 2x2 Glossy Transparent Asset Grid */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {state.catalog.map((item) => (
-                <TactileGiftCard
-                  key={item.id}
-                  item={item}
-                  compact
-                  selected={item.id === selectedItem.id}
-                  showCoins={true}
-                  onSelect={() => handleSelectGift(item.id)}
-                />
-              ))}
+            {/* Mode Switcher: Digital Gifts vs Promise Wishlist */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setGiftMode('digital_gift')}
+                className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  giftMode === 'digital_gift'
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/30'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <span>🎁 Digital Gifts</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGiftMode('promise_card')}
+                className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  giftMode === 'promise_card'
+                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/30'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <span>💌 Promise Wishlist</span>
+              </button>
             </div>
+
+            {/* View A: Digital Gifts Grid */}
+            {giftMode === 'digital_gift' && (
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {state.catalog.map((item) => (
+                  <TactileGiftCard
+                    key={item.id}
+                    item={item}
+                    compact
+                    selected={item.id === selectedItem.id && !selectedWishlistId}
+                    showCoins={true}
+                    onSelect={() => handleSelectGift(item.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* View B: Traditional Nigerian Promise Card Wishlist Grid */}
+            {giftMode === 'promise_card' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                    Pick a Wishlist Promise
+                  </h3>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    Sponsored in Love Coins
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {PROMISE_CARD_WISHLIST.map((item) => {
+                    const isSelected = selectedWishlistId === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelectWishlistItem(item)}
+                        className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer relative flex items-start gap-3 ${
+                          isSelected
+                            ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2B1426] ring-2 ring-[#E61472]/20'
+                            : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/40 hover:bg-[var(--bg-card)]'
+                        }`}
+                      >
+                        <span className="text-2xl shrink-0 p-2 rounded-xl bg-[var(--bg-card)] shadow-xs">
+                          {item.emoji}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                              {item.title}
+                            </p>
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#FFEAF2] dark:bg-[#3A162B] text-[#E10B5C] dark:text-[#FF7AA8] tabular-nums shrink-0">
+                              {item.coins} Coins
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2">
+                            {item.description}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#E61472] text-white flex items-center justify-center shadow-xs">
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Gift Value Chips + Validated Custom Input */}
             <div className="space-y-3 pt-1">
@@ -584,7 +808,7 @@ export function ComposeAndCheckoutScreen({
                   htmlFor="custom-amount-input"
                   className="text-sm sm:text-base font-bold text-[var(--text-primary)]"
                 >
-                  Gift Value
+                  {giftMode === 'promise_card' ? 'Adjust Coin Amount' : 'Gift Value'}
                 </label>
                 <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                   {formatNaira(ECONOMY_CONFIG.MIN_GIFT_NAIRA)} –{' '}
@@ -958,22 +1182,14 @@ export function ComposeAndCheckoutScreen({
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">Gift amount</span>
-              <span className="font-semibold tabular-nums text-[var(--text-primary)]">
-                {formatNaira(summary.amountPaidNaira)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">
-                Platform fee ({summary.platformFeePercent}%)
-              </span>
-              <span className="font-medium tabular-nums text-[var(--text-secondary)]">
-                -{formatNaira(summary.platformFeeNaira)}
+              <span className="text-[var(--text-secondary)]">Total to pay</span>
+              <span className="font-bold tabular-nums text-[var(--text-primary)]">
+                {formatNaira(summary.amountPaidNaira)} ({formatCoinCount(summary.loveCoinsNeeded)})
               </span>
             </div>
             <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
               <span className="font-semibold text-[var(--text-primary)]">
-                Recipient earnings ({summary.creatorSharePercent}%)
+                Recipient receives
               </span>
               <span className="text-lg font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
                 {formatNaira(summary.recipientEarningsNaira)}

@@ -77,10 +77,10 @@ export function BalanceInfoScreen({
         </div>
       </section>
 
-      {/* Reference Card 2: About Show Me Love Balance Table */}
+      {/* Reference Card 2: Fee Structure & Show Me Love Balance */}
       <section className="space-y-3">
         <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-          About Show Me Love Balance
+          Fee Structure & Balance Policy
         </h2>
 
         <div className="apple-card rounded-[28px] p-5 sm:p-6 space-y-5">
@@ -93,37 +93,44 @@ export function BalanceInfoScreen({
             </div>
 
             <div className="py-3.5 flex items-center justify-between gap-4">
-              <span className="text-[var(--text-secondary)]">Platform Fee</span>
-              <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                {sampleBreakdown.platformFeePercent}%
+              <div>
+                <p className="font-semibold text-[var(--text-primary)]">Love Coin Spray</p>
+                <p className="text-xs text-[var(--text-secondary)]">Platform fee (3%) · Creator receives 97%</p>
+              </div>
+              <span className="font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
+                97%
               </span>
             </div>
 
-            <div className="pt-3.5 flex items-center justify-between gap-4">
-              <span className="text-[var(--text-secondary)]">Creator Earnings</span>
+            <div className="py-3.5 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-[var(--text-primary)]">Standard Gift &amp; Promise Cards</p>
+                <p className="text-xs text-[var(--text-secondary)]">Platform fee ({sampleBreakdown.platformFeePercent}%) · Creator receives {sampleBreakdown.creatorSharePercent}%</p>
+              </div>
               <span className="font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
                 {sampleBreakdown.creatorSharePercent}%
               </span>
             </div>
+
+            <div className="pt-3.5 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-[var(--text-primary)]">Guest Gifts (No account needed)</p>
+                <p className="text-xs text-[var(--text-secondary)]">Platform processing fee (8.5%) · Creator receives 91.5%</p>
+              </div>
+              <span className="font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
+                91.5%
+              </span>
+            </div>
           </div>
 
-          {/* Example math matching prompt */}
           <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 flex items-start gap-3">
             <Info className="w-5 h-5 text-[var(--text-secondary)] shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
               <p className="font-medium text-[var(--text-primary)]">
-                Love Coins can only be used for gifting. Gifted rewards can be withdrawn.
+                Love Coins can only be used for gifting and spraying. Gifted rewards can be withdrawn to your Nigerian bank account.
               </p>
               <p className="tabular-nums">
-                Demo assumption: with a {sampleBreakdown.platformFeePercent}% platform fee, sending a{' '}
-                <strong className="text-[var(--text-primary)]">
-                  {sampleBreakdown.loveCoinsNeeded.toLocaleString('en-NG')}-coin
-                </strong>{' '}
-                gift produces{' '}
-                <strong className="text-[#087F56] dark:text-[#24C888]">
-                  {formatNaira(sampleBreakdown.recipientEarningsNaira)}
-                </strong>{' '}
-                in recipient rewards.
+                All platform fees maintain instant payment processing, server infrastructure, and secure withdrawals.
               </p>
             </div>
           </div>
