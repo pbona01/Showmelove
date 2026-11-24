@@ -1,9 +1,17 @@
-import { ArrowLeft, Check, CheckCircle2, ChevronRight, LockKeyhole, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Sparkles,
+  UserCheck,
+  X,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { SprayCoins } from './SprayCoins';
-import { Button, InputField } from './ui/DesignSystem';
+import { Button } from './ui/DesignSystem';
 
 interface SprayCoinsScreenProps {
   onBack: () => void;
@@ -40,12 +48,25 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [amountPerSpray, setAmountPerSpray] = useState('20');
+  const [customAmountActive, setCustomAmountActive] = useState(false);
+  const [noLimitMode, setNoLimitMode] = useState(false);
   const [maxSprayLimit, setMaxSprayLimit] = useState('500');
   const [layoutId, setLayoutId] = useState<SprayLayoutId>('classic');
 
   // Active session tracking
   const [totalSprayedInSession, setTotalSprayedInSession] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
+  const [sessionFinished, setSessionFinished] = useState(false);
+
+  // Preload theme coins and artwork
+  useEffect(() => {
+    SPRAY_LAYOUTS.forEach((item) => {
+      const coinImg = new Image();
+      coinImg.src = item.coinSrc;
+      const cardImg = new Image();
+      cardImg.src = item.artworkSrc;
+    });
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -58,19 +79,26 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const allCelebrants = useMemo(() => {
-    const list = [...DEFAULT_CELEBRANTS];
+  // Build list of valid registered users
+  const registeredUsers = useMemo(() => {
+    const map = new Map<string, CelebrantOption>();
+
+    DEFAULT_CELEBRANTS.forEach((c) => {
+      map.set(c.username.toLowerCase(), c);
+    });
+
     try {
       const raw = localStorage.getItem('showmelove_user_map');
       if (raw) {
         const parsed = JSON.parse(raw);
-        Object.keys(parsed).forEach((usr) => {
-          if (!list.some((c) => c.username.toLowerCase() === usr.toLowerCase())) {
-            list.push({
-              displayName: usr.charAt(0).toUpperCase() + usr.slice(1),
-              username: usr,
-              email: parsed[usr],
-              tag: 'Registered User',
+        Object.entries(parsed).forEach(([usr, eml]) => {
+          const cleanUsr = usr.trim().replace(/^@/, '').toLowerCase();
+          if (!map.has(cleanUsr)) {
+            map.set(cleanUsr, {
+              displayName: cleanUsr.charAt(0).toUpperCase() + cleanUsr.slice(1),
+              username: cleanUsr,
+              email: String(eml),
+              tag: 'Verified User',
             });
           }
         });
@@ -78,18 +106,83 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
     } catch {
       // ignore
     }
-    return list;
-  }, []);
+
+    if (state.signedInEmail) {
+      const selfUsr = state.signedInEmail.split('@')[0].toLowerCase();
+      if (!map.has(selfUsr)) {
+        map.set(selfUsr, {
+          displayName: state.signedInName || selfUsr.charAt(0).toUpperCase() + selfUsr.slice(1),
+          username: selfUsr,
+          email: state.signedInEmail,
+          tag: 'You',
+        });
+      }
+    }
+
+    state.gifts.forEach((g) => {
+      if (g.recipientName) {
+        const cleanRecip = g.recipientName.trim().replace(/^@/, '').toLowerCase();
+        if (cleanRecip && !map.has(cleanRecip)) {
+          map.set(cleanRecip, {
+            displayName: g.recipientName.replace(/^@/, ''),
+            username: cleanRecip,
+            email: g.recipientEmail,
+            tag: 'Verified User',
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [state.gifts]);
+
+  const query = targetName.trim().replace(/^@/, '').toLowerCase();
+
+  // Find if current typed name matches an actual registered account
+  const matchedUser = useMemo(() => {
+    if (!query) return null;
+    if (
+      query === 'celebration room' ||
+      query === 'open room' ||
+      query === 'open_room' ||
+      query === 'room'
+    ) {
+      return registeredUsers.find((u) => u.username === 'open_room') || null;
+    }
+    return (
+      registeredUsers.find(
+        (u) =>
+          u.username.toLowerCase() === query ||
+          u.displayName.toLowerCase() === query,
+      ) || null
+    );
+  }, [query, registeredUsers]);
+
+  // Is typed input not a registered user?
+  const isInvalidUser = Boolean(query && !matchedUser && !confirmedRecipient);
+
+  // Auto-sync confirmedRecipient if matchedUser matches exactly
+  useEffect(() => {
+    if (matchedUser && (!confirmedRecipient || confirmedRecipient.username !== matchedUser.username)) {
+      setConfirmedRecipient(matchedUser);
+    } else if (
+      !matchedUser &&
+      confirmedRecipient &&
+      query !== confirmedRecipient.username.toLowerCase() &&
+      query !== confirmedRecipient.displayName.toLowerCase()
+    ) {
+      setConfirmedRecipient(null);
+    }
+  }, [matchedUser, query, confirmedRecipient]);
 
   const filteredCelebrants = useMemo(() => {
-    const query = targetName.trim().replace(/^@/, '').toLowerCase();
-    if (!query) return allCelebrants;
-    return allCelebrants.filter(
+    if (!query) return registeredUsers;
+    return registeredUsers.filter(
       (c) =>
         c.username.toLowerCase().includes(query) ||
         c.displayName.toLowerCase().includes(query),
     );
-  }, [allCelebrants, targetName]);
+  }, [registeredUsers, query]);
 
   const handleSelectCelebrant = (account: CelebrantOption) => {
     setTargetName(
@@ -101,24 +194,18 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
     setDropdownOpen(false);
   };
 
-  // Eagerly preload all 5 theme coins and theme card artwork into memory
-  useEffect(() => {
-    SPRAY_LAYOUTS.forEach((item) => {
-      const coinImg = new Image();
-      coinImg.src = item.coinSrc;
-      const cardImg = new Image();
-      cardImg.src = item.artworkSrc;
-    });
-  }, []);
-
   const layout = SPRAY_LAYOUTS.find((item) => item.id === layoutId) ?? SPRAY_LAYOUTS[0];
   const userBalance = currentWallet.loveCoinsBalance;
 
   const parsedAmountPerSpray = Math.max(1, Math.floor(Number(amountPerSpray)) || 20);
-  const parsedMaxLimit = Math.max(parsedAmountPerSpray, Math.floor(Number(maxSprayLimit)) || 500);
+  const parsedMaxLimit = noLimitMode
+    ? Infinity
+    : Math.max(parsedAmountPerSpray, Math.floor(Number(maxSprayLimit)) || 500);
 
   // Remaining budget in this spray session
-  const remainingBudget = Math.max(0, parsedMaxLimit - totalSprayedInSession);
+  const remainingBudget = noLimitMode
+    ? userBalance
+    : Math.max(0, parsedMaxLimit - totalSprayedInSession);
   const hasBudget = remainingBudget > 0;
   const hasBalance = userBalance > 0;
   const canSprayInArena = hasBalance && hasBudget && !limitReached;
@@ -127,19 +214,28 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const effectiveSprayAmount = Math.min(parsedAmountPerSpray, userBalance, remainingBudget);
 
   const handleSprayAction = (count: number): boolean => {
-    if (totalSprayedInSession + count >= parsedMaxLimit) {
+    if (!noLimitMode && totalSprayedInSession + count >= parsedMaxLimit) {
       setLimitReached(true);
     }
-    const cleanRecipient = targetName.trim().replace(/^@/, '');
+    const cleanRecipient =
+      confirmedRecipient?.username === 'open_room'
+        ? undefined
+        : confirmedRecipient?.username || targetName.trim().replace(/^@/, '');
+
     const res = sprayLoveCoins({
       coins: count,
-      recipientEmail: cleanRecipient ? (cleanRecipient.includes('@') ? cleanRecipient : `${cleanRecipient}@showmelove.fun`) : undefined,
+      recipientEmail: cleanRecipient
+        ? cleanRecipient.includes('@')
+          ? cleanRecipient
+          : `${cleanRecipient}@showmelove.fun`
+        : undefined,
       layoutId,
     });
+
     if (res.ok) {
       setTotalSprayedInSession((prev) => {
         const next = prev + count;
-        if (next >= parsedMaxLimit) {
+        if (!noLimitMode && next >= parsedMaxLimit) {
           setLimitReached(true);
         }
         return next;
@@ -149,43 +245,43 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
     return false;
   };
 
-  const PRESET_AMOUNTS = [10, 20, 50, 100, 200, 500];
-  const PRESET_LIMITS = [100, 250, 500, 1000, 2500, 5000];
+  const PRESET_AMOUNTS = [10, 20, 50, 100, 200];
+  const PRESET_LIMITS = [100, 250, 500, 1000, 2500];
 
   return (
-    <div className="mx-auto max-w-xl space-y-5 pb-10">
-      {/* STEP 1: TARGET & SPRAY AMOUNT */}
+    <div className="mx-auto max-w-lg space-y-2.5 pb-6">
+      {/* STEP 1: TARGET & SPRAY AMOUNT (COMPACT, ZERO-SCROLL) */}
       {step === 'step1_target' && (
-        <div className="space-y-6">
+        <div className="space-y-2.5">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+            className="inline-flex min-h-[34px] items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Wallet Home
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Wallet Home
           </button>
 
-          <section className="apple-card rounded-[32px] p-6 sm:p-8 space-y-6 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
-            <div className="space-y-1.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+          <section className="apple-card rounded-[24px] p-3.5 sm:p-5 space-y-3 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
+            <div className="space-y-0.5">
+              <h1 className="text-lg sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Who are you spraying?
               </h1>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                Select or type the celebrant's @username, or choose the open celebration room.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Select a confirmed celebrant or the celebration room.
               </p>
             </div>
 
-            {/* Recipient Input with Confirmation Dropdown */}
-            <div className="space-y-2 relative" ref={dropdownRef}>
+            {/* Recipient Input with Confirmation Dropdown & Strict Validation */}
+            <div className="space-y-1 relative" ref={dropdownRef}>
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="spray-target-input"
-                  className="block text-sm font-bold text-[var(--text-primary)]"
+                  className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-primary)]"
                 >
-                  Person or Room
+                  Recipient Username
                 </label>
                 {confirmedRecipient && (
-                  <span className="text-xs font-semibold text-[#087F56] dark:text-[#24C888] inline-flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-[#087F56] dark:text-[#24C888] inline-flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Confirmed
                   </span>
                 )}
@@ -200,226 +296,263 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   onChange={(e) => {
                     setTargetName(e.target.value);
                     setDropdownOpen(true);
-                    if (
-                      confirmedRecipient &&
-                      e.target.value !== confirmedRecipient.displayName &&
-                      e.target.value !== `@${confirmedRecipient.username}` &&
-                      e.target.value !== 'Celebration Room'
-                    ) {
-                      setConfirmedRecipient(null);
-                    }
                   }}
-                  placeholder="Type @username or name..."
-                  className={`w-full rounded-2xl border bg-[var(--bg-raised)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 ${
-                    confirmedRecipient
-                      ? 'border-[#087F56]/40 dark:border-[#24C888]/40 focus:ring-[#24C888]'
-                      : 'border-[var(--border-subtle)] focus:ring-[#FF2385]'
+                  placeholder="Type @username (e.g. @ada, @pbona)"
+                  className={`w-full rounded-xl border bg-[var(--bg-raised)] px-3.5 py-2 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:outline-none focus:ring-2 ${
+                    isInvalidUser
+                      ? 'border-[#E61472] dark:border-[#FF2385] focus:ring-[#FF2385]'
+                      : confirmedRecipient
+                        ? 'border-[#087F56]/40 dark:border-[#24C888]/40 focus:ring-[#24C888]'
+                        : 'border-[var(--border-subtle)] focus:ring-[#FF2385]'
                   }`}
                 />
               </div>
 
+              {/* Strict Non-User Error (Image 2 Requirement) */}
+              {isInvalidUser && (
+                <p className="text-xs font-semibold text-[#E61472] dark:text-[#FF2385] flex items-center gap-1.5 pt-0.5 animate-in fade-in">
+                  <span className="w-4 h-4 flex items-center justify-center rounded-full bg-[#E61472]/15 text-[#E61472] dark:text-[#FF2385] text-[10px] font-bold">
+                    ✕
+                  </span>
+                  <span>No Showmelove user has that username.</span>
+                </p>
+              )}
+
               {/* Confirmation Dropdown Menu */}
               {dropdownOpen && (
-                <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-2xl p-2 space-y-1 backdrop-blur-xl">
-                  <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Select Account to Confirm
+                <div className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-2xl p-1.5 space-y-1 backdrop-blur-xl">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Registered Celebrants
                   </div>
 
-                  {filteredCelebrants.map((account) => {
-                    const isSelected =
-                      confirmedRecipient?.username.toLowerCase() ===
-                      account.username.toLowerCase();
-                    return (
-                      <button
-                        key={account.username}
-                        type="button"
-                        onClick={() => handleSelectCelebrant(account)}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#E61472]/10 dark:bg-[#FF2385]/15 text-[var(--text-primary)]'
-                            : 'hover:bg-[var(--bg-raised)] text-[var(--text-primary)]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {account.displayName.slice(0, 2).toUpperCase()}
+                  {filteredCelebrants.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-[var(--text-secondary)]">
+                      No matching user found
+                    </div>
+                  ) : (
+                    filteredCelebrants.map((account) => {
+                      const isSelected =
+                        confirmedRecipient?.username.toLowerCase() ===
+                        account.username.toLowerCase();
+                      return (
+                        <button
+                          key={account.username}
+                          type="button"
+                          onClick={() => handleSelectCelebrant(account)}
+                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#E61472]/10 dark:bg-[#FF2385]/15 text-[var(--text-primary)]'
+                              : 'hover:bg-[var(--bg-raised)] text-[var(--text-primary)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                              {account.displayName.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold truncate">{account.displayName}</p>
+                              <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                                @{account.username.replace(/^@/, '')}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold truncate">{account.displayName}</p>
-                            <p className="text-xs text-[var(--text-secondary)] truncate">
-                              @{account.username.replace(/^@/, '')}
-                            </p>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {account.tag && (
+                              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-raised)] text-[var(--text-secondary)]">
+                                {account.tag}
+                              </span>
+                            )}
+                            {isSelected && <Check className="w-3.5 h-3.5 text-[#FF2385]" />}
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {account.tag && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-raised)] text-[var(--text-secondary)]">
-                              {account.tag}
-                            </span>
-                          )}
-                          {isSelected && <Check className="w-4 h-4 text-[#FF2385]" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* Option for custom typed username if not in presets */}
-                  {targetName.trim() &&
-                    !filteredCelebrants.some(
-                      (c) =>
-                        c.username.toLowerCase() ===
-                        targetName.trim().replace(/^@/, '').toLowerCase(),
-                    ) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleSelectCelebrant({
-                            displayName: targetName.trim().replace(/^@/, ''),
-                            username: targetName.trim().replace(/^@/, ''),
-                            tag: 'Custom Celebrant',
-                          })
-                        }
-                        className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-[var(--bg-raised)] text-[var(--text-primary)] cursor-pointer"
-                      >
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7C3AED] to-[#3B82F6] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                          @{targetName.trim().replace(/^@/, '').slice(0, 2).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold truncate">
-                            Confirm @{targetName.trim().replace(/^@/, '')}
-                          </p>
-                          <p className="text-xs text-[var(--text-secondary)]">
-                            Tap to confirm spraying to this specific account
-                          </p>
-                        </div>
-                        <CheckCircle2 className="w-4 h-4 text-[#24C888]" />
-                      </button>
-                    )}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               )}
 
               {/* Confirmed Recipient Banner Card */}
               {confirmedRecipient && (
-                <div className="rounded-2xl border border-[#087F56]/25 dark:border-[#24C888]/30 bg-[#E6F6EF]/60 dark:bg-[#0D3326]/50 p-3.5 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#087F56] to-[#24C888] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                      <CheckCircle2 className="w-5 h-5" />
+                <div className="rounded-xl border border-[#087F56]/25 dark:border-[#24C888]/30 bg-[#E6F6EF]/60 dark:bg-[#0D3326]/50 px-3 py-2 flex items-center justify-between gap-2 animate-in fade-in">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#087F56] to-[#24C888] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-bold text-[var(--text-primary)]">
-                          {confirmedRecipient.displayName}
+                      <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                        {confirmedRecipient.displayName}{' '}
+                        <span className="font-semibold text-[var(--text-secondary)]">
+                          (@{confirmedRecipient.username.replace(/^@/, '')})
                         </span>
-                        <span className="text-xs font-semibold text-[#087F56] dark:text-[#24C888]">
-                          @{confirmedRecipient.username.replace(/^@/, '')}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-secondary)]">
+                      </p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">
                         {confirmedRecipient.username === 'open_room'
-                          ? 'Spraying everyone in the public celebration room.'
-                          : `Coins will be safely sent directly to @${confirmedRecipient.username.replace(/^@/, '')}'s account.`}
+                          ? 'Coins sent to all in room'
+                          : 'Coins sent automatically with every swipe'}
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
+                      setTargetName('');
                       setConfirmedRecipient(null);
                       setDropdownOpen(true);
                     }}
-                    className="text-xs font-bold text-[#E61472] dark:text-[#FF4F9A] hover:underline shrink-0 cursor-pointer px-2 py-1"
+                    className="text-[11px] font-bold text-[#E61472] dark:text-[#FF4F9A] hover:underline shrink-0 cursor-pointer"
                   >
                     Change
                   </button>
                 </div>
               )}
+
+              {/* Quick Celebration Room pill */}
+              <button
+                type="button"
+                onClick={() =>
+                  handleSelectCelebrant({
+                    displayName: 'Celebration Room',
+                    username: 'open_room',
+                    tag: 'Public Room',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:border-[#FF2385]/50 transition-colors text-[var(--text-primary)] cursor-pointer mt-1"
+              >
+                🎉 Open Celebration Room
+              </button>
             </div>
 
-            {/* Amount Per Spray */}
-            <div className="space-y-2.5">
-              <label htmlFor="amount-per-spray-input" className="block text-sm font-bold text-[var(--text-primary)]">
-                Amount per spray swipe
-              </label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {/* Compact Amount Per Spray */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                  Amount per swipe
+                </label>
+                <span className="text-xs font-bold tabular-nums text-[var(--text-primary)]">
+                  {parsedAmountPerSpray} Coins
+                </span>
+              </div>
+
+              <div className="grid grid-cols-6 gap-1.5">
                 {PRESET_AMOUNTS.map((val) => (
                   <button
                     key={val}
                     type="button"
-                    onClick={() => setAmountPerSpray(String(val))}
-                    className={`min-h-[42px] py-2 px-1 rounded-2xl border text-xs sm:text-sm font-bold tabular-nums transition-all cursor-pointer ${
-                      Number(amountPerSpray) === val
-                        ? 'cta-pink-surface text-white border-transparent shadow-md'
+                    onClick={() => {
+                      setAmountPerSpray(String(val));
+                      setCustomAmountActive(false);
+                    }}
+                    className={`min-h-[34px] py-1 px-1 rounded-xl border text-xs font-bold tabular-nums transition-all cursor-pointer ${
+                      !customAmountActive && Number(amountPerSpray) === val
+                        ? 'cta-pink-surface text-white border-transparent shadow-sm'
                         : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/50'
                     }`}
                   >
-                    {val} Coins
+                    {val}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setCustomAmountActive(true)}
+                  className={`min-h-[34px] py-1 px-1 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    customAmountActive
+                      ? 'cta-pink-surface text-white border-transparent shadow-sm'
+                      : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/50'
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
-              <InputField
-                id="amount-per-spray-input"
-                label="Custom amount per spray"
-                type="number"
-                min={1}
-                value={amountPerSpray}
-                onChange={(e) => setAmountPerSpray(e.target.value)}
-                className="font-bold tabular-nums"
-              />
+
+              {customAmountActive && (
+                <div className="pt-1">
+                  <input
+                    type="number"
+                    min={1}
+                    value={amountPerSpray}
+                    onChange={(e) => setAmountPerSpray(e.target.value)}
+                    className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 py-2 text-sm font-bold tabular-nums text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                    placeholder="Enter custom coins per swipe"
+                  />
+                </div>
+              )}
             </div>
 
+            {/* Next Button - strictly disabled unless confirmed real user */}
             <Button
               variant="primary"
               size="lg"
               fullWidth
-              onClick={() => setStep('step2_budget')}
+              disabled={!confirmedRecipient && !matchedUser}
+              onClick={() => {
+                if (matchedUser && !confirmedRecipient) {
+                  setConfirmedRecipient(matchedUser);
+                }
+                setStep('step2_budget');
+              }}
             >
-              Next: Set Limits & Theme <ChevronRight className="w-4 h-4 ml-1" />
+              Next: Limits &amp; Theme <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </section>
         </div>
       )}
 
-      {/* STEP 2: BUDGET LIMIT & STARTING THEME */}
+      {/* STEP 2: BUDGET LIMIT & STARTING THEME (COMPACT) */}
       {step === 'step2_budget' && (
-        <div className="space-y-6">
+        <div className="space-y-3">
           <button
             type="button"
             onClick={() => setStep('step1_target')}
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+            className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Recipient
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Recipient
           </button>
 
-          <section className="apple-card rounded-[32px] p-6 sm:p-8 space-y-6 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
-            <div className="space-y-1.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-                Set Spray Limit & Theme
+          <section className="apple-card rounded-[28px] p-4 sm:p-6 space-y-4 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                Set Spray Limit &amp; Theme
               </h1>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                Control your budget so you don't go above your limit during the celebration.
+              <p className="text-xs text-[var(--text-secondary)]">
+                Money sprayed is sent automatically with each swipe. Limits are optional safety caps.
               </p>
             </div>
 
-            {/* Max Spray Limit */}
-            <div className="space-y-2.5">
+            {/* Optional Safety Limit */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="max-spray-input" className="block text-sm font-bold text-[var(--text-primary)]">
-                  Maximum Spray Limit
+                <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                  Safety Cap (Optional)
                 </label>
-                <span className="text-xs text-[var(--text-secondary)] font-semibold">
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">
                   Balance: {userBalance.toLocaleString('en-NG')} LC
                 </span>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setNoLimitMode(true)}
+                  className={`min-h-[36px] py-1 px-1 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    noLimitMode
+                      ? 'cta-pink-surface text-white border-transparent shadow-sm'
+                      : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/50'
+                  }`}
+                >
+                  No Limit
+                </button>
                 {PRESET_LIMITS.map((lim) => (
                   <button
                     key={lim}
                     type="button"
-                    onClick={() => setMaxSprayLimit(String(lim))}
-                    className={`min-h-[42px] py-2 px-1 rounded-2xl border text-xs sm:text-sm font-bold tabular-nums transition-all cursor-pointer ${
-                      Number(maxSprayLimit) === lim
-                        ? 'cta-pink-surface text-white border-transparent shadow-md'
+                    onClick={() => {
+                      setNoLimitMode(false);
+                      setMaxSprayLimit(String(lim));
+                    }}
+                    className={`min-h-[36px] py-1 px-1 rounded-xl border text-xs font-bold tabular-nums transition-all cursor-pointer ${
+                      !noLimitMode && Number(maxSprayLimit) === lim
+                        ? 'cta-pink-surface text-white border-transparent shadow-sm'
                         : 'bg-[var(--bg-raised)] border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/50'
                     }`}
                   >
@@ -427,24 +560,14 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   </button>
                 ))}
               </div>
-              <InputField
-                id="max-spray-input"
-                label="Custom maximum limit (Coins)"
-                type="number"
-                min={Number(amountPerSpray) || 10}
-                value={maxSprayLimit}
-                onChange={(e) => setMaxSprayLimit(e.target.value)}
-                className="font-bold tabular-nums"
-                hint={`Spraying stops automatically once you reach ${parsedMaxLimit.toLocaleString('en-NG')} coins.`}
-              />
             </div>
 
             {/* Starting Layout Selector */}
-            <div className="space-y-3">
-              <label className="block text-sm font-bold text-[var(--text-primary)]">
-                Choose Starting Theme Layout
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                Starting Theme
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-5 gap-2">
                 {SPRAY_LAYOUTS.map((item) => {
                   const isSelected = layoutId === item.id;
                   return (
@@ -452,8 +575,10 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                       key={item.id}
                       type="button"
                       onClick={() => setLayoutId(item.id)}
-                      className={`group relative min-h-[135px] overflow-hidden rounded-2xl p-2.5 text-left text-white ring-2 transition-all cursor-pointer ${
-                        isSelected ? 'ring-[#FF2385] shadow-xl scale-[1.03]' : 'ring-transparent opacity-85 hover:opacity-100'
+                      className={`group relative min-h-[90px] sm:min-h-[110px] overflow-hidden rounded-xl p-2 text-left text-white ring-2 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'ring-[#FF2385] shadow-lg scale-105'
+                          : 'ring-transparent opacity-80 hover:opacity-100'
                       }`}
                     >
                       <img
@@ -464,12 +589,13 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                       />
                       <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
                       <div className="relative z-10 flex flex-col justify-between h-full">
-                        <span className="text-xs font-black drop-shadow-md text-white">{item.name}</span>
-                        <div className="mt-8">
-                          <span className="block text-[11px] font-bold text-white drop-shadow">
+                        <span className="text-[10px] font-black drop-shadow-md text-white truncate">
+                          {item.name}
+                        </span>
+                        <div>
+                          <span className="block text-[9px] font-bold text-white drop-shadow">
                             {item.coinLabel}
                           </span>
-                          <span className="block text-[9px] font-semibold text-white/80 drop-shadow">{item.badge}</span>
                         </div>
                       </div>
                     </button>
@@ -485,6 +611,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
               onClick={() => {
                 setTotalSprayedInSession(0);
                 setLimitReached(false);
+                setSessionFinished(false);
                 setStep('step3_arena');
               }}
             >
@@ -494,35 +621,35 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
         </div>
       )}
 
-      {/* STEP 3: THE CLEAN DEDICATED SPRAY ARENA (ZERO INTERRUPTION) */}
+      {/* STEP 3: THE CLEAN DEDICATED SPRAY ARENA */}
       {step === 'step3_arena' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Top Floating Control Bar */}
-          <div className="flex items-center justify-between gap-3 bg-[var(--bg-card)]/90 backdrop-blur-md p-3 rounded-2xl border border-[var(--border-subtle)] shadow-md">
+          <div className="flex items-center justify-between gap-3 bg-[var(--bg-card)]/90 backdrop-blur-md p-2.5 rounded-2xl border border-[var(--border-subtle)] shadow-md">
             <button
               type="button"
               onClick={() => setStep('step2_budget')}
-              className="min-h-[40px] px-3 rounded-xl text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              className="min-h-[38px] px-2.5 rounded-xl text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Settings</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back</span>
             </button>
 
             <div className="text-center min-w-0">
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#FF2385]">
-                🎉 {targetName.trim() ? targetName.trim() : 'Celebration Room'}
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#FF2385] truncate">
+                🎉 {confirmedRecipient ? confirmedRecipient.displayName : targetName || 'Celebration Room'}
               </span>
               <p className="text-xs font-bold tabular-nums text-[var(--text-primary)]">
-                Sprayed: {totalSprayedInSession.toLocaleString('en-NG')} / {parsedMaxLimit.toLocaleString('en-NG')} LC
+                {totalSprayedInSession.toLocaleString('en-NG')} Coins Sent
               </p>
             </div>
 
             <button
               type="button"
-              onClick={onBack}
-              className="min-h-[40px] px-3 rounded-xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+              onClick={() => setSessionFinished(true)}
+              className="min-h-[38px] px-3 rounded-xl text-xs font-bold text-white cta-pink-surface shadow-sm hover:brightness-105 transition-all cursor-pointer"
             >
-              Exit
+              Finish
             </button>
           </div>
 
@@ -533,7 +660,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                 key={item.id}
                 type="button"
                 onClick={() => setLayoutId(item.id)}
-                className={`min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                className={`min-h-[36px] px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                   layoutId === item.id
                     ? 'cta-pink-surface text-white shadow-md scale-105'
                     : 'bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -561,7 +688,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
 
             {/* Gesture Spray Area */}
             <SprayCoins
-              isEnabled={canSprayInArena}
+              isEnabled={canSprayInArena && !sessionFinished}
               coinBalance={userBalance}
               minimumSpray={layout.minimumCoins}
               sprayAmount={effectiveSprayAmount}
@@ -570,76 +697,71 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
               onSpray={handleSprayAction}
             />
 
-            {/* Non-intrusive Top & Bottom Overlays */}
-            <div className="relative z-10 pointer-events-none flex h-full flex-col items-center justify-between p-4 sm:p-5">
-              {/* Top Badge */}
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-1 text-[11px] font-bold text-white shadow-lg backdrop-blur-md border border-white/20">
-                <Sparkles className="h-3 w-3 text-[#FF2385]" />
-                <span>{layout.badge.toUpperCase()} · {effectiveSprayAmount} {layout.coinLabel}/swipe</span>
-              </div>
+            {/* Top Prompt */}
+            <div className="absolute top-4 left-0 right-0 z-20 pointer-events-none px-4">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-black/60 text-white backdrop-blur-md shadow-md border border-white/20">
+                <Sparkles className="w-3.5 h-3.5 text-[#FFE28A]" />
+                Swipe up repeatedly to spray!
+              </span>
+            </div>
 
-              {/* Center 65% is 100% clean for gestures */}
-              <div className="flex-1" aria-hidden="true" />
-
-              {/* Bottom Live Balance Dock */}
-              <div className="w-full max-w-[290px] space-y-1.5 pb-1">
-                <div className="rounded-2xl bg-black/70 px-4 py-2 text-white backdrop-blur-md border border-white/25 shadow-xl">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">
-                    Wallet Balance
-                  </p>
-                  <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-white leading-tight">
-                    {userBalance.toLocaleString('en-NG')} LC
+            {/* Real-time Coins Sent Counter Pill at bottom of arena */}
+            <div className="absolute bottom-5 left-0 right-0 z-20 pointer-events-none px-4 flex justify-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-black/75 backdrop-blur-lg border border-white/20 shadow-xl text-white">
+                <div className="text-left">
+                  <p className="text-[10px] uppercase font-bold text-white/70">Coins Sent (Real-Time)</p>
+                  <p className="text-sm font-extrabold tabular-nums text-[#FFE28A]">
+                    {totalSprayedInSession.toLocaleString('en-NG')} Coins
                   </p>
                 </div>
-
-                <p className="text-[11px] font-semibold text-white/95 text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                  {canSprayInArena
-                    ? `Flick upward to spray ${effectiveSprayAmount} ${layout.coinLabel}!`
-                    : limitReached
-                      ? '🎉 Maximum spray limit reached!'
-                      : userBalance <= 0
-                        ? 'Wallet balance empty.'
-                        : 'Spraying paused.'}
-                </p>
               </div>
             </div>
 
-            {/* Limit Reached Celebration Modal Overlay */}
-            {limitReached && (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-6 text-white text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-[#FF2385]/20 text-[#FF2385] border border-[#FF2385]/40 flex items-center justify-center mx-auto text-2xl shadow-xl">
-                  🎉
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-extrabold">Limit Reached!</h3>
-                  <p className="text-xs text-white/80 leading-relaxed max-w-xs">
-                    You sprayed your target limit of <strong>{parsedMaxLimit.toLocaleString('en-NG')} Coins</strong> for {targetName || 'the room'}!
-                  </p>
-                </div>
-                <div className="pt-2 w-full space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMaxSprayLimit(String(parsedMaxLimit + 500));
-                      setLimitReached(false);
-                    }}
-                    className="w-full py-2.5 px-4 rounded-xl cta-pink-surface font-bold text-xs shadow-lg cursor-pointer hover:brightness-105"
-                  >
-                    + Spray 500 More Coins
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStep('step1_target')}
-                    className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 font-semibold text-xs border border-white/20 cursor-pointer"
-                  >
-                    Finish & New Session
-                  </button>
+            {/* Celebration Finish Modal (When user taps Finish or hits safety cap) */}
+            {(limitReached || sessionFinished) && (
+              <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/85 backdrop-blur-md p-6 text-white animate-in fade-in duration-200">
+                <div className="max-w-xs space-y-4 text-center">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] flex items-center justify-center text-white shadow-xl animate-bounce">
+                    <Sparkles className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black">
+                      {limitReached ? 'Safety Limit Reached!' : 'Celebration Complete!'}
+                    </h2>
+                    <p className="text-xs text-white/80 mt-1">
+                      You sprayed{' '}
+                      <strong className="text-[#FFE28A]">
+                        {totalSprayedInSession.toLocaleString('en-NG')} Love Coins
+                      </strong>{' '}
+                      to {confirmedRecipient?.displayName || targetName || 'the room'}.
+                    </p>
+                    <p className="text-[11px] text-[#24C888] font-semibold mt-1">
+                      ✓ Coins were deposited directly in real-time.
+                    </p>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLimitReached(false);
+                        setSessionFinished(false);
+                      }}
+                      className="w-full py-2.5 rounded-xl cta-pink-surface text-white text-xs font-bold shadow-md cursor-pointer"
+                    >
+                      Spray More Coins
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onBack}
+                      className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      Back to Wallet Home
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </section>
-
-          {/* NOTE: Zero settings below the spray card to completely avoid gesture interruption! */}
         </div>
       )}
     </div>
