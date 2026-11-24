@@ -3,10 +3,10 @@
  * demo platform fee (20% matching reference), payout fee, and gift bounds.
  */
 export const ECONOMY_CONFIG = {
-  /** Number of Nigerian Naira (₦) per 1 Love Coin */
+  /** Number of Nigerian Naira (₦) per 1 Love Coin (1 coin = 1 Naira on withdrawal) */
   NAIRA_PER_LOVE_COIN: 1,
-  /** Uses the stated ₦10,000 -> 9,700 Coin example (3%). */
-  FUNDING_FEE_BPS: 300,
+  /** 7% deduction when buying coins: ₦100 = 93 Love Coins, ₦10,000 = 9,300 Love Coins. */
+  FUNDING_FEE_BPS: 700,
   GUEST_GIFT_FEE_BPS: 850,
   SPRAY_FEE_BPS: 300,
   /** Direct-gift fee is now guest-only; see GUEST_GIFT_FEE_BPS. */
@@ -66,16 +66,16 @@ export interface CoinPackage {
 }
 
 export const COIN_PACKAGES: CoinPackage[] = [
-  { id: 'pack_100', coins: 100, priceNaira: 100 * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN },
+  { id: 'pack_1000', coins: 930, priceNaira: 1000 },
+  { id: 'pack_2000', coins: 1860, priceNaira: 2000 },
   {
-    id: 'pack_500',
-    coins: 500,
-    priceNaira: 500 * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN,
+    id: 'pack_5000',
+    coins: 4650,
+    priceNaira: 5000,
     popular: true,
   },
-  { id: 'pack_1000', coins: 1000, priceNaira: 1000 * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN },
-  { id: 'pack_5000', coins: 5000, priceNaira: 5000 * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN },
-  { id: 'pack_10000', coins: 10000, priceNaira: 10000 * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN },
+  { id: 'pack_10000', coins: 9300, priceNaira: 10000 },
+  { id: 'pack_20000', coins: 18600, priceNaira: 20000 },
 ];
 
 export interface CheckoutSummary {

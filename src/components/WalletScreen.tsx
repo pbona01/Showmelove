@@ -45,6 +45,7 @@ interface WalletScreenProps {
   onOpenSendGift: (giftCatalogId?: string) => void;
   onOpenInbox: () => void;
   onOpenProfile?: () => void;
+  onOpenTransactions?: () => void;
   onTrySampleReveal?: () => void;
   onOpenSpray: () => void;
   onOpenLeaderboard: () => void;
@@ -58,6 +59,7 @@ export function WalletScreen({
   onOpenSendGift,
   onOpenInbox,
   onOpenProfile,
+  onOpenTransactions,
   onTrySampleReveal,
   onOpenSpray,
   onOpenLeaderboard,
@@ -423,7 +425,7 @@ export function WalletScreen({
               </h2>
               <button
                 type="button"
-                onClick={onOpenProfile || onOpenInbox}
+                onClick={onOpenTransactions || onOpenProfile || onOpenInbox}
                 className="text-xs font-semibold text-[#FF2385] hover:underline cursor-pointer flex items-center gap-0.5"
               >
                 <span>See all</span>
@@ -432,7 +434,8 @@ export function WalletScreen({
             </div>
 
             <div
-              className="rounded-2xl bg-white/85 dark:bg-slate-900/85 border border-pink-100/70 dark:border-pink-900/30 p-3 shadow-xs flex items-center justify-between gap-3"
+              onClick={onOpenTransactions}
+              className="rounded-2xl bg-white/85 dark:bg-slate-900/85 border border-pink-100/70 dark:border-pink-900/30 p-3 shadow-xs flex items-center justify-between gap-3 cursor-pointer hover:border-[#FF2385]/40 transition-all"
               data-testid="wallet-transaction-history"
             >
               {combinedHistory.length > 0 ? (

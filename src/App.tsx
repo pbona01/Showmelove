@@ -14,6 +14,7 @@ import { AdminScreen } from './components/AdminScreen';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
+import { TransactionHistoryScreen } from './components/TransactionHistoryScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
 import { LoveCoinHeartSvg, ShowmeloveBrandIcon } from './components/GiftArtwork';
@@ -47,6 +48,7 @@ type AppRoute =
   | { page: 'admin' }
   | { page: 'spray-coins' }
   | { page: 'leaderboard' }
+  | { page: 'transactions' }
   | { page: 'sign-in' }
   | { page: 'payment-verify' }
   | { page: 'reveal'; giftId: string };
@@ -94,6 +96,7 @@ function parseLocationRoute(): AppRoute {
   if (path === '/admin') return { page: 'admin' };
   if (path === '/spray-coins') return { page: 'spray-coins' };
   if (path === '/leaderboard') return { page: 'leaderboard' };
+  if (path === '/transactions') return { page: 'transactions' };
   if (path === '/sign-in') return { page: 'sign-in' };
   if (path === '/payments/verify') return { page: 'payment-verify' };
 
@@ -131,6 +134,8 @@ function routeToPath(route: AppRoute): string {
       return '/spray-coins';
     case 'leaderboard':
       return '/leaderboard';
+    case 'transactions':
+      return '/transactions';
     case 'sign-in':
       return '/sign-in';
     case 'payment-verify':
@@ -352,9 +357,7 @@ function ShowmeloveShell() {
             }}
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
-            <SharedLayout id="showmelove-brand-mark" className="shrink-0">
-              <ShowmeloveBrandIcon className="w-8 h-8 rounded-full border border-[var(--border-subtle)] shadow-xs" />
-            </SharedLayout>
+            <ShowmeloveBrandIcon className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] shadow-xs" />
             <span>
               Showme
               <span className="text-[#E61472] dark:text-[#FF2385]">love</span>
@@ -467,6 +470,7 @@ function ShowmeloveShell() {
                 }
                 onOpenInbox={() => navigate({ page: 'inbox' })}
                 onOpenProfile={() => navigate({ page: 'profile' })}
+                onOpenTransactions={() => navigate({ page: 'transactions' })}
                 onTrySampleReveal={() =>
                   navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
                 }
@@ -584,6 +588,14 @@ function ShowmeloveShell() {
 
             {route.page === 'leaderboard' && (
               <LeaderboardScreen onBack={() => navigate({ page: 'home' })} />
+            )}
+
+            {route.page === 'transactions' && (
+              <TransactionHistoryScreen
+                onBack={() => navigate({ page: 'home' })}
+                onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
+                onOpenSendGift={() => navigate({ page: 'send' })}
+              />
             )}
               </StaggerItem>
             </StaggerContainer>

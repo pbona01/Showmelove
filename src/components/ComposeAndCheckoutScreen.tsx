@@ -15,6 +15,7 @@ import {
   Pause,
   Pencil,
   Play,
+  Plus,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -33,6 +34,7 @@ import { useShowmelove } from '../context/ShowmeloveContext';
 import { audioStorage } from '../services/audioStorage';
 import { getDefaultSenderName } from '../services/giftRules';
 import { isSupabaseConfigured } from '../services/supabaseBridge';
+import { lookupVerifiedUser, type VerifiedUser } from '../services/userService';
 import type { EmoteOption, PromiseCardStyle, SentGift } from '../types/showmelove';
 import { GiftArtworkSvg, GoldLoveCoinSvg } from './GiftArtwork';
 import { GiftRevealExperience } from './GiftRevealExperience';
@@ -335,6 +337,21 @@ export function ComposeAndCheckoutScreen({
     return true;
   };
 
+  const cleanRecipientInput = recipientName.trim().replace(/^@/, '').toLowerCase();
+  const verifiedRecipient = useMemo(() => {
+    if (!cleanRecipientInput) return null;
+    return lookupVerifiedUser(
+      recipientName,
+      state.gifts,
+      state.signedInEmail,
+      state.signedInName,
+    );
+  }, [cleanRecipientInput, recipientName, state.gifts, state.signedInEmail, state.signedInName]);
+
+  const isInvalidRecipient = Boolean(
+    cleanRecipientInput && cleanRecipientInput.length >= 2 && !verifiedRecipient,
+  );
+
   const validateStepTwo = (): boolean => {
     if (!validateStepOne()) return false;
     const cleanUsername = recipientName.trim().replace(/^@/, '');
@@ -342,12 +359,17 @@ export function ComposeAndCheckoutScreen({
       setFormError("Enter the recipient's username.");
       return false;
     }
+    if (!verifiedRecipient) {
+      setFormError('No Showmelove user found with that username. Please enter a confirmed Showmelove user.');
+      return false;
+    }
     const currentSenderEmail = state.signedInEmail?.trim().toLowerCase();
     const effectiveRecipientEmail =
-      recipientEmail.trim() ||
+      verifiedRecipient.email?.trim().toLowerCase() ||
+      recipientEmail.trim().toLowerCase() ||
       `${cleanUsername.toLowerCase()}@showmelove.fun`;
 
-    if (currentSenderEmail && currentSenderEmail === effectiveRecipientEmail.toLowerCase()) {
+    if (currentSenderEmail && currentSenderEmail === effectiveRecipientEmail) {
       setFormError('You cannot send a gift to yourself. Enter a friend or creator username.');
       return false;
     }
@@ -373,7 +395,7 @@ export function ComposeAndCheckoutScreen({
     if (!validateStepTwo()) return;
     setFwStatus('idle');
     setFwError(null);
-    setPaymentSource('flutterwave');
+    setPaymentSource(isSignedIn ? 'coin_balance' : 'flutterwave');
     setStep('review');
   };
 
@@ -1000,17 +1022,43 @@ export function ComposeAndCheckoutScreen({
             </div>
           </div>
 
-          {/* Recipient Username */}
+          {/* Recipient Username with Confirmation Check */}
           <div className="space-y-1.5">
             <InputField
               id="recipient-name-input"
               label="Recipient username"
               type="text"
               value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="e.g. @chioma"
+              onChange={(e) => {
+                setRecipientName(e.target.value);
+                setFormError(null);
+              }}
+              placeholder="e.g. @ada, @pbona, @virtue"
               hint="Who are you showing love to?"
+              error={isInvalidRecipient ? 'No Showmelove user has that username.' : undefined}
             />
+
+            {/* Confirmed Recipient Banner Card */}
+            {verifiedRecipient && (
+              <div className="rounded-xl border border-[#087F56]/25 dark:border-[#24C888]/30 bg-[#E6F6EF]/60 dark:bg-[#0D3326]/50 px-3.5 py-2.5 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#087F56] to-[#24C888] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                      {verifiedRecipient.displayName}
+                    </p>
+                    <p className="text-[11px] text-[#087F56] dark:text-[#24C888] font-mono">
+                      @{verifiedRecipient.username.replace(/^@/, '')} · Confirmed User
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#087F56]/15 text-[#087F56] dark:text-[#24C888]">
+                  Verified
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Add text to your gift */}
@@ -1205,75 +1253,74 @@ export function ComposeAndCheckoutScreen({
           </div>
 
           {/* Payment Method Selector */}
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <p className="text-sm font-bold text-[var(--text-primary)]">
               Payment method
             </p>
 
             {isSignedIn ? (
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentSource('flutterwave')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                    paymentSource === 'flutterwave'
-                      ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2B1426]'
-                      : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/45'
+              <div className="space-y-3">
+                <div
+                  className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between gap-3 ${
+                    hasEnoughCoins
+                      ? 'border-[#087F56]/40 dark:border-[#24C888]/40 bg-[#E6F6EF]/40 dark:bg-[#0D3326]/30'
+                      : 'border-amber-500/40 bg-amber-500/5'
                   }`}
                 >
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">
-                      Flutterwave ({formatNaira(summary.amountPaidNaira)})
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Instant simulated card or bank payment
-                    </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-500 flex items-center justify-center shrink-0">
+                      <Coins className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-[var(--text-primary)]">
+                        Love Coins Balance
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] tabular-nums">
+                        Available: <strong>{formatCoins(currentWallet.loveCoinsBalance)}</strong>
+                      </p>
+                    </div>
                   </div>
-                  <Lock className="w-4 h-4 text-[var(--text-primary)] shrink-0" />
-                </button>
 
-                <button
-                  type="button"
-                  disabled={!hasEnoughCoins}
-                  onClick={() => setPaymentSource('coin_balance')}
-                  className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                    paymentSource === 'coin_balance'
-                      ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2B1426]'
-                      : hasEnoughCoins
-                        ? 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/45'
-                        : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] opacity-60 cursor-not-allowed'
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">
-                      Love Coins balance
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)] tabular-nums">
-                      Available: {formatCoins(currentWallet.loveCoinsBalance)}
-                      {!hasEnoughCoins
-                        ? ` · Need ${formatCoinCount(coinShortfall)} more`
-                        : ''}
-                    </p>
-                  </div>
-                  <Coins className="w-4 h-4 text-[#E61472] dark:text-[#FF4F9A] shrink-0" />
-                </button>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                    hasEnoughCoins
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {hasEnoughCoins ? 'Sufficient' : `Need ${coinShortfall.toLocaleString()} more`}
+                  </span>
+                </div>
 
                 {!hasEnoughCoins && (
-                  <button
-                    type="button"
-                    onClick={onGoToCoins}
-                    className="text-xs font-semibold text-[#E61472] dark:text-[#FF4F9A] hover:underline cursor-pointer"
-                  >
-                    Buy more Love Coins →
-                  </button>
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="font-bold text-[var(--text-primary)]">
+                          Insufficient Love Coins
+                        </p>
+                        <p className="text-[var(--text-secondary)] mt-0.5">
+                          You have {currentWallet.loveCoinsBalance.toLocaleString()} Love Coins, but this gift requires {summary.loveCoinsNeeded.toLocaleString()} Love Coins. Fund your coin balance to send love!
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onGoToCoins}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF2385] to-[#8C52FF] text-white text-xs font-bold shadow-sm hover:brightness-105 active:scale-95 transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>+ Fund Coin Balance</span>
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
               <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-3.5 text-xs text-[var(--text-secondary)] leading-relaxed">
                 <strong className="text-[var(--text-primary)]">
-                  Guest Flutterwave Checkout:
+                  Guest Paystack Checkout:
                 </strong>{' '}
-                No account required. Generates your shareable reveal link immediately.
+                No account required. Pay via card checkout to generate your gift reveal link immediately.
               </div>
             )}
           </div>
@@ -1293,23 +1340,35 @@ export function ComposeAndCheckoutScreen({
               </div>
             )}
 
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              disabled={fwStatus === 'processing'}
-              onClick={handleSimulateSuccess}
-              data-testid="fw-demo-success-btn"
-            >
-              {fwStatus === 'processing' && (
-                <ProgressRing value={0.72} size={24} strokeWidth={3} label="Processing payment" />
-              )}
-              {fwStatus === 'processing'
-                ? 'Processing payment…'
-                : paymentSource === 'coin_balance' && isSignedIn
-                  ? `Spend ${formatCoins(summary.loveCoinsNeeded)}`
-                  : `Pay with Flutterwave · ${formatNaira(summary.amountPaidNaira)}`}
-            </Button>
+            {isSignedIn && !hasEnoughCoins ? (
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onClick={onGoToCoins}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Fund Balance to Send Gift</span>
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                disabled={fwStatus === 'processing'}
+                onClick={handleSimulateSuccess}
+                data-testid="fw-demo-success-btn"
+              >
+                {fwStatus === 'processing' && (
+                  <ProgressRing value={0.72} size={24} strokeWidth={3} label="Processing payment" />
+                )}
+                {fwStatus === 'processing'
+                  ? 'Processing payment…'
+                  : isSignedIn
+                    ? `Spend ${formatCoins(summary.loveCoinsNeeded)}`
+                    : `Pay with Paystack · ${formatNaira(summary.amountPaidNaira)}`}
+              </Button>
+            )}
 
             <Button
               variant="ghost"

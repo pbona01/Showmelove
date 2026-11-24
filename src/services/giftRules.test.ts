@@ -29,7 +29,7 @@ test('economy config validates bounds and computes fee summary accurately', () =
   assert.equal(validateGiftAmount(100_001).valid, false);
 
   assert.equal(ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN, 1);
-  assert.equal(ECONOMY_CONFIG.FUNDING_FEE_BPS, 300);
+  assert.equal(ECONOMY_CONFIG.FUNDING_FEE_BPS, 700);
   assert.equal(ECONOMY_CONFIG.GUEST_GIFT_FEE_BPS, 850);
   assert.equal(ECONOMY_CONFIG.SPRAY_FEE_BPS, 300);
 
@@ -40,9 +40,9 @@ test('economy config validates bounds and computes fee summary accurately', () =
   // Coin packages match reference tiers
   assert.deepEqual(
     COIN_PACKAGES.map((p) => p.coins),
-    [100, 500, 1000, 5000, 10000],
+    [930, 1860, 4650, 9300, 18600],
   );
-  assert.equal(COIN_PACKAGES.find((p) => p.popular)?.coins, 500);
+  assert.equal(COIN_PACKAGES.find((p) => p.popular)?.coins, 4650);
 });
 
 test('checkout is idempotent on double-click or refresh with same checkoutAttemptId', () => {
@@ -232,7 +232,7 @@ test('signed-in sender can buy Love Coins and spend coin balance', () => {
   assert.equal(topup.ok, true);
   assert.equal(
     topup.nextState.walletsByEmail['tunde@showmelove.ng'].loveCoinsBalance,
-    19850,
+    19650,
   );
 
   const spent = createPaidGiftIdempotent(topup.nextState, {
@@ -254,7 +254,7 @@ test('signed-in sender can buy Love Coins and spend coin balance', () => {
   assert.equal(spent.ok, true);
   assert.equal(
     spent.nextState.walletsByEmail['tunde@showmelove.ng'].loveCoinsBalance,
-    18350,
+    18150,
   );
 });
 

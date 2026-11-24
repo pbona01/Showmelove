@@ -186,10 +186,10 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
           <PurpleGiftBoxSvg className="w-16 h-16 sm:w-20 sm:h-20 shrink-0" />
           <div>
             <p className="text-base sm:text-lg font-bold text-[#1A1322] dark:text-[#FAF8FC] leading-snug">
-              Get more Love Coin and spread more love
+              Get Love Coins to send gifts &amp; spray
             </p>
             <p className="text-xs text-[#6B5F78] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
-              Fund at a clear 1:1 price; your wallet receives the post-settlement Coin amount.
+              100 Naira buys 93 Love Coins (7% fee deducted, no extra charge). Withdrawals are 1 Love Coin to ₦1.
             </p>
           </div>
         </div>
@@ -329,21 +329,25 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
 
           <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2 text-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">Package</span>
+              <span className="text-[var(--text-secondary)]">You pay</span>
               <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                <Counter value={Math.max(0, fundingCredit.creditedCoins)} formatter={formatCoinCount} />
+                ₦{activeCostNaira.toLocaleString('en-NG')}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[var(--text-secondary)]">You receive</span>
-              <span className="tabular-nums text-[var(--text-primary)]">
-                Love Coins
+              <span className="font-bold tabular-nums text-[#DF0756] dark:text-[#FF176C]">
+                <Counter value={Math.max(0, fundingCredit.creditedCoins)} formatter={formatCoinCount} />
               </span>
             </div>
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <span className="font-semibold text-[var(--text-primary)]">Total</span>
+            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)] pt-1 border-t border-[var(--border-subtle)]">
+              <span>Fee (7% deducted upfront)</span>
+              <span className="tabular-nums">-{fundingCredit.feeCoins.toLocaleString('en-NG')} coins</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
+              <span className="font-semibold text-[var(--text-primary)]">Total charged</span>
               <span className="text-lg font-bold tabular-nums text-[#DF0756] dark:text-[#FF176C]">
-                {formatNaira(activeCostNaira)}
+                ₦{activeCostNaira.toLocaleString('en-NG')}
               </span>
             </div>
           </div>

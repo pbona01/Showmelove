@@ -12,6 +12,7 @@ import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { SprayCoins } from './SprayCoins';
 import { Button } from './ui/DesignSystem';
+import { lookupVerifiedUser, type VerifiedUser } from '../services/userService';
 
 interface SprayCoinsScreenProps {
   onBack: () => void;
@@ -43,9 +44,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   // Setup state
   const [step, setStep] = useState<SprayStep>('step1_target');
   const [targetName, setTargetName] = useState('');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [confirmedRecipient, setConfirmedRecipient] = useState<CelebrantOption | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [amountPerSpray, setAmountPerSpray] = useState('20');
   const [customAmountActive, setCustomAmountActive] = useState(false);
@@ -68,16 +67,6 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
     });
   }, []);
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Build list of valid registered users
   const registeredUsers = useMemo(() => {
@@ -191,7 +180,6 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
         : `@${account.username.replace(/^@/, '')}`,
     );
     setConfirmedRecipient(account);
-    setDropdownOpen(false);
   };
 
   const layout = SPRAY_LAYOUTS.find((item) => item.id === layoutId) ?? SPRAY_LAYOUTS[0];
@@ -271,8 +259,8 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
               </p>
             </div>
 
-            {/* Recipient Input with Confirmation Dropdown & Strict Validation */}
-            <div className="space-y-1 relative" ref={dropdownRef}>
+            {/* Recipient Input with Strict System Confirmation */}
+            <div className="space-y-1 relative">
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="spray-target-input"
@@ -292,12 +280,8 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   id="spray-target-input"
                   type="text"
                   value={targetName}
-                  onFocus={() => setDropdownOpen(true)}
-                  onChange={(e) => {
-                    setTargetName(e.target.value);
-                    setDropdownOpen(true);
-                  }}
-                  placeholder="Type @username (e.g. @ada, @pbona)"
+                  onChange={(e) => setTargetName(e.target.value)}
+                  placeholder="Type @username (e.g. @ada, @pbona, @virtue)"
                   className={`w-full rounded-xl border bg-[var(--bg-raised)] px-3.5 py-2 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:outline-none focus:ring-2 ${
                     isInvalidUser
                       ? 'border-[#E61472] dark:border-[#FF2385] focus:ring-[#FF2385]'
@@ -316,60 +300,6 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   </span>
                   <span>No Showmelove user has that username.</span>
                 </p>
-              )}
-
-              {/* Confirmation Dropdown Menu */}
-              {dropdownOpen && (
-                <div className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-2xl p-1.5 space-y-1 backdrop-blur-xl">
-                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Registered Celebrants
-                  </div>
-
-                  {filteredCelebrants.length === 0 ? (
-                    <div className="p-3 text-center text-xs text-[var(--text-secondary)]">
-                      No matching user found
-                    </div>
-                  ) : (
-                    filteredCelebrants.map((account) => {
-                      const isSelected =
-                        confirmedRecipient?.username.toLowerCase() ===
-                        account.username.toLowerCase();
-                      return (
-                        <button
-                          key={account.username}
-                          type="button"
-                          onClick={() => handleSelectCelebrant(account)}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-[#E61472]/10 dark:bg-[#FF2385]/15 text-[var(--text-primary)]'
-                              : 'hover:bg-[var(--bg-raised)] text-[var(--text-primary)]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                              {account.displayName.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold truncate">{account.displayName}</p>
-                              <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                                @{account.username.replace(/^@/, '')}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {account.tag && (
-                              <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-raised)] text-[var(--text-secondary)]">
-                                {account.tag}
-                              </span>
-                            )}
-                            {isSelected && <Check className="w-3.5 h-3.5 text-[#FF2385]" />}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
               )}
 
               {/* Confirmed Recipient Banner Card */}
@@ -398,7 +328,6 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                     onClick={() => {
                       setTargetName('');
                       setConfirmedRecipient(null);
-                      setDropdownOpen(true);
                     }}
                     className="text-[11px] font-bold text-[#E61472] dark:text-[#FF4F9A] hover:underline shrink-0 cursor-pointer"
                   >
