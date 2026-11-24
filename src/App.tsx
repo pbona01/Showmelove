@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, Home, Inbox, Loader2, Send, ShieldAlert, User } from 'lucide-react';
+import { Bell, Home, Inbox, Loader2, Send, ShieldAlert, Trophy, User } from 'lucide-react';
 import { isUserAdmin } from './config/admin';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
@@ -16,7 +16,7 @@ import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
-import { LoveCoinHeartSvg } from './components/GiftArtwork';
+import { LoveCoinHeartSvg, ShowmeloveBrandIcon } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
 import {
@@ -325,6 +325,7 @@ function ShowmeloveShell() {
     route.page === 'buy-coins' ||
     route.page === 'withdraw';
   const isSendTab = route.page === 'send';
+  const isLeaderboardTab = route.page === 'leaderboard';
   const isInboxTab = route.page === 'inbox';
   const isProfileTab = route.page === 'profile' || route.page === 'admin';
 
@@ -352,7 +353,7 @@ function ShowmeloveShell() {
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
             <SharedLayout id="showmelove-brand-mark" className="shrink-0">
-              <LoveCoinHeartSvg className="w-7 h-7" priority />
+              <ShowmeloveBrandIcon className="w-8 h-8 rounded-full border border-[var(--border-subtle)] shadow-xs" />
             </SharedLayout>
             <span>
               Showme
@@ -367,6 +368,7 @@ function ShowmeloveShell() {
           >
             {[
               { id: 'home', label: 'Home', active: isHomeTab, href: '/', route: { page: 'home' as const } },
+              { id: 'leaderboard', label: 'Leaderboard', active: isLeaderboardTab, href: '/leaderboard', route: { page: 'leaderboard' as const } },
               { id: 'send', label: 'Send', active: isSendTab, href: '/send', route: { page: 'send' as const } },
               { id: 'inbox', label: 'Inbox', active: isInboxTab, href: '/inbox', route: { page: 'inbox' as const } },
               { id: 'profile', label: 'Profile', active: isProfileTab, href: '/profile', route: { page: 'profile' as const } },
@@ -590,75 +592,85 @@ function ShowmeloveShell() {
       </main>
 
       {/* Persistent Mobile Bottom Navigation with Soft Pink/Purple Active Glow */}
+      {/* Mobile Bottom Navigation matching Image 1: Home, Top Leaderboard, Floating Center Send, Inbox, Profile */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-[var(--nav-glass)] backdrop-blur-xl border-t border-[var(--border-subtle)] grid grid-cols-4 items-center px-2 pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-[var(--nav-glass)] backdrop-blur-xl border-t border-[var(--border-subtle)] grid grid-cols-5 items-center px-1 pb-safe"
       >
-        {[
-          {
-            id: 'home',
-            testId: 'mobile-nav-home',
-            label: 'Home',
-            icon: Home,
-            active: isHomeTab,
-            onClick: () => navigate({ page: 'home' }),
-          },
-          {
-            id: 'send',
-            testId: 'mobile-nav-send',
-            label: 'Send',
-            icon: Send,
-            active: isSendTab,
-            onClick: () => navigate({ page: 'send' }),
-          },
-          {
-            id: 'inbox',
-            testId: 'mobile-nav-inbox',
-            label: 'Inbox',
-            icon: Inbox,
-            active: isInboxTab,
-            badge: unopenedCount > 0,
-            onClick: () => navigate({ page: 'inbox' }),
-          },
-          {
-            id: 'profile',
-            testId: 'mobile-nav-profile',
-            label: 'Profile',
-            icon: User,
-            active: isProfileTab,
-            onClick: () => navigate({ page: 'profile' }),
-          },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={tab.onClick}
-              data-testid={tab.testId}
-              className="h-full flex items-center justify-center cursor-pointer"
-            >
-              <motion.span
-                layout
-                transition={springs.springSnappy}
-                className={`relative flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-2xl text-[11px] font-semibold transition-all ${
-                  tab.active
-                    ? 'bg-gradient-to-br from-[#FF2385]/16 to-[#7C3AED]/20 dark:from-[#FF2385]/26 dark:to-[#7C3AED]/34 text-[#E61472] dark:text-[#FF62A9] ring-1 ring-[#FF2385]/30 dark:ring-[#FF2385]/40 shadow-[0_0_20px_-4px_rgba(255,35,133,0.45)]'
-                    : 'text-[var(--text-secondary)]'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#FF2385]"
-                  />
-                )}
-              </motion.span>
-            </button>
-          );
-        })}
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'home' })}
+          data-testid="mobile-nav-home"
+          className="h-full flex items-center justify-center cursor-pointer"
+        >
+          <span className={`relative flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 text-[10px] font-bold transition-all ${
+            isHomeTab ? 'text-[#E61472] dark:text-[#FF62A9]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}>
+            <Home className="w-5 h-5" />
+            <span>Home</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'leaderboard' })}
+          data-testid="mobile-nav-leaderboard"
+          className="h-full flex items-center justify-center cursor-pointer"
+        >
+          <span className={`relative flex flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-bold transition-all ${
+            isLeaderboardTab ? 'text-[#E61472] dark:text-[#FF62A9]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}>
+            <Trophy className="w-5 h-5" />
+            <span className="truncate max-w-[68px]">Top Leaderboard</span>
+          </span>
+        </button>
+
+        {/* Elevated Glowing Middle Send Button (triggers same Send action as Show Love button) */}
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'send' })}
+          data-testid="mobile-nav-send"
+          className="h-full flex flex-col items-center justify-center -mt-5 cursor-pointer group"
+          aria-label="Send Love"
+        >
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#FF2385] to-[#FF559F] text-white shadow-[0_8px_22px_-2px_rgba(255,35,133,0.65)] flex items-center justify-center transition-transform group-active:scale-95 group-hover:scale-105">
+            <Send className="w-5 h-5 ml-0.5" />
+          </div>
+          <span className="text-[10px] font-bold text-[#E61472] dark:text-[#FF62A9] mt-0.5">
+            Send
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'inbox' })}
+          data-testid="mobile-nav-inbox"
+          className="h-full flex items-center justify-center cursor-pointer"
+        >
+          <span className={`relative flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 text-[10px] font-bold transition-all ${
+            isInboxTab ? 'text-[#E61472] dark:text-[#FF62A9]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}>
+            <Inbox className="w-5 h-5" />
+            <span>Inbox</span>
+            {unopenedCount > 0 && (
+              <span aria-hidden="true" className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-[#FF2385]" />
+            )}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate({ page: 'profile' })}
+          data-testid="mobile-nav-profile"
+          className="h-full flex items-center justify-center cursor-pointer"
+        >
+          <span className={`relative flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 text-[10px] font-bold transition-all ${
+            isProfileTab ? 'text-[#E61472] dark:text-[#FF62A9]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}>
+            <User className="w-5 h-5" />
+            <span>Profile</span>
+          </span>
+        </button>
       </nav>
     </div>
   );

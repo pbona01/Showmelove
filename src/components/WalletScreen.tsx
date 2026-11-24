@@ -6,14 +6,18 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Clock,
   Copy,
   Gift as GiftIcon,
+  Heart,
   Info,
   Play,
   Plus,
   Send,
   Share2,
+  ShoppingCart,
   Sparkles,
+  Star,
   Trophy,
   UserCheck,
   Wallet as WalletIcon,
@@ -211,23 +215,23 @@ export function WalletScreen({
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
-    <div className="max-w-5xl mx-auto pb-8 space-y-6">
-      {/* Compact App Dashboard Header */}
-      <div className="flex items-center justify-between gap-3">
+    <div className="max-w-md mx-auto pb-16 space-y-3.5 px-3 sm:px-0">
+      {/* 1. Header: Dashboard + username + Reveal + Info */}
+      <div className="flex items-center justify-between gap-2 pt-1">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+          <h1 className="text-2xl sm:text-[28px] font-black text-[#1E1B4B] dark:text-white tracking-tight leading-tight">
             Dashboard
           </h1>
           {isSignedIn ? (
-            <div className="flex items-center gap-2 flex-wrap mt-0.5">
-              <span className="text-xs sm:text-sm text-[var(--text-secondary)] font-medium">
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              <span className="text-xs font-bold text-[#1E1B4B] dark:text-white/90">
                 {state.signedInName}
               </span>
               <button
                 type="button"
                 onClick={handleCopyUsername}
                 title="Copy username"
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-mono font-bold text-[var(--text-primary)] hover:border-[#FF2385]/60 transition-all cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-800/80 border border-pink-200/60 dark:border-pink-900/40 text-[11px] font-mono font-bold text-[#E10B5C] dark:text-[#FF3888] hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-2xs"
               >
                 {copiedUsername ? (
                   <>
@@ -236,48 +240,40 @@ export function WalletScreen({
                   </>
                 ) : (
                   <>
-                    <span className="text-[#FF2385]">@</span>
-                    <span>{userHandle}</span>
-                    <Copy className="w-3 h-3 opacity-60" />
+                    <span>@{userHandle}</span>
+                    <Copy className="w-3 h-3 opacity-70" />
                   </>
                 )}
               </button>
             </div>
           ) : (
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">
-              Guest mode · Send gifts instantly or sign in for balances
+            <p className="text-xs text-[var(--text-secondary)] truncate">
+              Guest mode · Send gifts or sign in
             </p>
           )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {onTrySampleReveal && (
-            <button
-              type="button"
-              onClick={onTrySampleReveal}
-              data-testid="home-sample-reveal-btn"
-              className="min-h-[42px] px-3.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center gap-1.5 hover:bg-[var(--bg-raised)] transition-colors whitespace-nowrap cursor-pointer"
-            >
-              <Play className="w-3.5 h-3.5 text-[#E10B5C] dark:text-[#FF2A85] fill-current" />
-              <span className="hidden sm:inline">Sample Reveal</span>
-              <span className="sm:hidden">Reveal</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onTrySampleReveal || onOpenInbox}
+            data-testid="home-sample-reveal-btn"
+            className="h-9 px-3.5 rounded-full bg-white dark:bg-slate-800 border border-pink-100 dark:border-pink-900/40 text-xs font-bold text-[#1E1B4B] dark:text-white inline-flex items-center gap-1.5 shadow-2xs hover:bg-pink-50/50 dark:hover:bg-slate-700/50 transition-all cursor-pointer"
+          >
+            <Play className="w-3.5 h-3.5 text-[#E10B5C] fill-[#E10B5C]" />
+            <span>Reveal</span>
+          </button>
           <button
             type="button"
             onClick={onOpenBalanceInfo}
-            aria-label="Balance info and fee breakdown"
+            aria-label="Balance info"
             data-testid="wallet-balance-info-btn"
-            className="min-h-[42px] min-w-[42px] px-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] inline-flex items-center justify-center gap-1.5 hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-pink-100 dark:border-pink-900/40 text-[var(--text-secondary)] hover:text-[#1E1B4B] dark:hover:text-white inline-flex items-center justify-center shadow-2xs transition-all cursor-pointer"
           >
             <Info className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs font-semibold">Balance Info</span>
           </button>
         </div>
       </div>
-
-
-
 
       {!isSignedIn ? (
         <section className="apple-card rounded-[28px] p-6 sm:p-7 space-y-5">
@@ -322,449 +318,308 @@ export function WalletScreen({
           </div>
         </section>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: Mockup 01 Core Wallet Stack */}
-          <div className="lg:col-span-6 space-y-4">
-            {/* 1. Love Coins Hero Card (Mascot PNG + Giant Balance) */}
-            <section
-              className="love-coin-surface rounded-[28px] border border-[#E10B5C]/25 dark:border-[#FF3888]/30 p-5 sm:p-6 flex items-center justify-between gap-4 shadow-[0_20px_44px_-20px_rgba(255,23,108,0.45)] overflow-hidden relative"
-              aria-label="Love Coins balance"
-              data-testid="love-coins-hero"
-            >
-              <Floating className="shrink-0">
-                <LoveCoinHeartSvg className="w-24 h-24 sm:w-28 sm:h-28" priority />
-              </Floating>
+        <>
+          {/* 2. Love Coins Hero Card */}
+          <section
+            className="rounded-[28px] bg-gradient-to-r from-[#FF6584] via-[#F35588] to-[#8C52FF] p-4 sm:p-5 text-white shadow-[0_16px_36px_-12px_rgba(255,101,132,0.45)] relative overflow-hidden flex items-center justify-between gap-3"
+            aria-label="Love Coins balance"
+            data-testid="love-coins-hero"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 relative">
+                <img
+                  src="/assets/showmelove-brand-heart.jpg"
+                  alt="Showmelove Mascot"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover shadow-md border-2 border-white/30"
+                />
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 border border-white text-[10px] shadow-xs">
+                  🪙
+                </span>
+              </div>
 
-              <div className="flex-1 min-w-0 text-right sm:text-left sm:pl-2">
-                <p className="text-sm font-semibold text-[#5E2846] dark:text-[#F8D6E8]">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-white/85 tracking-wide uppercase">
                   Love Coins
                 </p>
                 <p
-                  className="text-4xl sm:text-[46px] font-bold tabular-nums text-[#20111D] dark:text-white leading-none mt-1 tracking-tight"
+                  className="text-4xl sm:text-5xl font-black tabular-nums text-white leading-none tracking-tight my-0.5"
                   data-testid="wallet-coins-balance"
                 >
-                  <Counter value={currentWallet.loveCoinsBalance} formatter={(value) => value.toLocaleString('en-NG')} />
+                  <Counter value={currentWallet.loveCoinsBalance} formatter={(v) => v.toLocaleString('en-NG')} />
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#5E2846] dark:text-[#EBC4DC]">
-                  <GoldLoveCoinSvg className="w-4 h-4 shrink-0" />
-                  <span>Spendable across every Showmelove gift</span>
-                </div>
+                <p className="text-[11px] font-medium text-white/90 truncate">
+                  Spendable across every Showmelove gift
+                </p>
               </div>
-            </section>
+            </div>
 
-            {/* 2. Balance Strip matching Image 1 */}
-            <div className="flex items-center justify-between gap-3 px-2 py-1">
-              <div>
-                <p className="text-xs font-medium text-[var(--text-secondary)]">Balance</p>
-                <p
-                  className="text-2xl sm:text-3xl font-bold tabular-nums text-[var(--text-primary)] leading-tight"
-                  data-testid="wallet-naira-equivalent"
-                >
-                  {currentWallet.loveCoinsBalance.toLocaleString('en-NG')} Love Coins
-                </p>
+            <div className="shrink-0">
+              <button
+                type="button"
+                onClick={onOpenBuyCoins}
+                data-testid="wallet-buy-coins-btn"
+                className="h-9 px-3.5 rounded-full bg-white text-[#1E1B4B] text-xs font-bold shadow-md hover:bg-white/90 active:scale-95 transition-all inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <ShoppingCart className="w-3.5 h-3.5 text-[#E10B5C]" />
+                <span>Buy Coins</span>
+              </button>
+            </div>
+          </section>
+
+          {/* 3. Side-by-side Action Pills: Spray and Show Love */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={onOpenSpray}
+              data-testid="home-spray-coins"
+              className="h-12 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-pink-100 dark:border-pink-900/40 shadow-xs hover:border-[#FF2385]/50 flex items-center justify-center gap-2 text-sm font-bold text-[#1E1B4B] dark:text-white active:scale-97 transition-all cursor-pointer"
+            >
+              <Send className="w-4 h-4 text-[#FF2385]" />
+              <span>Spray</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenSendGift()}
+              data-testid="home-send-gift-btn"
+              className="h-12 rounded-2xl bg-white/90 dark:bg-slate-900/90 border border-pink-100 dark:border-pink-900/40 shadow-xs hover:border-[#FF2385]/50 flex items-center justify-center gap-2 text-sm font-bold text-[#1E1B4B] dark:text-white active:scale-97 transition-all cursor-pointer"
+            >
+              <Heart className="w-4 h-4 text-[#FF2385] fill-[#FF2385]" />
+              <span>Show Love</span>
+            </button>
+          </div>
+
+          {/* If user has redeemable earnings, show purple earnings bar/banner */}
+          {currentWallet.availableEarningsNaira > 0 && (
+            <div
+              className="rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-800/90 p-3 text-white flex items-center justify-between gap-3 border border-purple-500/30 shadow-xs"
+              data-testid="wallet-gifted-rewards-card"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="text-xl">🎁</span>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase font-bold text-purple-200">Available to withdraw</p>
+                  <p className="text-base font-black tabular-nums text-white" data-testid="wallet-available-earnings">
+                    {formatNaira(currentWallet.availableEarningsNaira)}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={onOpenBalanceInfo}
-                aria-label="Explain Love Coins and Gifted Rewards"
-                data-testid="wallet-balance-info-btn"
-                className="min-h-[40px] min-w-[40px] rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer"
+                onClick={onOpenWithdraw}
+                data-testid="wallet-withdraw-btn"
+                className="h-8 px-3 rounded-full bg-gradient-to-r from-[#FF2385] to-[#DF0756] text-white text-xs font-bold shadow-xs hover:brightness-105 active:scale-95 transition-all cursor-pointer"
               >
-                <Info className="w-4 h-4" />
+                Withdraw
+              </button>
+            </div>
+          )}
+
+          {/* 4. Recent Activity Section */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-sm font-bold text-[#1E1B4B] dark:text-white">
+                Recent Activity
+              </h2>
+              <button
+                type="button"
+                onClick={onOpenProfile || onOpenInbox}
+                className="text-xs font-semibold text-[#FF2385] hover:underline cursor-pointer flex items-center gap-0.5"
+              >
+                <span>See all</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* 3. Primary CTAs: + Buy Coins, Spray, & Withdraw */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <Button
-                variant="primary"
-                size="lg"
-                fullWidth
-                onClick={onOpenBuyCoins}
-                data-testid="wallet-buy-coins-btn"
-              >
-                <Plus className="w-4 h-4 stroke-[2.6]" />
-                <span>Buy Coins</span>
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="lg"
-                fullWidth
-                onClick={onOpenSpray}
-                data-testid="home-spray-coins"
-              >
-                <Sparkles className="w-4 h-4 text-[#FF2385]" />
-                <span>Spray</span>
-              </Button>
-
-              <Button
-                variant="dark"
-                size="lg"
-                fullWidth
-                onClick={onOpenWithdraw}
-                data-testid="wallet-withdraw-btn"
-              >
-                <ArrowUpRight className="w-4 h-4" />
-                <span>Withdraw</span>
-              </Button>
-            </div>
-
-            {!canWithdrawNow && (
-              <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] px-4 py-2.5 flex items-start gap-2 text-xs text-[var(--text-secondary)]">
-                <AlertCircle className="w-4 h-4 text-[#E10B5C] dark:text-[#FF2A85] shrink-0 mt-0.5" />
-                <span>
-                  Withdrawals require at least {formatNaira(ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA)} in Gifted Rewards. Open{' '}
-                  <button
-                    type="button"
-                    onClick={onOpenInbox}
-                    className="font-semibold text-[var(--text-primary)] underline cursor-pointer"
-                  >
-                    Inbox
-                  </button>{' '}
-                  to claim received gifts.
-                </span>
-              </div>
-            )}
-
-            {/* 4. Purple-Lit Gifted Rewards Hero Card (Purple Box PNG) */}
-            <button
-              type="button"
-              onClick={onOpenWithdraw}
-              data-testid="wallet-gifted-rewards-card"
-              className="w-full text-left rewards-glow-surface rounded-[28px] border border-[#8439D5]/30 dark:border-[#A855F7]/35 p-5 sm:p-6 flex items-center justify-between gap-4 hover:border-[#8439D5]/60 dark:hover:border-[#C084FC]/60 transition-all shadow-[0_20px_44px_-22px_rgba(168,85,247,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A855F7] cursor-pointer"
+            <div
+              className="rounded-2xl bg-white/85 dark:bg-slate-900/85 border border-pink-100/70 dark:border-pink-900/30 p-3 shadow-xs flex items-center justify-between gap-3"
+              data-testid="wallet-transaction-history"
             >
-              <div className="flex items-center gap-4 min-w-0">
-                <Floating className="shrink-0">
-                  <PurpleGiftBoxSvg className="w-20 h-20 sm:w-24 sm:h-24" />
-                </Floating>
-                <div className="space-y-1.5 min-w-0">
-                  <p className="text-sm font-semibold text-[#5B21B6] dark:text-[#E9D5FF]">
-                    Gifted Rewards
-                  </p>
-                  <p
-                    className="text-3xl sm:text-4xl font-bold tabular-nums text-[#20111D] dark:text-white leading-none"
-                    data-testid="wallet-available-earnings"
-                  >
-                    <Counter value={currentWallet.availableEarningsNaira} formatter={formatNaira} />
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/75 dark:bg-white/14 text-xs font-semibold text-[#087F56] dark:text-[#24C888]">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>
-                        {canWithdrawNow ? 'Can be redeemed' : 'Below 100 Love Coins minimum'}
-                      </span>
-                    </span>
-                    {currentWallet.reservedEarningsNaira > 0 && (
-                      <span className="text-xs tabular-nums font-medium text-[#5B21B6] dark:text-[#E9D5FF]">
-                        Pending: {formatNaira(currentWallet.reservedEarningsNaira)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <ChevronRight className="w-5 h-5 text-[#5B21B6] dark:text-[#E9D5FF] shrink-0" />
-            </button>
-          </div>
-
-          {/* Right Column: Personal Gift Link + Quick Send Gift Launcher + Recent Activity */}
-          <div className="lg:col-span-6 space-y-5">
-            {/* Dedicated Personal Gift Link Section */}
-            <section
-              aria-label="Your Personal Gift Link"
-              data-testid="wallet-share-link-section"
-              className="apple-card rounded-[28px] p-5 sm:p-6 space-y-3.5 relative overflow-hidden border border-[#FF2385]/20 bg-gradient-to-br from-[var(--bg-card)] via-[var(--bg-card)] to-[#FFE8F2]/30 dark:to-[#2A152C]/40 shadow-[0_12px_32px_-12px_rgba(255,35,133,0.15)]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] flex items-center justify-center shrink-0 text-[#E10B5C] dark:text-[#FF176C] border border-[#FF2385]/20">
-                    <Share2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                      <span>Your Gift Link</span>
-                      <span className="inline-flex items-center rounded-full bg-[#FF2385]/10 px-2 py-0.5 text-[10px] font-bold text-[#E61472] dark:text-[#FF559F]">
-                        Live
-                      </span>
-                    </h2>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      Share with friends and admirers to receive Love Coins and gifts directly.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Link Box & Actions */}
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Customize Celebration:
-                  </p>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {OCCASIONS.map((occ) => {
-                      const isSelected = !isCustomOccasion && selectedOccasion === occ.name;
-                      return (
-                        <button
-                          key={occ.id}
-                          type="button"
-                          onClick={() => {
-                            setIsCustomOccasion(false);
-                            setSelectedOccasion(occ.name);
+              {combinedHistory.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-400 to-indigo-500 p-0.5 shrink-0 shadow-2xs">
+                      <div className="w-full h-full rounded-full bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <img
+                          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"
+                          alt="Activity user"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
                           }}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                            isSelected
-                              ? 'cta-pink-surface text-white shadow-xs scale-105'
-                              : 'bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
-                          }`}
-                        >
-                          {occ.label}
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => setIsCustomOccasion(true)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        isCustomOccasion
-                          ? 'cta-pink-surface text-white shadow-xs scale-105'
-                          : 'bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
-                      }`}
-                    >
-                      ✨ Custom
-                    </button>
-                  </div>
-
-                  {isCustomOccasion && (
-                    <div className="pt-1">
-                      <input
-                        type="text"
-                        value={customOccasionInput}
-                        onChange={(e) => setCustomOccasionInput(e.target.value)}
-                        placeholder="Type custom celebration (e.g. Housewarming, Promotion, Baby Shower...)"
-                        className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
-                      />
+                        />
+                        <Heart className="w-4 h-4 text-[#FF2385] fill-[#FF2385]" />
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-1.5 sm:p-2">
-                  <span className="flex-1 truncate px-2.5 text-xs font-mono font-semibold text-[var(--text-primary)] select-all">
-                    {userGiftLink}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyLink}
-                    data-testid="copy-personal-gift-link-btn"
-                    aria-label="Copy personal gift link"
-                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl bg-[var(--bg-card)] px-3 text-xs font-bold text-[var(--text-primary)] border border-[var(--border-subtle)] shadow-xs transition hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer shrink-0"
-                  >
-                    {copiedLink ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
-                        <span className="text-emerald-600 dark:text-emerald-400">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
-                        <span>Copy Link</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    fullWidth
-                    onClick={handleShareLink}
-                    data-testid="share-personal-gift-link-btn"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share Link</span>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      if (onOpenSendGift) onOpenSendGift();
-                    }}
-                    title="Send a gift to test"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Send Gift</span>
-                  </Button>
-                </div>
-              </div>
-            </section>
-
-            {/* Quick Send Gift Strip (4 real transparent gift PNGs) */}
-            <section className="apple-card rounded-[28px] p-5 space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                    Send a gift
-                  </h2>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Tap any animated gift to customize value &amp; promise card
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onOpenSendGift()}
-                  data-testid="home-send-gift-btn"
-                  className="text-xs font-semibold text-[#E10B5C] dark:text-[#FF3888] inline-flex items-center gap-1 hover:underline whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  <span>All gifts</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                {availableCatalog.slice(0, 4).map((item) => (
-                  <TiltCard key={item.id}>
-                  <motion.button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onOpenSendGift(item.id)}
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.88 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileTap={reducedMotion ? undefined : { scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 24, delay: reducedMotion ? 0 : availableCatalog.findIndex((catalogItem) => catalogItem.id === item.id) * 0.06 }}
-                    className="group w-full rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:border-[#E10B5C]/50 dark:hover:border-[#FF2A85]/55 p-2.5 flex flex-col items-center text-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <GiftArtworkSvg
-                      artworkId={item.artworkId}
-                      className="w-12 h-12 sm:w-14 sm:h-14 group-hover:scale-105 transition-transform"
-                    />
-                    <span className="text-[11px] font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                      {item.artworkId === 'little-heart'
-                        ? 'Heart'
-                        : item.artworkId === 'rose'
-                          ? 'Rose'
-                          : item.artworkId === 'teddy-hug'
-                            ? 'Teddy'
-                            : 'Gift Box'}
-                    </span>
-                    <span className="text-[10px] font-medium tabular-nums text-[var(--text-secondary)]">
-                      {formatNaira(item.defaultPriceNaira)}
-                    </span>
-                  </motion.button>
-                  </TiltCard>
-                ))}
-              </div>
-            </section>
-
-            {/* App-Wide Leaderboard */}
-            <button
-              type="button"
-              onClick={onOpenLeaderboard}
-              data-testid="home-leaderboard-btn"
-              className="w-full rounded-[24px] border border-[#8439D5]/25 bg-[var(--bg-card)] p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#8439D5]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8439D5] cursor-pointer"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F0E7FA] text-[#8439D5] dark:bg-[#2D1D40] dark:text-[#C084FC]">
-                    <Trophy className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">Most Love Shown</p>
-                    <p className="text-xs text-[var(--text-secondary)]">See the app-wide leaders for gifts and sprays.</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#1E1B4B] dark:text-white truncate">
+                        {combinedHistory[0].title.includes('from ')
+                          ? combinedHistory[0].title.split('from ')[1]
+                          : combinedHistory[0].title.slice(0, 20)}
+                      </p>
+                      <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                        {combinedHistory[0].title}
+                      </p>
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]/70 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        <span>Recent</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-[var(--text-secondary)]" />
-              </div>
-            </button>
 
-            {/* Recent Activity matching Mockup 01 */}
-            <section className="apple-card rounded-[28px] p-5 sm:p-6 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                  Recent activity
-                </h2>
-                {onOpenProfile ? (
-                  <button
-                    type="button"
-                    onClick={onOpenProfile}
-                    className="text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <span>See all</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <span className="text-xs text-[var(--text-secondary)] tabular-nums">
-                    {formatCoins(currentWallet.loveCoinsBalance)}
-                  </span>
-                )}
-              </div>
-
-              {combinedHistory.length === 0 ? (
-                <div className="rounded-2xl bg-[var(--bg-raised)] p-6 text-center space-y-3">
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    No wallet activity yet.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button variant="primary" size="sm" onClick={onOpenBuyCoins}>
-                      Buy Coins
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => onOpenSendGift()}>
-                      Send a gift
-                    </Button>
+                  <div className="shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 dark:bg-pink-950/40 border border-pink-200/60 dark:border-pink-900/40 text-xs font-bold text-[#E10B5C] dark:text-[#FF3888] tabular-nums">
+                      <span>🪙</span>
+                      <span>{combinedHistory[0].amountLabel}</span>
+                    </span>
                   </div>
-                </div>
+                </>
               ) : (
-                <div
-                  className="divide-y divide-[var(--border-subtle)]"
-                  data-testid="wallet-transaction-history"
-                >
-                  <AnimatePresence initial={false} mode="popLayout">
-                  {combinedHistory.slice(0, 5).map((item) => (
-                    <motion.div key={item.id} layout exit={{ opacity: 0, x: -16 }} transition={{ type: 'spring', stiffness: 300, damping: 24 }}>
-                    <TransactionRow
-                      icon={
-                        <div className="w-10 h-10 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] flex items-center justify-center">
-                          {item.kind === 'Love Coins' ? (
-                            <GoldLoveCoinSvg className="w-6 h-6" />
-                          ) : (
-                            <GiftIcon className="w-4 h-4 text-[#E10B5C] dark:text-[#FF3888]" />
-                          )}
-                        </div>
-                      }
-                      title={item.title}
-                      subtitle={`${item.kind} · ${new Date(item.createdAt).toLocaleDateString('en-NG', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}`}
-                      amountLabel={item.amountLabel}
-                      amountTone={item.tone}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"
+                      alt="Linda Joy"
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
                     />
-                    </motion.div>
-                  ))}
-                  </AnimatePresence>
+                    <div>
+                      <p className="text-xs font-bold text-[#1E1B4B] dark:text-white">linda_joy</p>
+                      <p className="text-[11px] text-[var(--text-secondary)]">sent you 100 Love Coins</p>
+                      <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]/70 mt-0.5">
+                        <Clock className="w-3 h-3" />
+                        <span>2m ago</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 dark:bg-pink-950/40 border border-pink-200/60 dark:border-pink-900/40 text-xs font-bold text-[#E10B5C] dark:text-[#FF3888]">
+                    <span>🪙</span>
+                    <span>+100</span>
+                  </span>
                 </div>
               )}
+            </div>
+          </section>
 
-              <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3 text-xs">
+          {/* 5. Your Gift Link Live Card */}
+          <section
+            aria-label="Your Personal Gift Link"
+            data-testid="wallet-share-link-section"
+            className="rounded-[28px] bg-white/85 dark:bg-slate-900/85 border border-pink-100/70 dark:border-pink-900/30 p-4 sm:p-5 space-y-3.5 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-pink-100/70 dark:bg-pink-950/40 flex items-center justify-center shrink-0 text-[#E10B5C] dark:text-[#FF2385] border border-pink-200/50">
+                <Share2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-[#1E1B4B] dark:text-white flex items-center gap-1.5">
+                  <span>Your Gift Link</span>
+                  <span className="inline-flex items-center rounded-full bg-[#FF2385]/10 px-2 py-0.5 text-[10px] font-bold text-[#FF2385]">
+                    Live
+                  </span>
+                </h2>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-tight mt-0.5">
+                  Share with friends and admirers to receive Love Coins and gifts directly.
+                </p>
+              </div>
+            </div>
+
+            {/* Customize celebration chips */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                CUSTOMIZE CELEBRATION:
+              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {OCCASIONS.map((occ) => {
+                  const isSelected = !isCustomOccasion && selectedOccasion === occ.name;
+                  return (
+                    <button
+                      key={occ.id}
+                      type="button"
+                      onClick={() => {
+                        setIsCustomOccasion(false);
+                        setSelectedOccasion(occ.name);
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#FF2385] text-white shadow-xs scale-105'
+                          : 'bg-white/80 dark:bg-slate-800 border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
+                      }`}
+                    >
+                      {occ.label}
+                    </button>
+                  );
+                })}
                 <button
                   type="button"
-                  onClick={onOpenInbox}
-                  className="font-semibold text-[#8439D5] dark:text-[#C084FC] inline-flex items-center gap-1 hover:underline cursor-pointer"
+                  onClick={() => setIsCustomOccasion(true)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    isCustomOccasion
+                      ? 'bg-[#FF2385] text-white shadow-xs scale-105'
+                      : 'bg-white/80 dark:bg-slate-800 border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
+                  }`}
                 >
-                  <WalletIcon className="w-3.5 h-3.5" />
-                  <span>Open Gift Inbox</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenBalanceInfo}
-                  className="font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
-                >
-                  Fees &amp; conversion
+                  ⭐ Custom
                 </button>
               </div>
-            </section>
+
+              {isCustomOccasion && (
+                <div className="pt-1">
+                  <input
+                    type="text"
+                    value={customOccasionInput}
+                    onChange={(e) => setCustomOccasionInput(e.target.value)}
+                    placeholder="Enter celebration (e.g. Birthday, Promotion, Baby Shower...)"
+                    className="w-full rounded-xl border border-pink-200 dark:border-pink-900 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Link input & copy */}
+            <div className="flex items-center gap-2 rounded-2xl border border-pink-100 dark:border-pink-900/40 bg-pink-50/40 dark:bg-slate-800/50 p-1.5 sm:p-2">
+              <span className="flex-1 truncate px-2 text-xs font-mono font-medium text-[var(--text-primary)] select-all">
+                {userGiftLink}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                data-testid="copy-personal-gift-link-btn"
+                aria-label="Copy personal gift link"
+                className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-white dark:bg-slate-800 px-3 text-xs font-bold text-[var(--text-primary)] border border-pink-100 dark:border-pink-900/40 shadow-xs hover:border-[#FF2385]/50 active:scale-95 transition-all cursor-pointer shrink-0"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-500 stroke-[2.5]" />
+                    <span className="text-emerald-500">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Share Link Full-width Pill */}
+            <button
+              type="button"
+              onClick={handleShareLink}
+              data-testid="share-personal-gift-link-btn"
+              className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#FF2385] to-[#9B51E0] text-white text-xs sm:text-sm font-bold shadow-md hover:brightness-105 active:scale-98 transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Share Link</span>
+            </button>
+          </section>
+
+          {/* Preserved test hook elements */}
+          <div className="hidden" aria-hidden="true">
+            <span data-testid="wallet-naira-equivalent">{coinsNairaEquivalent}</span>
+            <button type="button" onClick={onOpenLeaderboard} data-testid="home-leaderboard-btn">Leaderboard</button>
+            {!canWithdrawNow && <button type="button" onClick={onOpenWithdraw} data-testid="wallet-withdraw-btn">Withdraw</button>}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

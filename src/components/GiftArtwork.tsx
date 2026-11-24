@@ -3,6 +3,7 @@ import type { GiftArtworkId } from '../types/showmelove';
 
 export const SHOWMELOVE_ASSETS = {
   heartMascot: '/assets/aistudio/Cute_pink_heart_holding_love_coin-2_178421f8.png',
+  brandIcon: '/assets/showmelove-brand-heart.jpg',
   goldLoveCoin: '/assets/aistudio/Glossy_gold_love_coin_with_pink_heart-3_216af72c.png',
   purpleRewardsBox: '/assets/aistudio/Sparkling_purple_heart_gift_box-5_1ecd77a9.png',
   gifts: {
@@ -90,6 +91,22 @@ function FallbackCoinSvg({ className }: { className: string }) {
       <circle cx="32" cy="32" r="27" fill="#F59E0B" />
       <circle cx="32" cy="32" r="21" stroke="#FFFBEB" strokeWidth="2.5" />
     </svg>
+  );
+}
+
+/**
+ * Official Showmelove Brand Icon (red heart hugging character with black eyes, arms, and cute expression).
+ */
+export function ShowmeloveBrandIcon({ className = 'w-7 h-7' }: { className?: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-full flex items-center justify-center shrink-0 ${className}`}>
+      <img
+        src={SHOWMELOVE_ASSETS.brandIcon}
+        alt="Showmelove Icon"
+        className="w-full h-full object-contain"
+        loading="eager"
+      />
+    </div>
   );
 }
 
