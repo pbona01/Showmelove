@@ -263,11 +263,7 @@ export function WalletScreen({
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/55 px-2.5 py-1 text-[11px] font-bold text-[#6A3A13] backdrop-blur-sm dark:bg-white/10 dark:text-[#FFE6A3]">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>LOVE COIN SPRAY</span>
-            </div>
-            <h2 className="mt-2 text-xl font-bold tracking-tight text-[#27120F] dark:text-white">
+            <h2 className="text-xl font-bold tracking-tight text-[#27120F] dark:text-white">
               Swipe across to share the love
             </h2>
             <p className="mt-1 text-sm text-[#613023] dark:text-[#F7DDE6]">

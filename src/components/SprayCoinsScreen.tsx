@@ -1,5 +1,5 @@
-import { ArrowLeft, Check, ChevronRight, LockKeyhole, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Check, CheckCircle2, ChevronRight, LockKeyhole, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { SprayCoins } from './SprayCoins';
@@ -12,6 +12,22 @@ interface SprayCoinsScreenProps {
 
 type SprayStep = 'step1_target' | 'step2_budget' | 'step3_arena';
 
+export interface CelebrantOption {
+  displayName: string;
+  username: string;
+  tag?: string;
+  email?: string;
+}
+
+const DEFAULT_CELEBRANTS: CelebrantOption[] = [
+  { displayName: 'Bene', username: 'pbona', tag: 'Creator', email: 'pbona717@gmail.com' },
+  { displayName: 'Virtue', username: '1virtue1x', tag: 'Celebrant', email: '1virtue1x@gmail.com' },
+  { displayName: 'Adaeze Okafor', username: 'ada', tag: 'Celebrant', email: 'ada@showmelove.ng' },
+  { displayName: 'Tunde Adeyemi', username: 'tunde', tag: 'Creator', email: 'tunde@showmelove.ng' },
+  { displayName: 'Chioma Ade', username: 'chioma', tag: 'Celebrant' },
+  { displayName: 'Celebration Room', username: 'open_room', tag: 'Public Room' },
+];
+
 export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
@@ -19,6 +35,10 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   // Setup state
   const [step, setStep] = useState<SprayStep>('step1_target');
   const [targetName, setTargetName] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [confirmedRecipient, setConfirmedRecipient] = useState<CelebrantOption | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+
   const [amountPerSpray, setAmountPerSpray] = useState('20');
   const [maxSprayLimit, setMaxSprayLimit] = useState('500');
   const [layoutId, setLayoutId] = useState<SprayLayoutId>('classic');
@@ -26,6 +46,60 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   // Active session tracking
   const [totalSprayedInSession, setTotalSprayedInSession] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const allCelebrants = useMemo(() => {
+    const list = [...DEFAULT_CELEBRANTS];
+    try {
+      const raw = localStorage.getItem('showmelove_user_map');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        Object.keys(parsed).forEach((usr) => {
+          if (!list.some((c) => c.username.toLowerCase() === usr.toLowerCase())) {
+            list.push({
+              displayName: usr.charAt(0).toUpperCase() + usr.slice(1),
+              username: usr,
+              email: parsed[usr],
+              tag: 'Registered User',
+            });
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
+    return list;
+  }, []);
+
+  const filteredCelebrants = useMemo(() => {
+    const query = targetName.trim().replace(/^@/, '').toLowerCase();
+    if (!query) return allCelebrants;
+    return allCelebrants.filter(
+      (c) =>
+        c.username.toLowerCase().includes(query) ||
+        c.displayName.toLowerCase().includes(query),
+    );
+  }, [allCelebrants, targetName]);
+
+  const handleSelectCelebrant = (account: CelebrantOption) => {
+    setTargetName(
+      account.username === 'open_room'
+        ? 'Celebration Room'
+        : `@${account.username.replace(/^@/, '')}`,
+    );
+    setConfirmedRecipient(account);
+    setDropdownOpen(false);
+  };
 
   // Eagerly preload all 5 theme coins and theme card artwork into memory
   useEffect(() => {
@@ -92,38 +166,174 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           </button>
 
           <section className="apple-card rounded-[32px] p-6 sm:p-8 space-y-6 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#E61472]/10 dark:bg-[#FF2385]/15 px-3 py-1 text-xs font-bold text-[#E61472] dark:text-[#FF2385]">
-                <Sparkles className="w-3.5 h-3.5" /> Step 1 of 2
-              </div>
+            <div className="space-y-1.5">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Who are you spraying?
               </h1>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                Enter the name or @username of the celebrant, or leave it blank to spray the celebration room.
+                Select or type the celebrant's @username, or choose the open celebration room.
               </p>
             </div>
 
-            {/* Recipient Input */}
-            <div className="space-y-2">
-              <InputField
-                id="spray-target-input"
-                label="Person or Room"
-                type="text"
-                value={targetName}
-                onChange={(e) => setTargetName(e.target.value)}
-                placeholder="e.g. @ada, Tunde, or Celebration Room"
-                hint="You can spray a specific creator, friend, or the open room."
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTargetName('Celebration Room')}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:border-[#FF2385]/50 transition-colors text-[var(--text-primary)] cursor-pointer"
+            {/* Recipient Input with Confirmation Dropdown */}
+            <div className="space-y-2 relative" ref={dropdownRef}>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="spray-target-input"
+                  className="block text-sm font-bold text-[var(--text-primary)]"
                 >
-                  🎉 Open Celebration Room
-                </button>
+                  Person or Room
+                </label>
+                {confirmedRecipient && (
+                  <span className="text-xs font-semibold text-[#087F56] dark:text-[#24C888] inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Confirmed
+                  </span>
+                )}
               </div>
+
+              <div className="relative">
+                <input
+                  id="spray-target-input"
+                  type="text"
+                  value={targetName}
+                  onFocus={() => setDropdownOpen(true)}
+                  onChange={(e) => {
+                    setTargetName(e.target.value);
+                    setDropdownOpen(true);
+                    if (
+                      confirmedRecipient &&
+                      e.target.value !== confirmedRecipient.displayName &&
+                      e.target.value !== `@${confirmedRecipient.username}` &&
+                      e.target.value !== 'Celebration Room'
+                    ) {
+                      setConfirmedRecipient(null);
+                    }
+                  }}
+                  placeholder="Type @username or name..."
+                  className={`w-full rounded-2xl border bg-[var(--bg-raised)] px-4 py-3 text-base font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 ${
+                    confirmedRecipient
+                      ? 'border-[#087F56]/40 dark:border-[#24C888]/40 focus:ring-[#24C888]'
+                      : 'border-[var(--border-subtle)] focus:ring-[#FF2385]'
+                  }`}
+                />
+              </div>
+
+              {/* Confirmation Dropdown Menu */}
+              {dropdownOpen && (
+                <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-2xl p-2 space-y-1 backdrop-blur-xl">
+                  <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Select Account to Confirm
+                  </div>
+
+                  {filteredCelebrants.map((account) => {
+                    const isSelected =
+                      confirmedRecipient?.username.toLowerCase() ===
+                      account.username.toLowerCase();
+                    return (
+                      <button
+                        key={account.username}
+                        type="button"
+                        onClick={() => handleSelectCelebrant(account)}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E61472]/10 dark:bg-[#FF2385]/15 text-[var(--text-primary)]'
+                            : 'hover:bg-[var(--bg-raised)] text-[var(--text-primary)]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#FF2385] to-[#7C3AED] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            {account.displayName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold truncate">{account.displayName}</p>
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              @{account.username.replace(/^@/, '')}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {account.tag && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--bg-raised)] text-[var(--text-secondary)]">
+                              {account.tag}
+                            </span>
+                          )}
+                          {isSelected && <Check className="w-4 h-4 text-[#FF2385]" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* Option for custom typed username if not in presets */}
+                  {targetName.trim() &&
+                    !filteredCelebrants.some(
+                      (c) =>
+                        c.username.toLowerCase() ===
+                        targetName.trim().replace(/^@/, '').toLowerCase(),
+                    ) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleSelectCelebrant({
+                            displayName: targetName.trim().replace(/^@/, ''),
+                            username: targetName.trim().replace(/^@/, ''),
+                            tag: 'Custom Celebrant',
+                          })
+                        }
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-[var(--bg-raised)] text-[var(--text-primary)] cursor-pointer"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7C3AED] to-[#3B82F6] text-white font-bold text-xs flex items-center justify-center shrink-0">
+                          @{targetName.trim().replace(/^@/, '').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate">
+                            Confirm @{targetName.trim().replace(/^@/, '')}
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Tap to confirm spraying to this specific account
+                          </p>
+                        </div>
+                        <CheckCircle2 className="w-4 h-4 text-[#24C888]" />
+                      </button>
+                    )}
+                </div>
+              )}
+
+              {/* Confirmed Recipient Banner Card */}
+              {confirmedRecipient && (
+                <div className="rounded-2xl border border-[#087F56]/25 dark:border-[#24C888]/30 bg-[#E6F6EF]/60 dark:bg-[#0D3326]/50 p-3.5 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#087F56] to-[#24C888] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-[var(--text-primary)]">
+                          {confirmedRecipient.displayName}
+                        </span>
+                        <span className="text-xs font-semibold text-[#087F56] dark:text-[#24C888]">
+                          @{confirmedRecipient.username.replace(/^@/, '')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {confirmedRecipient.username === 'open_room'
+                          ? 'Spraying everyone in the public celebration room.'
+                          : `Coins will be safely sent directly to @${confirmedRecipient.username.replace(/^@/, '')}'s account.`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmedRecipient(null);
+                      setDropdownOpen(true);
+                    }}
+                    className="text-xs font-bold text-[#E61472] dark:text-[#FF4F9A] hover:underline shrink-0 cursor-pointer px-2 py-1"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Amount Per Spray */}
@@ -182,10 +392,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
           </button>
 
           <section className="apple-card rounded-[32px] p-6 sm:p-8 space-y-6 border border-[var(--border-subtle)] shadow-xl bg-[var(--bg-card)]">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#E61472]/10 dark:bg-[#FF2385]/15 px-3 py-1 text-xs font-bold text-[#E61472] dark:text-[#FF2385]">
-                <Sparkles className="w-3.5 h-3.5" /> Step 2 of 2
-              </div>
+            <div className="space-y-1.5">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Set Spray Limit & Theme
               </h1>
