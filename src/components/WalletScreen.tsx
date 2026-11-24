@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AlertCircle,
@@ -94,6 +94,8 @@ export function WalletScreen({
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedUsername, setCopiedUsername] = useState(false);
   const [selectedOccasion, setSelectedOccasion] = useState('Birthday');
+  const [isCustomOccasion, setIsCustomOccasion] = useState(false);
+  const [customOccasionInput, setCustomOccasionInput] = useState('');
 
   const OCCASIONS = [
     { id: 'birthday', label: '🎂 Birthday', name: 'Birthday' },
@@ -103,15 +105,35 @@ export function WalletScreen({
     { id: 'love', label: '❤️ Love', name: 'Showing Love' },
   ];
 
-  const userHandle =
-    state.signedInName.replace(/\s+/g, '').toLowerCase() ||
-    state.signedInEmail.split('@')[0] ||
-    'creator';
+  // Pure username without email attached
+  const userHandle = useMemo(() => {
+    try {
+      const rawMap = localStorage.getItem('showmelove_user_map');
+      if (rawMap && state.signedInEmail) {
+        const map = JSON.parse(rawMap);
+        const entry = Object.entries(map).find(
+          ([, eml]) => String(eml).toLowerCase() === state.signedInEmail.toLowerCase(),
+        );
+        if (entry && entry[0]) return entry[0].replace(/^@/, '').toLowerCase();
+      }
+    } catch {
+      // ignore
+    }
+
+    if (state.signedInEmail) {
+      return state.signedInEmail.split('@')[0].toLowerCase();
+    }
+    return state.signedInName.replace(/\s+/g, '').toLowerCase() || 'creator';
+  }, [state.signedInEmail, state.signedInName]);
+
+  const effectiveOccasion = isCustomOccasion
+    ? (customOccasionInput.trim() || 'Celebration')
+    : selectedOccasion;
 
   const userGiftLink =
-    typeof window !== 'undefined' && state.signedInEmail
-      ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(selectedOccasion)}&name=${encodeURIComponent(state.signedInName)}&email=${encodeURIComponent(state.signedInEmail)}`
-      : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(selectedOccasion)}&name=${encodeURIComponent(state.signedInName)}`;
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`
+      : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`;
 
   const handleCopyUsername = async () => {
     try {
@@ -194,7 +216,7 @@ export function WalletScreen({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
-            Wallet Home
+            Dashboard
           </h1>
           {isSignedIn ? (
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
@@ -254,40 +276,8 @@ export function WalletScreen({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onOpenSpray}
-        className="group relative w-full overflow-hidden rounded-[28px] border border-[#F3B843]/45 bg-gradient-to-br from-[#FFEDB3] via-[#FFD6A6] to-[#F7A8CF] p-5 text-left shadow-[0_18px_42px_-24px_rgba(225,119,41,0.7)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF2385] dark:from-[#41281A] dark:via-[#55273F] dark:to-[#2E193E] sm:p-6"
-        aria-label="Love Coin Spray"
-        data-testid="home-spray-coins"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#27120F] dark:text-white">
-              Swipe across to share the love
-            </h2>
-            <p className="mt-1 text-sm text-[#613023] dark:text-[#F7DDE6]">
-              {isSignedIn
-                ? 'Open your spray room and launch 12–20 Love Coins with every vertical swipe.'
-                : 'Open the spray room to sign in and unlock Love Coin Spray.'}
-            </p>
-          </div>
-          <div className="shrink-0 rounded-2xl bg-white/55 px-3 py-2 text-right text-[#4C2517] backdrop-blur-sm dark:bg-black/20 dark:text-white">
-            <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">Available</p>
-            <p className="text-lg font-bold tabular-nums">
-              {currentWallet.loveCoinsBalance.toLocaleString('en-NG')}
-            </p>
-            <p className="text-[10px] font-semibold">Coins</p>
-          </div>
-        </div>
-        <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#613023] dark:text-[#FFE4A6]">
-          Open Spray Room <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-        </span>
-      </button>
 
-      <button type="button" onClick={onOpenLeaderboard} data-testid="home-leaderboard-btn" className="w-full rounded-[24px] border border-[#8439D5]/25 bg-[var(--bg-card)] p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#8439D5]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8439D5]">
-        <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F0E7FA] text-[#8439D5] dark:bg-[#2D1D40] dark:text-[#C084FC]"><Trophy className="h-5 w-5" /></span><div><p className="text-sm font-bold text-[var(--text-primary)]">Most Love Shown</p><p className="text-xs text-[var(--text-secondary)]">See the app-wide leaders for gifts and sprays.</p></div></div><ChevronRight className="h-5 w-5 text-[var(--text-secondary)]" /></div>
-      </button>
+
 
       {!isSignedIn ? (
         <section className="apple-card rounded-[28px] p-6 sm:p-7 space-y-5">
@@ -362,7 +352,7 @@ export function WalletScreen({
               </div>
             </section>
 
-            {/* 2. Balance Equivalent Strip */}
+            {/* 2. Balance Strip matching Image 1 */}
             <div className="flex items-center justify-between gap-3 px-2 py-1">
               <div>
                 <p className="text-xs font-medium text-[var(--text-secondary)]">Balance</p>
@@ -370,21 +360,22 @@ export function WalletScreen({
                   className="text-2xl sm:text-3xl font-bold tabular-nums text-[var(--text-primary)] leading-tight"
                   data-testid="wallet-naira-equivalent"
                 >
-                  {formatNaira(coinsNairaEquivalent)}
+                  {currentWallet.loveCoinsBalance.toLocaleString('en-NG')} Love Coins
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onOpenBalanceInfo}
                 aria-label="Explain Love Coins and Gifted Rewards"
+                data-testid="wallet-balance-info-btn"
                 className="min-h-[40px] min-w-[40px] rounded-full bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center transition-colors cursor-pointer"
               >
                 <Info className="w-4 h-4" />
               </button>
             </div>
 
-            {/* 3. Side-by-Side Primary CTAs: + Buy Coins & Withdraw */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* 3. Primary CTAs: + Buy Coins, Spray, & Withdraw */}
+            <div className="grid grid-cols-3 gap-2.5">
               <Button
                 variant="primary"
                 size="lg"
@@ -394,6 +385,17 @@ export function WalletScreen({
               >
                 <Plus className="w-4 h-4 stroke-[2.6]" />
                 <span>Buy Coins</span>
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                onClick={onOpenSpray}
+                data-testid="home-spray-coins"
+              >
+                <Sparkles className="w-4 h-4 text-[#FF2385]" />
+                <span>Spray</span>
               </Button>
 
               <Button
@@ -501,12 +503,15 @@ export function WalletScreen({
                   </p>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {OCCASIONS.map((occ) => {
-                      const isSelected = selectedOccasion === occ.name;
+                      const isSelected = !isCustomOccasion && selectedOccasion === occ.name;
                       return (
                         <button
                           key={occ.id}
                           type="button"
-                          onClick={() => setSelectedOccasion(occ.name)}
+                          onClick={() => {
+                            setIsCustomOccasion(false);
+                            setSelectedOccasion(occ.name);
+                          }}
                           className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
                             isSelected
                               ? 'cta-pink-surface text-white shadow-xs scale-105'
@@ -517,7 +522,30 @@ export function WalletScreen({
                         </button>
                       );
                     })}
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomOccasion(true)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        isCustomOccasion
+                          ? 'cta-pink-surface text-white shadow-xs scale-105'
+                          : 'bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[#FF2385]/40'
+                      }`}
+                    >
+                      ✨ Custom
+                    </button>
                   </div>
+
+                  {isCustomOccasion && (
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        value={customOccasionInput}
+                        onChange={(e) => setCustomOccasionInput(e.target.value)}
+                        placeholder="Type custom celebration (e.g. Housewarming, Promotion, Baby Shower...)"
+                        className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-1.5 sm:p-2">
@@ -627,6 +655,27 @@ export function WalletScreen({
                 ))}
               </div>
             </section>
+
+            {/* App-Wide Leaderboard */}
+            <button
+              type="button"
+              onClick={onOpenLeaderboard}
+              data-testid="home-leaderboard-btn"
+              className="w-full rounded-[24px] border border-[#8439D5]/25 bg-[var(--bg-card)] p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#8439D5]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8439D5] cursor-pointer"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F0E7FA] text-[#8439D5] dark:bg-[#2D1D40] dark:text-[#C084FC]">
+                    <Trophy className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">Most Love Shown</p>
+                    <p className="text-xs text-[var(--text-secondary)]">See the app-wide leaders for gifts and sprays.</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-[var(--text-secondary)]" />
+              </div>
+            </button>
 
             {/* Recent Activity matching Mockup 01 */}
             <section className="apple-card rounded-[28px] p-5 sm:p-6 space-y-3">

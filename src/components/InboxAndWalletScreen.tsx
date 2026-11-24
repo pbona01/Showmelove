@@ -258,9 +258,10 @@ export function InboxAndWalletScreen({
               variant="secondary"
               size="md"
               onClick={onGoToWallet}
+              data-testid="inbox-wallet-btn"
               className="rounded-full"
             >
-              Wallet
+              Dashboard
             </Button>
           </div>
         </section>

@@ -64,13 +64,26 @@ function parseLocationRoute(): AppRoute {
     if (giftId) return { page: 'reveal', giftId };
   }
   if (path === '/send') {
+    const rawTo = params.get('to') || params.get('email') || params.get('recipient') || undefined;
+    const cleanTo = rawTo ? rawTo.replace(/^@/, '') : undefined;
     return {
       page: 'send',
       giftCatalogId: params.get('gift') || undefined,
-      recipientEmail: params.get('email') || params.get('to') || params.get('recipient') || undefined,
-      recipientName: params.get('name') || undefined,
+      recipientEmail: cleanTo,
+      recipientName: cleanTo ? `@${cleanTo}` : (params.get('name') || undefined),
       occasion: params.get('for') || params.get('occasion') || undefined,
     };
+  }
+  if (path.startsWith('/@')) {
+    const handle = decodeURIComponent(path.slice(2)).trim().replace(/^@/, '');
+    if (handle) {
+      return {
+        page: 'send',
+        recipientEmail: handle,
+        recipientName: `@${handle}`,
+        occasion: params.get('for') || params.get('occasion') || undefined,
+      };
+    }
   }
   if (path === '/inbox') return { page: 'inbox' };
   if (path === '/wallet') return { page: 'wallet' };
@@ -293,12 +306,15 @@ function ShowmeloveShell() {
     return <PaymentVerificationScreen onDone={() => navigate({ page: 'wallet' })} />;
   }
 
-  // When Supabase Auth is enabled, unauthenticated visitors must land on custom AuthScreen
-  if (isSupabaseAuthConfigured && !hasLiveSession) {
-    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
-  }
+  // Protected routes: unauthenticated users cannot access private account actions (withdrawing, profile settings, admin, personal inbox)
+  // Public routes (sending gifts via gift links, revealing gifts, home exploration) are open to all visitors without requiring an account!
+  const isProtectedRoute =
+    route.page === 'withdraw' ||
+    route.page === 'profile' ||
+    route.page === 'admin' ||
+    route.page === 'inbox';
 
-  if (route.page === 'sign-in') {
+  if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
     return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
   }
 

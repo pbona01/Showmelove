@@ -160,18 +160,25 @@ export function WithdrawScreen({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back to Wallet"
+            aria-label="Back to Dashboard"
             className="min-h-[42px] min-w-[42px] rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center justify-center hover:bg-[var(--bg-raised)] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">
-            Withdraw Rewards
+            Withdraw Gifted Rewards
           </h1>
         </div>
 
         <span className="text-xs font-medium text-[var(--text-secondary)] hidden sm:inline">
-          Nigerian bank payout (demo)
+          Nigerian bank payout
+        </span>
+      </div>
+
+      <div className="rounded-2xl border border-[#8439D5]/20 bg-[#F3E8FF]/30 dark:bg-[#2A1942]/30 p-3 text-xs text-[var(--text-secondary)] leading-relaxed flex items-center gap-2.5">
+        <Receipt className="w-4 h-4 text-[#8439D5] dark:text-[#C084FC] shrink-0" />
+        <span>
+          <strong className="text-[var(--text-primary)]">Gifting Policy:</strong> Deposited coins are reserved exclusively for gifting and coin sprays. Only Gifted Rewards received from others can be withdrawn.
         </span>
       </div>
 
