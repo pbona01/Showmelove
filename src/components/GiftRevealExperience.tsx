@@ -986,8 +986,7 @@ export function GiftRevealExperience({
                     {isPreview ? (
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                         <span className="text-xs text-[#ADA4BA]">
-                          Preview only · Recipient receives{' '}
-                          {formatNaira(gift.recipientEarningsNaira)}
+                          Preview only · {gift.snapshot.name} ({formatNaira(gift.amountNaira)})
                         </span>
                         <Button variant="secondary" size="md" onClick={handleExitReveal}>
                           Back to editor

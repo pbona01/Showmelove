@@ -337,26 +337,22 @@ export function ComposeAndCheckoutScreen({
 
   const validateStepTwo = (): boolean => {
     if (!validateStepOne()) return false;
-    if (!recipientName.trim()) {
-      setFormError("Enter the recipient's name for the Promise Card.");
-      return false;
-    }
-    const email = recipientEmail.trim().toLowerCase();
-    if (!email || !email.includes('@') || !email.includes('.')) {
-      setFormError('Enter a valid recipient email so they can claim their rewards.');
+    const cleanUsername = recipientName.trim().replace(/^@/, '');
+    if (!cleanUsername) {
+      setFormError("Enter the recipient's username.");
       return false;
     }
     const currentSenderEmail = state.signedInEmail?.trim().toLowerCase();
-    if (currentSenderEmail && currentSenderEmail === email) {
-      setFormError('You cannot send a gift to your own email address. Enter a friend or creator email.');
+    const effectiveRecipientEmail =
+      recipientEmail.trim() ||
+      `${cleanUsername.toLowerCase()}@showmelove.fun`;
+
+    if (currentSenderEmail && currentSenderEmail === effectiveRecipientEmail.toLowerCase()) {
+      setFormError('You cannot send a gift to yourself. Enter a friend or creator username.');
       return false;
     }
     if (!promiseText.trim()) {
-      setFormError('Write a short Digital Promise Card message.');
-      return false;
-    }
-    if (!senderName.trim()) {
-      setFormError('Enter your sender name so the Promise Card is signed by you.');
+      setFormError('Add a short message to your gift.');
       return false;
     }
     setFormError(null);
@@ -426,16 +422,21 @@ export function ComposeAndCheckoutScreen({
   ) => {
     if (createdGift) return;
 
+    const cleanUsername = recipientName.trim().replace(/^@/, '');
+    const effectiveRecipientEmail =
+      recipientEmail.trim() ||
+      `${cleanUsername.toLowerCase()}@showmelove.fun`;
+
     const giftId = `sml_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     const res = submitCheckout({
       checkoutAttemptId,
       giftId,
       createdAt: new Date().toISOString(),
       catalogItem: selectedItem,
-      senderName: senderName.trim(),
+      senderName: senderName.trim() || 'You',
       senderEmail: isSignedIn ? state.signedInEmail : undefined,
-      recipientName: recipientName.trim(),
-      recipientEmail: recipientEmail.trim().toLowerCase(),
+      recipientName: recipientName.trim().startsWith('@') ? recipientName.trim() : `@${cleanUsername}`,
+      recipientEmail: effectiveRecipientEmail.toLowerCase(),
       promiseText: promiseText.trim(),
       promiseCardStyle,
       messageText: messageText.trim() || undefined,
@@ -883,20 +884,20 @@ export function ComposeAndCheckoutScreen({
             )}
           </div>
 
-          {/* Compact Sticky Recipient Earnings Card + Primary CTA */}
+          {/* Compact Sticky Gift Summary + Primary CTA */}
           <div className="sticky bottom-[74px] md:bottom-4 z-20 apple-card rounded-[24px] p-4 space-y-3 backdrop-blur-xl">
             <div className="rewards-glow-surface rounded-2xl border border-[#7C3AED]/25 dark:border-[#A855F7]/30 px-3.5 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <GoldLoveCoinSvg className="w-9 h-9 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium text-[#5B21B6] dark:text-[#E9D5FF] tabular-nums">
-                    {selectedItem.name} · {formatCoins(summary.loveCoinsNeeded)}
+                  <p className="text-[11px] font-medium text-[#5B21B6] dark:text-[#E9D5FF] truncate">
+                    {selectedItem.name}
                   </p>
                   <p
                     className="text-sm sm:text-base font-bold tabular-nums text-[#1B1622] dark:text-white"
-                    data-testid="step1-recipient-receives"
+                    data-testid="step1-gift-amount"
                   >
-                    Recipient receives {formatNaira(summary.recipientEarningsNaira)}
+                    {formatCoins(summary.loveCoinsNeeded)} ({formatNaira(summary.amountPaidNaira)})
                   </p>
                 </div>
               </div>
@@ -999,44 +1000,27 @@ export function ComposeAndCheckoutScreen({
             </div>
           </div>
 
-          {/* Recipient & Sender Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Recipient Username */}
+          <div className="space-y-1.5">
             <InputField
               id="recipient-name-input"
-              label="Recipient name"
+              label="Recipient username"
               type="text"
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="e.g. Chioma"
-            />
-            <InputField
-              id="sender-name-input"
-              label="From (Your name)"
-              type="text"
-              value={senderName}
-              onChange={(e) => setSenderName(e.target.value)}
-              placeholder="e.g. Bene"
+              placeholder="e.g. @chioma"
+              hint="Who are you showing love to?"
             />
           </div>
 
-          <InputField
-            id="recipient-email-input"
-            label="Recipient email (for claiming rewards)"
-            type="email"
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            placeholder="e.g. ada@showmelove.ng"
-            hint="Used only to verify who claims the gift. Hidden from public links."
-          />
-
-          {/* Message Editor */}
+          {/* Add text to your gift */}
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label
                 htmlFor="promise-input"
                 className="text-sm font-semibold text-[var(--text-primary)]"
               >
-                Promise message
+                Add text to your gift
               </label>
               <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                 {promiseText.length}/140
@@ -1065,32 +1049,20 @@ export function ComposeAndCheckoutScreen({
             </div>
           </div>
 
-          {/* Optional extra note */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="optional-message-input"
-                className="block text-sm font-medium text-[var(--text-primary)]"
-              >
-                Personal note (optional)
-              </label>
-              <span className="text-[11px] tabular-nums text-[var(--text-secondary)]">
-                {messageText.length}/160
-              </span>
-            </div>
-            <textarea
-              id="optional-message-input"
-              rows={2}
-              maxLength={160}
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Add an extra line beneath your promise..."
-              className="w-full px-3.5 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#E61472]/30 dark:focus:ring-[#FF2385]/40 resize-none"
-            />
-          </div>
-
           {/* Voice Note Recorder / Player (max 30 seconds) */}
           <VoiceNoteRecorder value={voiceNote} onChange={setVoiceNote} />
+
+          {/* From sender (optional signature) */}
+          <div className="pt-1">
+            <InputField
+              id="sender-name-input"
+              label="From (Your name)"
+              type="text"
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              placeholder="e.g. Bene"
+            />
+          </div>
 
           {formError && (
             <div
@@ -1153,46 +1125,35 @@ export function ComposeAndCheckoutScreen({
             <ShieldCheck className="w-6 h-6 text-[#087F56] dark:text-[#24C888] shrink-0" />
           </div>
 
-          {/* Gift & Fee Breakdown */}
-          <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-3 text-sm">
-            <div className="flex items-center gap-3 pb-3 border-b border-[var(--border-subtle)]">
+          {/* Gift Summary */}
+          <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-3">
+            <div className="flex items-center gap-3.5 pb-3 border-b border-[var(--border-subtle)]">
               <GiftArtworkSvg
                 artworkId={selectedItem.artworkId}
-                className="w-14 h-14 shrink-0"
+                className="w-14 h-14 shrink-0 drop-shadow-sm"
               />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-[var(--text-primary)] truncate">
+                <p className="font-bold text-base text-[var(--text-primary)] truncate">
                   {selectedItem.name}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] truncate">
-                  For {recipientName} · From {senderName}
-                </p>
-                <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                  {recipientEmail}
+                  To {displayPreviewRecipient} · From {displayPreviewSender}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold tabular-nums text-[var(--text-primary)]">
-                  {formatNaira(summary.amountPaidNaira)}
+                <p className="font-bold text-base tabular-nums text-[var(--text-primary)]">
+                  {formatCoins(summary.loveCoinsNeeded)}
                 </p>
-                <p className="text-[11px] tabular-nums text-[var(--text-secondary)]">
-                  {formatCoinCount(summary.loveCoinsNeeded)}
+                <p className="text-xs tabular-nums text-[var(--text-secondary)]">
+                  {formatNaira(summary.amountPaidNaira)}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[var(--text-secondary)]">Total to pay</span>
-              <span className="font-bold tabular-nums text-[var(--text-primary)]">
-                {formatNaira(summary.amountPaidNaira)} ({formatCoinCount(summary.loveCoinsNeeded)})
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)]">
-              <span className="font-semibold text-[var(--text-primary)]">
-                Recipient receives
-              </span>
-              <span className="text-lg font-bold tabular-nums text-[#087F56] dark:text-[#24C888]">
-                {formatNaira(summary.recipientEarningsNaira)}
+              <span className="text-[var(--text-secondary)] font-medium">Total to spend</span>
+              <span className="font-bold text-base tabular-nums text-[var(--text-primary)]">
+                {formatCoins(summary.loveCoinsNeeded)} ({formatNaira(summary.amountPaidNaira)})
               </span>
             </div>
           </div>
@@ -1392,23 +1353,29 @@ export function ComposeAndCheckoutScreen({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2 text-sm">
+          <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-4 space-y-2.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">Gift</span>
+              <span className="font-bold text-[var(--text-primary)]">
+                {createdGift.snapshot.name}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-secondary)]">Amount</span>
+              <span className="font-bold tabular-nums text-[var(--text-primary)]">
+                {formatCoins(storedValueToCoins(createdGift.amountNaira))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--text-secondary)]">To</span>
               <span className="font-semibold text-[var(--text-primary)]">
-                {createdGift.snapshot.name} · {formatNaira(createdGift.amountNaira)}
+                {createdGift.recipientName}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">From</span>
               <span className="font-medium text-[var(--text-primary)]">
                 {createdGift.senderName}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--text-secondary)]">Recipient rewards</span>
-              <span className="tabular-nums font-bold text-[#087F56] dark:text-[#24C888]">
-                {formatNaira(createdGift.recipientEarningsNaira)}
               </span>
             </div>
           </div>

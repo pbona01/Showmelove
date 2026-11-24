@@ -24,7 +24,12 @@ import type {
 } from '../types/showmelove';
 
 export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return '';
+  if (!trimmed.includes('@')) {
+    return `${trimmed.replace(/^@/, '')}@showmelove.fun`;
+  }
+  return trimmed;
 }
 
 export function settleLoveCoinSpray(
