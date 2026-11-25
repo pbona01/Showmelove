@@ -18,10 +18,17 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
+  Trash2,
   Trophy,
   UserCheck,
   Wallet as WalletIcon,
 } from 'lucide-react';
+import {
+  getUserPromiseCard,
+  saveUserPromiseCard,
+  type PromiseCardItem,
+  type UserPromiseCard,
+} from '../services/promiseCardService';
 import {
   ECONOMY_CONFIG,
   formatCoins,
@@ -109,7 +116,17 @@ export function WalletScreen({
     { id: 'wedding', label: '💍 Wedding', name: 'Wedding' },
     { id: 'launch', label: '🚀 Launch', name: 'New Launch' },
     { id: 'love', label: '❤️ Love', name: 'Showing Love' },
+    { id: 'promise_card', label: '📜 Promise Card', name: 'Promise Card' },
   ];
+
+  const isPromiseCardMode = !isCustomOccasion && selectedOccasion === 'Promise Card';
+
+  // Promise Card builder state
+  const [promiseCard, setPromiseCard] = useState<UserPromiseCard | null>(null);
+  const [promiseCardLoading, setPromiseCardLoading] = useState(false);
+  const [promiseCardSaved, setPromiseCardSaved] = useState(false);
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemCoins, setNewItemCoins] = useState('500');
 
   // Pure username without email attached
   const userHandle = useMemo(() => {
@@ -136,10 +153,69 @@ export function WalletScreen({
     ? (customOccasionInput.trim() || 'Celebration')
     : selectedOccasion;
 
+  // Load user's promise card
+  useEffect(() => {
+    let active = true;
+    void getUserPromiseCard(userHandle).then((card) => {
+      if (active) setPromiseCard(card);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userHandle]);
+
+  const handleAddPromiseItem = () => {
+    if (!newItemTitle.trim()) return;
+    const coins = Math.max(10, Math.round(Number(newItemCoins) || 100));
+    const newItem: PromiseCardItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      title: newItemTitle.trim(),
+      coins,
+    };
+    setPromiseCard((prev) => {
+      const base = prev || {
+        username: userHandle,
+        title: `${userHandle}'s Promise Card`,
+        items: [],
+      };
+      return {
+        ...base,
+        items: [...base.items, newItem],
+      };
+    });
+    setNewItemTitle('');
+    setNewItemCoins('500');
+    setPromiseCardSaved(false);
+  };
+
+  const handleDeletePromiseItem = (itemId: string) => {
+    setPromiseCard((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.filter((item) => item.id !== itemId),
+      };
+    });
+    setPromiseCardSaved(false);
+  };
+
+  const handleSavePromiseCard = async () => {
+    if (!promiseCard) return;
+    setPromiseCardLoading(true);
+    await saveUserPromiseCard(promiseCard);
+    setPromiseCardLoading(false);
+    setPromiseCardSaved(true);
+    setTimeout(() => setPromiseCardSaved(false), 2500);
+  };
+
   const userGiftLink =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`
-      : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`;
+      ? isPromiseCardMode
+        ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&mode=promise`
+        : `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`
+      : isPromiseCardMode
+        ? `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&mode=promise`
+        : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`;
 
   const handleCopyUsername = async () => {
     try {
@@ -574,6 +650,130 @@ export function WalletScreen({
                     placeholder="Enter celebration (e.g. Birthday, Promotion, Baby Shower...)"
                     className="w-full rounded-xl border border-pink-200 dark:border-pink-900 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
                   />
+                </div>
+              )}
+
+              {/* Promise Card Wishlist Builder */}
+              {isPromiseCardMode && promiseCard && (
+                <div className="mt-3 rounded-2xl border border-[#FF2385]/30 bg-gradient-to-b from-[#FFF5FA] to-white dark:from-[#2B1426]/70 dark:to-slate-800/90 p-4 space-y-3.5 shadow-sm animate-in fade-in">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                        <span>📜</span> Your Digital Promise Card
+                      </h4>
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                        Friends who open this link sponsor your wishlist items in Love Coins.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSavePromiseCard}
+                      disabled={promiseCardLoading}
+                      className="px-3 py-1.5 rounded-xl bg-[#FF2385] text-white text-xs font-bold shadow-xs hover:brightness-110 active:scale-95 transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-60 shrink-0"
+                    >
+                      {promiseCardSaved ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Saved!</span>
+                        </>
+                      ) : (
+                        <span>Save Card</span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Card Title Input */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-[var(--text-secondary)] block">
+                      Card Title
+                    </label>
+                    <input
+                      type="text"
+                      value={promiseCard.title}
+                      onChange={(e) => {
+                        setPromiseCard({ ...promiseCard, title: e.target.value });
+                        setPromiseCardSaved(false);
+                      }}
+                      placeholder="e.g. My Birthday Promise Card"
+                      className="w-full rounded-xl border border-[var(--border-subtle)] bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                    />
+                  </div>
+
+                  {/* Existing Wishlist Items */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-[var(--text-secondary)]">
+                        Wishlist Items ({promiseCard.items.length})
+                      </label>
+                      <span className="text-[10px] text-[var(--text-secondary)]">
+                        Min. 10 Coins
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {promiseCard.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/90 dark:bg-slate-800/90 border border-[var(--border-subtle)]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                              {item.title}
+                            </p>
+                            <p className="text-[11px] font-semibold text-[#FF2385] tabular-nums">
+                              {item.coins.toLocaleString()} Coins (₦{item.coins.toLocaleString()})
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePromiseItem(item.id)}
+                            aria-label={`Remove ${item.title}`}
+                            className="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-500/10 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {promiseCard.items.length === 0 && (
+                        <p className="text-xs text-[var(--text-secondary)] italic py-2 text-center">
+                          No items yet. Add items below so friends know what to sponsor!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Add Item Form */}
+                  <div className="pt-2 border-t border-[var(--border-subtle)] space-y-1.5">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)]">
+                      + Add Wishlist Item
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={newItemTitle}
+                        onChange={(e) => setNewItemTitle(e.target.value)}
+                        placeholder="e.g. Lunch Treat 🍕"
+                        className="sm:col-span-2 rounded-xl border border-[var(--border-subtle)] bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                      />
+                      <div className="flex gap-1.5">
+                        <input
+                          type="number"
+                          min="10"
+                          step="10"
+                          value={newItemCoins}
+                          onChange={(e) => setNewItemCoins(e.target.value)}
+                          placeholder="Coins"
+                          className="w-full rounded-xl border border-[var(--border-subtle)] bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddPromiseItem}
+                          className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold hover:opacity-90 active:scale-95 transition-all shrink-0 cursor-pointer"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

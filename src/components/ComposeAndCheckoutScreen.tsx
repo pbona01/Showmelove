@@ -66,66 +66,6 @@ const PROMISE_IDEAS = [
   'Spa treat so you can unwind properly.',
 ];
 
-export interface PromiseWishlistItem {
-  id: string;
-  title: string;
-  emoji: string;
-  coins: number;
-  description: string;
-  defaultPromiseText: string;
-}
-
-export const PROMISE_CARD_WISHLIST: PromiseWishlistItem[] = [
-  {
-    id: 'coffee_breakfast',
-    title: 'Coffee & Treat',
-    emoji: '☕',
-    coins: 50,
-    description: 'Hot coffee & morning pastries',
-    defaultPromiseText: 'Coffee & pastries on your break today! Start your day with good vibes ✨',
-  },
-  {
-    id: 'cinema_popcorn',
-    title: 'Cinema & Popcorn',
-    emoji: '🎬',
-    coins: 200,
-    description: 'Movie ticket + giant popcorn treat',
-    defaultPromiseText: 'Weekend cinema tickets + popcorn on me! Enjoy the movie 🍿🎬',
-  },
-  {
-    id: 'lunch_drinks',
-    title: 'Lunch Treat',
-    emoji: '🍕',
-    coins: 500,
-    description: 'Delicious lunch + cold drinks',
-    defaultPromiseText: "Lunch is on me today! Pick your favorite spot and enjoy a good meal 🍕🥤",
-  },
-  {
-    id: 'celebration_cake',
-    title: 'Celebration Cake',
-    emoji: '🎂',
-    coins: 1000,
-    description: 'Sweet cake & celebratory goodies',
-    defaultPromiseText: 'A sweet celebration cake just for you! Wishing you love and laughter 🎂❤️',
-  },
-  {
-    id: 'sneakers_fits',
-    title: 'Fresh Fits',
-    emoji: '👟',
-    coins: 2500,
-    description: 'Sneakers or wardrobe shopping',
-    defaultPromiseText: 'Pick out that fresh fit or sneaker you’ve been eyeing! Looking sharp always ✨👟',
-  },
-  {
-    id: 'vip_celebration',
-    title: 'VIP Sponsor',
-    emoji: '👑',
-    coins: 5000,
-    description: 'All-out VIP celebration treat',
-    defaultPromiseText: 'Big spender VIP treat! You deserve nothing but the absolute finest 👑🥂',
-  },
-];
-
 const PRESET_AMOUNTS = [
   { value: 10, label: '10 Coins' },
   { value: 50, label: '50 Coins' },
@@ -181,13 +121,6 @@ export function ComposeAndCheckoutScreen({
   const [selectedCatalogId, setSelectedCatalogId] = useState(defaultGift.id);
   const selectedItem =
     state.catalog.find((g) => g.id === selectedCatalogId) ?? defaultGift;
-
-  const [giftMode, setGiftMode] = useState<'digital_gift' | 'promise_card'>(
-    paramOccasion ? 'promise_card' : 'digital_gift',
-  );
-  const [selectedWishlistId, setSelectedWishlistId] = useState<string | null>(
-    null,
-  );
 
   const [step, setStep] = useState<ComposerStep>('choose');
   // Never pre-fill senderName with a signed-in recipient's name
@@ -307,7 +240,6 @@ export function ComposeAndCheckoutScreen({
 
   const handleSelectGift = (giftId: string) => {
     setSelectedCatalogId(giftId);
-    setSelectedWishlistId(null);
     const found = state.catalog.find((g) => g.id === giftId);
     if (found) {
       const defaultCoinAmount = storedValueToCoins(found.defaultPriceNaira);
@@ -317,16 +249,8 @@ export function ComposeAndCheckoutScreen({
     setFormError(null);
   };
 
-  const handleSelectWishlistItem = (item: PromiseWishlistItem) => {
-    setSelectedWishlistId(item.id);
-    setAmountInput(String(item.coins));
-    setPromiseText(item.defaultPromiseText);
-    setShowCustomAmount(false);
-    setFormError(null);
-  };
-
   const validateStepOne = (): boolean => {
-    if (giftMode === 'digital_gift' && !selectedItem.available) {
+    if (!selectedItem.available) {
       setFormError('This gift is currently paused. Please choose another gift.');
       return false;
     }
@@ -674,11 +598,11 @@ export function ComposeAndCheckoutScreen({
 
   const stepMeta: Array<{ id: ComposerStep; num: string; label: string }> = [
     { id: 'choose', num: '1', label: 'Gift' },
-    { id: 'personalize', num: '2', label: 'Promise Card' },
+    { id: 'personalize', num: '2', label: 'Personalize' },
     { id: 'review', num: '3', label: 'Checkout' },
   ];
 
-  // Promise Card signature is ALWAYS the sender, never the recipient
+  // Note preview displays
   const displayPreviewRecipient = recipientName.trim() || 'Your loved one';
   const displayPreviewSender = senderName.trim() || 'You';
 
@@ -707,7 +631,7 @@ export function ComposeAndCheckoutScreen({
             {createdGift
               ? 'Home'
               : step === 'review'
-                ? 'Promise Card'
+                ? 'Personalize'
                 : step === 'personalize'
                   ? 'Gift'
                   : 'Back'}
@@ -814,105 +738,23 @@ export function ComposeAndCheckoutScreen({
                 Show some love
               </h1>
               <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-                Send an animated digital gift or sponsor an item from their Promise Card wishlist.
+                Send an animated digital gift to someone special.
               </p>
             </div>
 
-            {/* Mode Switcher: Digital Gifts vs Promise Wishlist */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)]">
-              <button
-                type="button"
-                onClick={() => setGiftMode('digital_gift')}
-                className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  giftMode === 'digital_gift'
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/30'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <span>🎁 Digital Gifts</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGiftMode('promise_card')}
-                className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  giftMode === 'promise_card'
-                    ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm ring-1 ring-[#FF2385]/30'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <span>💌 Promise Wishlist</span>
-              </button>
+            {/* Digital Gifts Grid */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {state.catalog.map((item) => (
+                <TactileGiftCard
+                  key={item.id}
+                  item={item}
+                  compact
+                  selected={item.id === selectedItem.id}
+                  showCoins={true}
+                  onSelect={() => handleSelectGift(item.id)}
+                />
+              ))}
             </div>
-
-            {/* View A: Digital Gifts Grid */}
-            {giftMode === 'digital_gift' && (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                {state.catalog.map((item) => (
-                  <TactileGiftCard
-                    key={item.id}
-                    item={item}
-                    compact
-                    selected={item.id === selectedItem.id && !selectedWishlistId}
-                    showCoins={true}
-                    onSelect={() => handleSelectGift(item.id)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* View B: Traditional Nigerian Promise Card Wishlist Grid */}
-            {giftMode === 'promise_card' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                    Pick a Wishlist Promise
-                  </h3>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    Sponsored in Love Coins
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {PROMISE_CARD_WISHLIST.map((item) => {
-                    const isSelected = selectedWishlistId === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleSelectWishlistItem(item)}
-                        className={`text-left p-3.5 rounded-2xl border transition-all cursor-pointer relative flex items-start gap-3 ${
-                          isSelected
-                            ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2B1426] ring-2 ring-[#E61472]/20'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/40 hover:bg-[var(--bg-card)]'
-                        }`}
-                      >
-                        <span className="text-2xl shrink-0 p-2 rounded-xl bg-[var(--bg-card)] shadow-xs">
-                          {item.emoji}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-1.5">
-                            <p className="text-sm font-bold text-[var(--text-primary)] truncate">
-                              {item.title}
-                            </p>
-                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#FFEAF2] dark:bg-[#3A162B] text-[#E10B5C] dark:text-[#FF7AA8] tabular-nums shrink-0">
-                              {item.coins} Coins
-                            </span>
-                          </div>
-                          <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-2">
-                            {item.description}
-                          </p>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#E61472] text-white flex items-center justify-center shadow-xs">
-                            <Check className="w-3 h-3 stroke-[3]" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Gift Value Chips + Validated Custom Input */}
             <div className="space-y-3 pt-1">
@@ -921,7 +763,7 @@ export function ComposeAndCheckoutScreen({
                   htmlFor="custom-amount-input"
                   className="text-sm sm:text-base font-bold text-[var(--text-primary)]"
                 >
-                  {giftMode === 'promise_card' ? 'Adjust Coin Amount' : 'Gift Value'}
+                  Gift Value
                 </label>
                 <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                   {formatNaira(ECONOMY_CONFIG.MIN_GIFT_NAIRA)} –{' '}
@@ -1051,65 +893,8 @@ export function ComposeAndCheckoutScreen({
               Make it personal
             </h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5">
-              Design your Digital Promise Card and add an optional voice note.
+              Add your recipient, personal message, and an optional voice note.
             </p>
-          </div>
-
-          {/* Full-Width Live Promise Card Preview — Signature is ALWAYS Sender */}
-          <PromisePaperCard
-            promiseText={promiseText}
-            messageText={messageText}
-            senderName={displayPreviewSender}
-            recipientName={displayPreviewRecipient}
-            amountNaira={
-              amountValidation.valid
-                ? amountValidation.normalized
-                : selectedItem.defaultPriceNaira
-            }
-            cardStyle={promiseCardStyle}
-          />
-
-          {/* 5 Selectable Card Style Swatches */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold text-[var(--text-primary)]">Card style</p>
-              <span className="text-xs text-[var(--text-secondary)]">
-                {PROMISE_CARD_STYLES.find((s) => s.id === promiseCardStyle)?.label}
-              </span>
-            </div>
-            <div
-              className="grid grid-cols-5 gap-2.5"
-              role="radiogroup"
-              aria-label="Promise card style"
-            >
-              {PROMISE_CARD_STYLES.map((style) => {
-                const active = promiseCardStyle === style.id;
-                return (
-                  <button
-                    key={style.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    aria-label={style.label}
-                    data-testid={`card-style-${style.id}`}
-                    onClick={() => setPromiseCardStyle(style.id)}
-                    className={`h-13 sm:h-14 rounded-2xl ${style.swatchClass} transition-all cursor-pointer relative ${
-                      active
-                        ? 'ring-2 ring-[#E61472] dark:ring-[#FF2385] ring-offset-2 ring-offset-[var(--bg-card)] scale-[1.03]'
-                        : 'border border-[var(--border-subtle)] opacity-85 hover:opacity-100'
-                    }`}
-                  >
-                    {active && (
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <span className="w-5 h-5 rounded-full bg-black/45 text-white flex items-center justify-center">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </span>
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Recipient Username with Confirmation Check */}
@@ -1296,15 +1081,19 @@ export function ComposeAndCheckoutScreen({
             </div>
           </div>
 
-          {/* Promise Card Preview + Voice Note Playback */}
+          {/* Note Preview + Voice Note Playback */}
           <div className="space-y-3">
-            <PromisePaperCard
-              promiseText={promiseText}
-              messageText={messageText}
-              senderName={senderName.trim()}
-              recipientName={recipientName.trim()}
-              cardStyle={promiseCardStyle}
-            />
+            <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-4 sm:p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] border-b border-[var(--border-subtle)] pb-2.5">
+                <span>To: <strong className="text-[var(--text-primary)]">{displayPreviewRecipient}</strong></span>
+                <span>From: <strong className="text-[var(--text-primary)]">{displayPreviewSender}</strong></span>
+              </div>
+              {promiseText ? (
+                <p className="text-sm font-medium text-[var(--text-primary)] italic">
+                  "{promiseText}"
+                </p>
+              ) : null}
+            </div>
 
             {voiceNote.source !== 'none' && (
               <div

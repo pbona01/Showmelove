@@ -17,6 +17,7 @@ import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { TransactionHistoryScreen } from './components/TransactionHistoryScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
+import { PromiseCardGivingScreen } from './components/PromiseCardGivingScreen';
 import { LoveCoinHeartSvg, ShowmeloveBrandIcon } from './components/GiftArtwork';
 import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
@@ -51,6 +52,7 @@ type AppRoute =
   | { page: 'transactions' }
   | { page: 'sign-in' }
   | { page: 'payment-verify' }
+  | { page: 'promise-card'; recipientHandle: string }
   | { page: 'reveal'; giftId: string };
 
 function parseLocationRoute(): AppRoute {
@@ -65,9 +67,18 @@ function parseLocationRoute(): AppRoute {
     const giftId = decodeURIComponent(path.slice('/gift/'.length));
     if (giftId) return { page: 'reveal', giftId };
   }
+  if (path.startsWith('/promise/')) {
+    const handle = decodeURIComponent(path.slice('/promise/'.length)).trim().replace(/^@/, '');
+    if (handle) {
+      return { page: 'promise-card', recipientHandle: handle };
+    }
+  }
   if (path === '/send') {
     const rawTo = params.get('to') || params.get('email') || params.get('recipient') || undefined;
     const cleanTo = rawTo ? rawTo.replace(/^@/, '') : undefined;
+    if (params.get('mode') === 'promise' && cleanTo) {
+      return { page: 'promise-card', recipientHandle: cleanTo };
+    }
     return {
       page: 'send',
       giftCatalogId: params.get('gift') || undefined,
@@ -140,6 +151,8 @@ function routeToPath(route: AppRoute): string {
       return '/sign-in';
     case 'payment-verify':
       return '/payments/verify';
+    case 'promise-card':
+      return `/send?to=${encodeURIComponent(route.recipientHandle)}&mode=promise`;
     case 'reveal':
       return `/gift/${encodeURIComponent(route.giftId)}`;
   }
@@ -488,6 +501,14 @@ function ShowmeloveShell() {
                 initialOccasion={route.occasion}
                 onBackHome={() => navigate({ page: 'home' })}
                 onOpenGiftLink={(giftId) => navigate({ page: 'reveal', giftId })}
+                onGoToCoins={() => navigate({ page: 'buy-coins' })}
+              />
+            )}
+
+            {route.page === 'promise-card' && (
+              <PromiseCardGivingScreen
+                recipientHandle={route.recipientHandle}
+                onBack={() => navigate({ page: 'home' })}
                 onGoToCoins={() => navigate({ page: 'buy-coins' })}
               />
             )}
