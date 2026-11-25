@@ -25,7 +25,7 @@ export const ECONOMY_CONFIG = {
   /** Maximum allowed gift value in Naira */
   MAX_GIFT_NAIRA: 100_000,
   /** Minimum & maximum coin top-up bounds */
-  MIN_COIN_PURCHASE: 100,
+  MIN_COIN_PURCHASE: 10,
   MAX_COIN_PURCHASE: 500_000,
   /** Maximum voice note recording length in seconds */
   MAX_VOICE_NOTE_SECONDS: 30,
@@ -66,16 +66,16 @@ export interface CoinPackage {
 }
 
 export const COIN_PACKAGES: CoinPackage[] = [
-  { id: 'pack_1000', coins: 930, priceNaira: 1000 },
-  { id: 'pack_2000', coins: 1860, priceNaira: 2000 },
+  { id: 'pack_100', coins: 93, priceNaira: 100 },
+  { id: 'pack_500', coins: 465, priceNaira: 500 },
   {
-    id: 'pack_5000',
-    coins: 4650,
-    priceNaira: 5000,
+    id: 'pack_1000',
+    coins: 930,
+    priceNaira: 1000,
     popular: true,
   },
+  { id: 'pack_5000', coins: 4650, priceNaira: 5000 },
   { id: 'pack_10000', coins: 9300, priceNaira: 10000 },
-  { id: 'pack_20000', coins: 18600, priceNaira: 20000 },
 ];
 
 export interface CheckoutSummary {

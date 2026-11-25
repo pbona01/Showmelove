@@ -22,13 +22,66 @@ export const DEFAULT_PROMISE_CARD_ITEMS: PromiseCardItem[] = [
 
 const STORAGE_KEY_PREFIX = 'showmelove_promise_card_';
 
+export function encodePromiseCardPayload(card: UserPromiseCard): string {
+  try {
+    const compact = {
+      t: card.title.trim(),
+      i: card.items.map((item) => [item.title.trim(), item.coins]),
+    };
+    return encodeURIComponent(JSON.stringify(compact));
+  } catch {
+    return '';
+  }
+}
+
+export function decodePromiseCardPayload(rawParam: string, username: string): UserPromiseCard | null {
+  if (!rawParam) return null;
+  try {
+    const decoded = decodeURIComponent(rawParam);
+    const parsed = JSON.parse(decoded);
+    const clean = username.replace(/^@/, '').toLowerCase().trim();
+    if (parsed && Array.isArray(parsed.i)) {
+      const items: PromiseCardItem[] = parsed.i.map((item: any, idx: number) => {
+        if (Array.isArray(item)) {
+          return {
+            id: `item_p_${idx}_${Date.now()}`,
+            title: String(item[0] || 'Wishlist Item').trim(),
+            coins: Math.max(10, Math.round(Number(item[1]) || 100)),
+          };
+        }
+        return {
+          id: `item_p_${idx}_${Date.now()}`,
+          title: String(item.title || item.t || 'Wishlist Item').trim(),
+          coins: Math.max(10, Math.round(Number(item.coins || item.c) || 100)),
+        };
+      });
+      const card: UserPromiseCard = {
+        username: clean,
+        title: String(parsed.t || `${clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : 'My'}'s Promise Card`).trim(),
+        items,
+        updatedAt: new Date().toISOString(),
+      };
+      // Cache decoded card locally for subsequent reloads
+      try {
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}${clean}`, JSON.stringify(card));
+      } catch {
+        // Ignore
+      }
+      return card;
+    }
+  } catch {
+    // Ignore decode error
+  }
+  return null;
+}
+
 export function getLocalPromiseCard(username: string): UserPromiseCard {
   const clean = username.replace(/^@/, '').toLowerCase().trim();
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${clean}`);
     if (raw) {
       const parsed = JSON.parse(raw) as UserPromiseCard;
-      if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      if (parsed && Array.isArray(parsed.items)) {
         return parsed;
       }
     }
@@ -43,8 +96,15 @@ export function getLocalPromiseCard(username: string): UserPromiseCard {
   };
 }
 
-export async function getUserPromiseCard(username: string): Promise<UserPromiseCard> {
+export async function getUserPromiseCard(username: string, rawCardParam?: string): Promise<UserPromiseCard> {
   const clean = username.replace(/^@/, '').toLowerCase().trim();
+
+  // If card data is provided via link param, decode and prioritize it immediately
+  if (rawCardParam) {
+    const fromParam = decodePromiseCardPayload(rawCardParam, clean);
+    if (fromParam) return fromParam;
+  }
+
   const fallback = getLocalPromiseCard(clean);
 
   if (!supabase) return fallback;
@@ -56,7 +116,7 @@ export async function getUserPromiseCard(username: string): Promise<UserPromiseC
       .eq('username', clean)
       .maybeSingle();
 
-    if (!error && data && Array.isArray(data.items) && data.items.length > 0) {
+    if (!error && data && Array.isArray(data.items)) {
       const card: UserPromiseCard = {
         username: data.username,
         title: data.title || fallback.title,

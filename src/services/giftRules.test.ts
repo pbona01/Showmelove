@@ -40,9 +40,9 @@ test('economy config validates bounds and computes fee summary accurately', () =
   // Coin packages match reference tiers
   assert.deepEqual(
     COIN_PACKAGES.map((p) => p.coins),
-    [930, 1860, 4650, 9300, 18600],
+    [93, 465, 930, 4650, 9300],
   );
-  assert.equal(COIN_PACKAGES.find((p) => p.popular)?.coins, 4650);
+  assert.equal(COIN_PACKAGES.find((p) => p.popular)?.coins, 930);
 });
 
 test('checkout is idempotent on double-click or refresh with same checkoutAttemptId', () => {

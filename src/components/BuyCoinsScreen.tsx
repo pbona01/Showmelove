@@ -37,23 +37,23 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
     void refreshLiveWallet();
   }, [refreshLiveWallet]);
 
-  const [selectedCoins, setSelectedCoins] = useState<number>(500);
+  const [selectedPriceNaira, setSelectedPriceNaira] = useState<number>(1000);
   const [isCustomMode, setIsCustomMode] = useState(false);
-  const [customCoinsInput, setCustomCoinsInput] = useState('2500');
+  const [customCoinsInput, setCustomCoinsInput] = useState('1000');
   const [status, setStatus] = useState<CheckoutStatus>('idle');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [coinTrailKey, setCoinTrailKey] = useState(0);
 
   const reducedMotion = usePrefersReducedMotion();
 
-  const activeCoins = isCustomMode ? Math.round(Number(customCoinsInput) || 0) : selectedCoins;
-  const activeCostNaira = Math.max(0, activeCoins * ECONOMY_CONFIG.NAIRA_PER_LOVE_COIN);
+  const activeCostNaira = isCustomMode ? Math.max(0, Math.round(Number(customCoinsInput) || 0)) : selectedPriceNaira;
   const fundingCredit = calculateFundingCredit(activeCostNaira);
+  const activeCoins = fundingCredit.creditedCoins;
   const isValidCustom =
-    activeCoins >= ECONOMY_CONFIG.MIN_COIN_PURCHASE &&
-    activeCoins <= ECONOMY_CONFIG.MAX_COIN_PURCHASE;
+    activeCostNaira >= ECONOMY_CONFIG.MIN_COIN_PURCHASE &&
+    activeCostNaira <= ECONOMY_CONFIG.MAX_COIN_PURCHASE;
 
-  const handlePurchase = async (coins = activeCoins, simulateFailure = false) => {
+  const handlePurchase = async (costNaira = activeCostNaira, simulateFailure = false) => {
     if (!isSignedIn) {
       setStatus('error');
       setStatusMessage('Sign in to securely fund your Love Coin balance.');
@@ -62,7 +62,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
     if (!isValidCustom) {
       setStatus('error');
       setStatusMessage(
-        `Enter between ${ECONOMY_CONFIG.MIN_COIN_PURCHASE.toLocaleString('en-NG')} and ${ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')} Love Coins.`,
+        `Enter between ₦${ECONOMY_CONFIG.MIN_COIN_PURCHASE.toLocaleString('en-NG')} and ₦${ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')}.`,
       );
       return;
     }
@@ -81,7 +81,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
         const response = await fetch('/api/paystack/initialize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
-          body: JSON.stringify({ amountNaira: coins }),
+          body: JSON.stringify({ amountNaira: costNaira }),
         });
         const raw = await response.text();
         let result: { authorizationUrl?: string; reference?: string; error?: string } = {};
@@ -95,7 +95,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
           try {
             localStorage.setItem(
               'showmelove_pending_payment',
-              JSON.stringify({ reference: result.reference, amount: coins, time: Date.now() }),
+              JSON.stringify({ reference: result.reference, amount: costNaira, time: Date.now() }),
             );
           } catch {
             // Ignore storage errors
@@ -119,7 +119,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
         return;
       }
 
-      const res = purchaseLoveCoins(coins);
+      const res = purchaseLoveCoins(costNaira);
       if (!res.ok) {
         setStatus('error');
         setStatusMessage(res.error || 'Could not credit Love Coins.');
@@ -128,7 +128,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
 
       setStatus('success');
       setStatusMessage(
-        `Added ${formatCoinCount(calculateFundingCredit(coins).creditedCoins)} to your wallet.`,
+        `Added ${formatCoinCount(calculateFundingCredit(costNaira).creditedCoins)} to your wallet.`,
       );
       setCoinTrailKey((k) => k + 1);
     }, 360);
@@ -210,7 +210,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
         {/* Package List matching Reference Screen 3 */}
         <section className="lg:col-span-7 apple-card rounded-[28px] p-4 sm:p-5 space-y-2.5">
           {COIN_PACKAGES.map((pkg) => {
-            const isSelected = !isCustomMode && selectedCoins === pkg.coins;
+            const isSelected = !isCustomMode && selectedPriceNaira === pkg.priceNaira;
             return (
               <div key={pkg.id} className="relative pt-1">
                 {pkg.popular && (
@@ -229,34 +229,39 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
                     type="button"
                     onClick={() => {
                       setIsCustomMode(false);
-                      setSelectedCoins(pkg.coins);
+                      setSelectedPriceNaira(pkg.priceNaira);
                       setStatus('idle');
                       setStatusMessage(null);
                     }}
-                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                    className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
                   >
-                    <GoldLoveCoinSvg className="w-8 h-8 shrink-0" />
-                    <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)] truncate">
-                      Fund ₦{pkg.priceNaira.toLocaleString('en-NG')} · receive {formatCoinCount(calculateFundingCredit(pkg.priceNaira).creditedCoins)}
-                    </span>
+                    <GoldLoveCoinSvg className="w-9 h-9 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)] truncate">
+                        {pkg.coins.toLocaleString('en-NG')} Love Coins
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] tabular-nums">
+                        Pay ₦{pkg.priceNaira.toLocaleString('en-NG')} · 7% fee deducted
+                      </p>
+                    </div>
                   </button>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">
-                      {formatNaira(pkg.priceNaira)}
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-sm font-bold tabular-nums text-[var(--text-primary)]">
+                      ₦{pkg.priceNaira.toLocaleString('en-NG')}
                     </span>
                     <button
                       type="button"
                       disabled={status === 'loading'}
                       onClick={() => {
                         setIsCustomMode(false);
-                        setSelectedCoins(pkg.coins);
+                        setSelectedPriceNaira(pkg.priceNaira);
                         setStatus('loading');
                         setStatusMessage(null);
-                        void handlePurchase(pkg.coins);
+                        void handlePurchase(pkg.priceNaira);
                       }}
-                      data-testid={`buy-package-${pkg.coins}-btn`}
-                      className="min-h-[38px] px-4 py-1.5 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap disabled:opacity-50"
+                      data-testid={`buy-package-${pkg.priceNaira}-btn`}
+                      className="min-h-[36px] px-4 py-1.5 rounded-xl bg-[#DF0756] hover:bg-[#C00549] dark:bg-[#FF176C] dark:hover:bg-[#E0105D] text-white text-xs sm:text-sm font-bold transition-colors whitespace-nowrap disabled:opacity-50 cursor-pointer shadow-xs"
                     >
                       Buy
                     </button>
@@ -284,18 +289,18 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
               className="w-full flex items-center justify-between gap-2 text-left"
             >
               <span className="text-sm font-bold text-[var(--text-primary)]">
-                Custom coin amount
+                Custom amount
               </span>
               <span className="text-xs tabular-nums text-[var(--text-secondary)]">
-                {ECONOMY_CONFIG.MIN_COIN_PURCHASE.toLocaleString('en-NG')} –{' '}
-                {ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')}
+                ₦{ECONOMY_CONFIG.MIN_COIN_PURCHASE.toLocaleString('en-NG')} –{' '}
+                ₦{ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')}
               </span>
             </button>
 
             {isCustomMode && (
               <InputField
                 id="custom-buy-coins-input"
-                label="Enter coins to buy"
+                label="Enter Naira amount (₦)"
                 type="number"
                 min={ECONOMY_CONFIG.MIN_COIN_PURCHASE}
                 max={ECONOMY_CONFIG.MAX_COIN_PURCHASE}
@@ -308,7 +313,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
                 className="font-bold tabular-nums bg-[var(--bg-card)]"
                 error={
                   !isValidCustom
-                    ? `Enter between ${ECONOMY_CONFIG.MIN_COIN_PURCHASE} and ${ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')} Coins.`
+                    ? `Enter between ₦${ECONOMY_CONFIG.MIN_COIN_PURCHASE} and ₦${ECONOMY_CONFIG.MAX_COIN_PURCHASE.toLocaleString('en-NG')}.`
                     : undefined
                 }
               />
@@ -341,7 +346,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
               </span>
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)] pt-1 border-t border-[var(--border-subtle)]">
-              <span>Fee (7% deducted upfront)</span>
+              <span>Processing fee (7%)</span>
               <span className="tabular-nums">-{fundingCredit.feeCoins.toLocaleString('en-NG')} coins</span>
             </div>
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
@@ -404,7 +409,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
                 </>
               ) : (
                 <span>
-                  {isSupabaseAuthConfigured ? `Continue to Paystack · ${formatNaira(activeCostNaira)}` : `Pay ${formatNaira(activeCostNaira)} (Demo)`}
+                  Continue to Payment · ₦{activeCostNaira.toLocaleString('en-NG')}
                 </span>
               )}
             </Button>
@@ -415,7 +420,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
               size="sm"
               fullWidth
               disabled={status === 'loading'}
-              onClick={() => void handlePurchase(activeCoins, true)}
+              onClick={() => void handlePurchase(activeCostNaira, true)}
               data-testid="buy-coins-fail-btn"
             >
               Simulate declined card

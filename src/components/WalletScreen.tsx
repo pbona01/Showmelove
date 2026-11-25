@@ -24,6 +24,7 @@ import {
   Wallet as WalletIcon,
 } from 'lucide-react';
 import {
+  encodePromiseCardPayload,
   getUserPromiseCard,
   saveUserPromiseCard,
   type PromiseCardItem,
@@ -172,49 +173,55 @@ export function WalletScreen({
       title: newItemTitle.trim(),
       coins,
     };
-    setPromiseCard((prev) => {
-      const base = prev || {
-        username: userHandle,
-        title: `${userHandle}'s Promise Card`,
-        items: [],
-      };
-      return {
-        ...base,
-        items: [...base.items, newItem],
-      };
-    });
+    const nextCard: UserPromiseCard = {
+      username: userHandle,
+      title: promiseCard?.title || `${userHandle}'s Promise Card`,
+      items: [...(promiseCard?.items || []), newItem],
+      updatedAt: new Date().toISOString(),
+    };
+    setPromiseCard(nextCard);
     setNewItemTitle('');
     setNewItemCoins('500');
-    setPromiseCardSaved(false);
+    setPromiseCardSaved(true);
+    void saveUserPromiseCard(nextCard);
+    setTimeout(() => setPromiseCardSaved(false), 2000);
   };
 
   const handleDeletePromiseItem = (itemId: string) => {
-    setPromiseCard((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.filter((item) => item.id !== itemId),
-      };
-    });
-    setPromiseCardSaved(false);
+    if (!promiseCard) return;
+    const nextCard: UserPromiseCard = {
+      ...promiseCard,
+      username: userHandle,
+      items: promiseCard.items.filter((item) => item.id !== itemId),
+      updatedAt: new Date().toISOString(),
+    };
+    setPromiseCard(nextCard);
+    setPromiseCardSaved(true);
+    void saveUserPromiseCard(nextCard);
+    setTimeout(() => setPromiseCardSaved(false), 2000);
   };
 
   const handleSavePromiseCard = async () => {
     if (!promiseCard) return;
     setPromiseCardLoading(true);
-    await saveUserPromiseCard(promiseCard);
+    await saveUserPromiseCard({ ...promiseCard, username: userHandle });
     setPromiseCardLoading(false);
     setPromiseCardSaved(true);
     setTimeout(() => setPromiseCardSaved(false), 2500);
   };
 
+  const promiseCardParam = useMemo(() => {
+    if (!promiseCard || !isPromiseCardMode) return '';
+    return encodePromiseCardPayload(promiseCard);
+  }, [promiseCard, isPromiseCardMode]);
+
   const userGiftLink =
     typeof window !== 'undefined'
       ? isPromiseCardMode
-        ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&mode=promise`
+        ? `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&mode=promise${promiseCardParam ? `&card=${promiseCardParam}` : ''}`
         : `${window.location.origin}/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`
       : isPromiseCardMode
-        ? `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&mode=promise`
+        ? `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&mode=promise${promiseCardParam ? `&card=${promiseCardParam}` : ''}`
         : `https://showmelove.fun/send?to=${encodeURIComponent(userHandle)}&for=${encodeURIComponent(effectiveOccasion)}`;
 
   const handleCopyUsername = async () => {
@@ -691,8 +698,16 @@ export function WalletScreen({
                       type="text"
                       value={promiseCard.title}
                       onChange={(e) => {
-                        setPromiseCard({ ...promiseCard, title: e.target.value });
+                        const updated = { ...promiseCard, username: userHandle, title: e.target.value };
+                        setPromiseCard(updated);
                         setPromiseCardSaved(false);
+                      }}
+                      onBlur={() => {
+                        if (promiseCard) {
+                          void saveUserPromiseCard({ ...promiseCard, username: userHandle });
+                          setPromiseCardSaved(true);
+                          setTimeout(() => setPromiseCardSaved(false), 2000);
+                        }
                       }}
                       placeholder="e.g. My Birthday Promise Card"
                       className="w-full rounded-xl border border-[var(--border-subtle)] bg-white dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"

@@ -40,7 +40,16 @@ export function PromiseCardGivingScreen({
   useEffect(() => {
     let isCancelled = false;
     setIsLoading(true);
-    void getUserPromiseCard(cleanHandle).then((card) => {
+    const searchParams =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const cardParam =
+      searchParams?.get('card') ||
+      searchParams?.get('items') ||
+      undefined;
+
+    void getUserPromiseCard(cleanHandle, cardParam).then((card) => {
       if (!isCancelled) {
         setPromiseCard(card);
         if (card.items.length > 0) {
