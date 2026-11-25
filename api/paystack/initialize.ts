@@ -66,6 +66,70 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return reply(res, 405, { error: 'Method not allowed' });
 
   try {
+    const body = await readBody(req);
+    const isDirectGift = body?.paymentType === 'direct_gift' || Boolean(body?.giftData);
+    const paystackSecret = required('PAYSTACK_SECRET_KEY');
+    const reference = generateReference();
+    const callbackBase = process.env.PAYSTACK_CALLBACK_URL?.replace(/\/$/, '') || 'https://showmelove.fun/payments/verify';
+
+    // DIRECT GIFT (GUEST OR REGISTERED GIVER SENDING LOVE)
+    if (isDirectGift) {
+      const giftData = body?.giftData || {};
+      const amountNaira = Math.round(Number(body?.amountNaira || giftData?.amountNaira || 0));
+      if (!Number.isInteger(amountNaira) || amountNaira < 10) {
+        return reply(res, 400, { error: 'Gift amount must be at least 10 Love Coins.' });
+      }
+
+      const cleanRecipient = String(giftData.recipientUsername || giftData.recipientName || '').replace(/^@/, '');
+      const customerEmail = String(
+        body?.email ||
+        giftData?.senderEmail ||
+        (cleanRecipient ? `${cleanRecipient}.fan@showmelove.fun` : 'guest@showmelove.fun')
+      ).trim().toLowerCase();
+
+      const giftId = String(giftData.giftId || reference);
+      const callbackUrl = `${callbackBase}?reference=${encodeURIComponent(reference)}&type=gift&giftId=${encodeURIComponent(giftId)}`;
+
+      const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${paystackSecret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: customerEmail,
+          amount: amountNaira * 100, // Paystack amount is in kobo
+          reference,
+          callback_url: callbackUrl,
+          metadata: {
+            payment_type: 'direct_gift',
+            gift_id: giftId,
+            recipient_username: cleanRecipient,
+            recipient_email: String(giftData.recipientEmail || '').toLowerCase(),
+            recipient_name: giftData.recipientName || (cleanRecipient ? `@${cleanRecipient}` : 'You'),
+            sender_name: giftData.senderName || 'A Friend',
+            amount_naira: amountNaira,
+            gift_data: giftData,
+          },
+        }),
+      });
+
+      const payload = (await paystackResponse.json()) as {
+        status?: boolean;
+        message?: string;
+        data?: { authorization_url?: string };
+      };
+
+      if (!paystackResponse.ok || !payload.status || !payload.data?.authorization_url) {
+        return reply(res, 502, {
+          error: payload.message || 'Paystack could not start gift checkout. Confirm PAYSTACK_SECRET_KEY is configured.',
+        });
+      }
+
+      return reply(res, 200, { reference, authorizationUrl: payload.data.authorization_url });
+    }
+
+    // WALLET COIN FUNDING (REQUIRES SIGNED-IN USER SESSION)
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     if (!token) return reply(res, 401, { error: 'Your session is missing. Sign in again before checkout.' });
 
@@ -89,15 +153,10 @@ export default async function handler(req: any, res: any) {
     const user = (await authResponse.json()) as { id?: string; email?: string };
     if (!user.id || !user.email) return reply(res, 401, { error: 'Your account is missing an email address.' });
 
-    const body = await readBody(req);
     const amountNaira = Math.round(Number(body?.amountNaira));
     if (!Number.isInteger(amountNaira) || amountNaira < 100 || amountNaira > 500000) {
       return reply(res, 400, { error: 'Choose a funding amount between 100 and 500,000 Love Coins.' });
     }
-
-    const paystackSecret = required('PAYSTACK_SECRET_KEY');
-    const reference = generateReference();
-    const callbackBase = process.env.PAYSTACK_CALLBACK_URL?.replace(/\/$/, '') || 'https://showmelove.fun/payments/verify';
 
     const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -110,7 +169,7 @@ export default async function handler(req: any, res: any) {
         amount: amountNaira * 100, // Paystack amount is in kobo
         reference,
         callback_url: `${callbackBase}?reference=${encodeURIComponent(reference)}`,
-        metadata: { showmelove_user_id: user.id },
+        metadata: { showmelove_user_id: user.id, payment_type: 'wallet_funding' },
       }),
     });
 

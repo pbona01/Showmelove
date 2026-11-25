@@ -227,6 +227,7 @@ export function ComposeAndCheckoutScreen({
     ),
   );
   const [voiceNote, setVoiceNote] = useState<VoiceNoteValue>({ source: 'none' });
+  const [guestEmail, setGuestEmail] = useState('');
 
   // Inline voice note playback on Step 3 (Checkout)
   const [checkoutVoicePlaying, setCheckoutVoicePlaying] = useState(false);
@@ -479,6 +480,95 @@ export function ComposeAndCheckoutScreen({
 
     setCreatedGift(res.gift);
     setFwStatus('idle');
+  };
+
+  const handlePaystackGuestCheckout = async () => {
+    if (fwStatus === 'processing') return;
+    setFwError(null);
+    setFwStatus('processing');
+
+    const cleanUsername = recipientName.trim().replace(/^@/, '');
+    const effectiveRecipientEmail =
+      recipientEmail.trim() ||
+      verifiedRecipient?.email ||
+      `${cleanUsername.toLowerCase()}@showmelove.fun`;
+
+    const giftId = `sml_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const amountNaira = amountValidation.normalized || selectedItem.defaultPriceNaira;
+
+    const giftPayload = {
+      giftId,
+      checkoutAttemptId,
+      recipientUsername: cleanUsername,
+      recipientEmail: effectiveRecipientEmail.toLowerCase(),
+      recipientName: recipientName.trim().startsWith('@') ? recipientName.trim() : `@${cleanUsername}`,
+      senderName: senderName.trim() || 'A Friend',
+      senderEmail: guestEmail.trim() || undefined,
+      promiseText: promiseText.trim() || "Showing you love ✨",
+      promiseCardStyle,
+      messageText: messageText.trim() || undefined,
+      emote,
+      amountNaira,
+      hasVoiceNote: voiceNote.source !== 'none',
+      voiceNoteSource: voiceNote.source,
+      voiceNoteBlobKey: voiceNote.blobKey,
+      voiceNoteDurationSec: voiceNote.durationSec,
+      snapshot: {
+        id: selectedItem.id,
+        catalogId: selectedItem.id,
+        artworkId: selectedItem.artworkId,
+        name: selectedItem.name,
+        priceNaira: amountNaira,
+        animationType: selectedItem.animationType,
+        themeColor: selectedItem.themeColor,
+        accentColor: selectedItem.accentColor,
+      },
+    };
+
+    try {
+      const response = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentType: 'direct_gift',
+          amountNaira,
+          email: guestEmail.trim() || `${cleanUsername}.fan@showmelove.fun`,
+          giftData: giftPayload,
+        }),
+      });
+
+      const raw = await response.text();
+      let result: { authorizationUrl?: string; reference?: string; error?: string } = {};
+      try {
+        result = JSON.parse(raw);
+      } catch {
+        throw new Error(`Paystack checkout service returned an error (${response.status}).`);
+      }
+
+      if (!response.ok || !result.authorizationUrl) {
+        throw new Error(result.error || 'Could not initialize Paystack checkout.');
+      }
+
+      try {
+        localStorage.setItem(
+          'showmelove_pending_gift',
+          JSON.stringify({
+            reference: result.reference,
+            giftId,
+            gift: giftPayload,
+            time: Date.now(),
+          }),
+        );
+      } catch {
+        // Ignore storage error
+      }
+
+      // Redirect directly to Paystack checkout
+      window.location.assign(result.authorizationUrl);
+    } catch (err) {
+      setFwStatus('failed');
+      setFwError(err instanceof Error ? err.message : 'Could not initialize Paystack checkout.');
+    }
   };
 
   const handleSimulateSuccess = () => {
@@ -1316,11 +1406,31 @@ export function ComposeAndCheckoutScreen({
                 )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-3.5 text-xs text-[var(--text-secondary)] leading-relaxed">
-                <strong className="text-[var(--text-primary)]">
-                  Guest Paystack Checkout:
-                </strong>{' '}
-                No account required. Pay via card checkout to generate your gift reveal link immediately.
+              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] p-4 space-y-2.5 text-xs text-[var(--text-secondary)] leading-relaxed">
+                <div className="flex items-center justify-between">
+                  <strong className="text-[var(--text-primary)] font-bold text-sm">
+                    Guest Paystack Checkout
+                  </strong>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    No Account Needed
+                  </span>
+                </div>
+                <p>
+                  Pay securely using debit card, Apple Pay, bank transfer, or USSD via Paystack. Your gift reveal link will be generated instantly.
+                </p>
+                <div className="pt-1">
+                  <label htmlFor="guest-receipt-email" className="block text-[11px] font-semibold text-[var(--text-secondary)] mb-1">
+                    Your email for payment receipt (optional)
+                  </label>
+                  <input
+                    id="guest-receipt-email"
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="e.g. you@example.com"
+                    className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:outline-none focus:ring-1 focus:ring-[#FF2385]"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1330,13 +1440,22 @@ export function ComposeAndCheckoutScreen({
             {fwError && (
               <div
                 role="alert"
-                className="w-full rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#E61472]/35 dark:border-[#FF2385]/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                className="w-full rounded-2xl bg-[#FFEAF2] dark:bg-[#2F1426] border border-[#E61472]/35 dark:border-[#FF2385]/40 p-3.5 space-y-2.5"
               >
                 <p className="text-xs font-medium text-[var(--text-primary)]">{fwError}</p>
-                <Button variant="dark" size="sm" onClick={handleSimulateSuccess}>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Retry</span>
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant="dark" size="sm" onClick={isSignedIn ? handleSimulateSuccess : handlePaystackGuestCheckout}>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retry Paystack Checkout</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => finalizeGiftOrder('flutterwave_guest')}
+                  >
+                    <span>Complete with Demo Gift</span>
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1356,30 +1475,19 @@ export function ComposeAndCheckoutScreen({
                 size="lg"
                 fullWidth
                 disabled={fwStatus === 'processing'}
-                onClick={handleSimulateSuccess}
+                onClick={isSignedIn ? handleSimulateSuccess : handlePaystackGuestCheckout}
                 data-testid="fw-demo-success-btn"
               >
                 {fwStatus === 'processing' && (
                   <ProgressRing value={0.72} size={24} strokeWidth={3} label="Processing payment" />
                 )}
                 {fwStatus === 'processing'
-                  ? 'Processing payment…'
+                  ? 'Redirecting to Paystack…'
                   : isSignedIn
                     ? `Spend ${formatCoins(summary.loveCoinsNeeded)}`
                     : `Pay with Paystack · ${formatNaira(summary.amountPaidNaira)}`}
               </Button>
             )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              fullWidth
-              disabled={fwStatus === 'processing'}
-              onClick={handleSimulateFailure}
-              data-testid="fw-demo-fail-btn"
-            >
-              Simulate failed payment
-            </Button>
           </div>
         </motion.section>
       )}

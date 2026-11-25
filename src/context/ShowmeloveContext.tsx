@@ -37,6 +37,7 @@ import { showmeloveStorage } from '../services/storage';
 import { audioStorage } from '../services/audioStorage';
 import { supabase } from '../lib/supabase';
 import {
+  fetchIncomingGiftsForUser,
   fetchSharedGiftFromSupabase,
   publishGiftToSupabase,
 } from '../services/supabaseBridge';
@@ -137,39 +138,90 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
   // remains only as an offline-preview fallback; it is never used by Paystack APIs.
   const refreshLiveWallet = useCallback(
     async (userId?: string, email?: string) => {
-      if (!supabase) return;
       try {
         let targetUserId = userId;
         let targetEmail = email;
-        if (!targetUserId || !targetEmail) {
+        if (supabase && (!targetUserId || !targetEmail)) {
           const { data: sessionData } = await supabase.auth.getSession();
           targetUserId = sessionData?.session?.user?.id;
           targetEmail = sessionData?.session?.user?.email;
         }
-        if (!targetUserId || !targetEmail) return;
+        if (!targetEmail) {
+          targetEmail = stateRef.current.signedInEmail;
+        }
+        if (!targetEmail) return;
 
-        const { data: walletData, error } = await supabase
-          .from('wallets')
-          .select('love_coins_balance')
-          .eq('user_id', targetUserId)
-          .maybeSingle();
+        const normEmail = normalizeEmail(targetEmail);
+        const prev = stateRef.current;
+        const current = ensureWallet(prev.walletsByEmail, normEmail);
 
-        if (!error && walletData && typeof walletData.love_coins_balance === 'number') {
-          const normEmail = normalizeEmail(targetEmail);
-          const prev = stateRef.current;
-          const current = ensureWallet(prev.walletsByEmail, normEmail);
-          if (current.loveCoinsBalance !== walletData.love_coins_balance) {
-            commitNext({
-              ...prev,
-              walletsByEmail: {
-                ...prev.walletsByEmail,
-                [normEmail]: {
-                  ...current,
-                  loveCoinsBalance: walletData.love_coins_balance,
-                },
-              },
-            });
+        let nextGifts = [...prev.gifts];
+        let balanceChanged = false;
+        let nextLoveCoins = current.loveCoinsBalance;
+        let nextEarnings = current.availableEarningsNaira;
+        const nextCoinTx = [...current.coinTransactions];
+        const nextEarnTx = [...current.earningsTransactions];
+
+        // 1. Sync live wallet balance from Supabase wallets table
+        if (supabase && targetUserId) {
+          const { data: walletData, error } = await supabase
+            .from('wallets')
+            .select('love_coins_balance')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+
+          if (!error && walletData && typeof walletData.love_coins_balance === 'number') {
+            if (current.loveCoinsBalance !== walletData.love_coins_balance) {
+              nextLoveCoins = walletData.love_coins_balance;
+              balanceChanged = true;
+            }
           }
+        }
+
+        // 2. Cross-device gift sync: fetch all incoming gifts addressed to this user from Supabase
+        const targetUsername = normEmail.split('@')[0];
+        const incomingGifts = await fetchIncomingGiftsForUser(normEmail, targetUsername);
+        if (incomingGifts.length > 0) {
+          for (const gift of incomingGifts) {
+            if (!nextGifts.some((g) => g.id === gift.id)) {
+              nextGifts = [gift, ...nextGifts];
+              balanceChanged = true;
+
+              // Credit the gifted coins / earnings if not already credited in transactions
+              const txId = `ctx_gift_${gift.id}`;
+              if (!nextCoinTx.some((t) => t.id === txId) && !nextEarnTx.some((t) => t.id === txId)) {
+                const giftCoins = gift.recipientEarningsNaira || Math.floor(gift.amountNaira * 0.93);
+                nextLoveCoins += giftCoins;
+                nextEarnings += giftCoins;
+                nextCoinTx.unshift({
+                  id: txId,
+                  createdAt: gift.createdAt,
+                  type: 'spend',
+                  coinsDelta: giftCoins,
+                  amountNaira: gift.amountNaira,
+                  description: `Received ${gift.snapshot.name} from ${gift.senderName}`,
+                  relatedGiftId: gift.id,
+                });
+              }
+            }
+          }
+        }
+
+        if (balanceChanged || nextGifts.length !== prev.gifts.length) {
+          commitNext({
+            ...prev,
+            gifts: nextGifts,
+            walletsByEmail: {
+              ...prev.walletsByEmail,
+              [normEmail]: {
+                ...current,
+                loveCoinsBalance: nextLoveCoins,
+                availableEarningsNaira: nextEarnings,
+                coinTransactions: nextCoinTx,
+                earningsTransactions: nextEarnTx,
+              },
+            },
+          });
         }
       } catch {
         // Fallback gracefully
@@ -179,8 +231,6 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (!supabase) return;
-
     let activeUserId = '';
     let activeUserEmail = '';
 
@@ -201,25 +251,43 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    void supabase.auth.getSession().then(({ data }: { data: any }) => {
-      applySession(data.session);
-    });
+    if (supabase) {
+      void supabase.auth.getSession().then(({ data }: { data: any }) => {
+        applySession(data.session);
+      });
 
-    const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      applySession(session);
-    });
+      const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
+        applySession(session);
+      });
 
-    const handleFocus = () => {
-      if (activeUserId && activeUserEmail) {
-        void refreshLiveWallet(activeUserId, activeUserEmail);
-      }
-    };
-    window.addEventListener('focus', handleFocus);
+      const handleFocus = () => {
+        if (activeUserId && activeUserEmail) {
+          void refreshLiveWallet(activeUserId, activeUserEmail);
+        }
+      };
+      window.addEventListener('focus', handleFocus);
 
-    return () => {
-      data.subscription.unsubscribe();
-      window.removeEventListener('focus', handleFocus);
-    };
+      // Periodic live background sync every 8 seconds for real-time gift reception
+      const syncInterval = window.setInterval(() => {
+        if (activeUserEmail) {
+          void refreshLiveWallet(activeUserId, activeUserEmail);
+        }
+      }, 8000);
+
+      return () => {
+        data.subscription.unsubscribe();
+        window.removeEventListener('focus', handleFocus);
+        window.clearInterval(syncInterval);
+      };
+    } else {
+      // Fallback polling for offline/preview environments
+      const syncInterval = window.setInterval(() => {
+        void refreshLiveWallet();
+      }, 8000);
+      return () => {
+        window.clearInterval(syncInterval);
+      };
+    }
   }, [refreshLiveWallet, signInDemoEmail]);
 
   const resetDemo = useCallback(async () => {

@@ -33,13 +33,15 @@ export async function publishGiftToSupabase(gift: SentGift): Promise<RemoteSyncR
   }
 
   try {
-    // Store public gift payload without private recipientEmail exposure on public read
+    // Store public gift payload with recipient identification for cross-device gifting
     const publicPayload = {
       id: gift.id,
       checkout_attempt_id: gift.checkoutAttemptId,
       created_at: gift.createdAt,
       sender_name: gift.senderName,
+      sender_email: gift.senderEmail ?? null,
       recipient_name: gift.recipientName,
+      recipient_email: gift.recipientEmail ?? null,
       promise_text: gift.promiseText,
       message_text: gift.messageText ?? null,
       emote: gift.emote,
@@ -109,4 +111,70 @@ export async function fetchSharedGiftFromSupabase(giftId: string): Promise<SentG
     return null;
   }
 }
+
+/**
+ * Fetches all incoming gifts addressed to a recipient by their email or @username from Supabase.
+ * Enables live cross-device gifting so recipient dashboards automatically receive gifts sent from other devices.
+ */
+export async function fetchIncomingGiftsForUser(
+  email?: string,
+  username?: string,
+): Promise<SentGift[]> {
+  if (!isSupabaseConfigured) return [];
+  const cleanEmail = email?.trim().toLowerCase();
+  const cleanUsername = username?.trim().replace(/^@/, '').toLowerCase();
+  if (!cleanEmail && !cleanUsername) return [];
+
+  try {
+    const filters: string[] = [];
+    if (cleanEmail) {
+      filters.push(`recipient_email.ilike.${cleanEmail}`);
+    }
+    if (cleanUsername) {
+      filters.push(`recipient_name.ilike.@${cleanUsername}`);
+      filters.push(`recipient_name.ilike.${cleanUsername}`);
+      filters.push(`recipient_email.ilike.${cleanUsername}@%`);
+    }
+
+    const filterQuery = filters.length > 0 ? `or=(${filters.join(',')})` : '';
+    const res = await fetch(
+      `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/gifts?${filterQuery}&order=created_at.desc&select=*`,
+      { headers: getHeaders() },
+    );
+    if (!res.ok) return [];
+    const rows = (await res.json()) as Array<Record<string, unknown>>;
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      checkoutAttemptId: String(row.checkout_attempt_id ?? ''),
+      createdAt: String(row.created_at ?? new Date().toISOString()),
+      senderName: String(row.sender_name ?? 'A friend'),
+      recipientName: String(row.recipient_name ?? (cleanUsername ? `@${cleanUsername}` : 'You')),
+      recipientEmail: String(row.recipient_email ?? cleanEmail ?? ''),
+      promiseText: String(row.promise_text ?? 'A little love from me to you.'),
+      messageText: row.message_text ? String(row.message_text) : undefined,
+      emote: (row.emote as SentGift['emote']) || 'heart-burst',
+      amountNaira: Number(row.amount_naira ?? 1000),
+      coinsSpent: Number(row.coins_spent ?? 1000),
+      platformFeeNaira: Number(row.platform_fee_naira ?? 70),
+      recipientEarningsNaira: Number(row.recipient_earnings_naira ?? 930),
+      hasVoiceNote: Boolean(row.has_voice_note),
+      voiceNoteSource: (row.voice_note_source as SentGift['voiceNoteSource']) || 'none',
+      voiceNoteDurationSec: row.voice_note_duration_sec ? Number(row.voice_note_duration_sec) : undefined,
+      snapshot: (row.snapshot as SentGift['snapshot']) || {
+        catalogId: 'gift_little_heart',
+        artworkId: 'little-heart',
+        name: 'Showmelove Gift',
+        priceNaira: Number(row.amount_naira ?? 1000),
+        animationType: 'bloom',
+        themeColor: '#FF2D78',
+        accentColor: '#3C1630',
+      },
+      claimedAt: row.claimed_at ? String(row.claimed_at) : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 
