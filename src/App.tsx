@@ -326,12 +326,11 @@ function ShowmeloveShell() {
     return <PaymentVerificationScreen onDone={() => navigate({ page: 'wallet' })} />;
   }
 
-  // Protected routes: unauthenticated users cannot access private account actions (withdrawing, profile settings, admin, personal inbox)
+  // Protected routes: unauthenticated users cannot access private account actions (withdrawing, profile settings, personal inbox)
   // Public routes (sending gifts via gift links, revealing gifts, home exploration) are open to all visitors without requiring an account!
   const isProtectedRoute =
     route.page === 'withdraw' ||
     route.page === 'profile' ||
-    route.page === 'admin' ||
     route.page === 'inbox';
 
   if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
@@ -555,7 +554,6 @@ function ShowmeloveShell() {
             {route.page === 'profile' && (
               <ProfileSettingsScreen
                 onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
-                onOpenAdmin={() => navigate({ page: 'admin' })}
                 onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
                 onOpenWithdraw={() => navigate({ page: 'withdraw' })}
               />

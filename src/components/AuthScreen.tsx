@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
-  AtSign,
   CheckCircle2,
   Eye,
   EyeOff,
+  KeyRound,
   Loader2,
   Lock,
   Mail,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
   User,
   UserPlus,
@@ -16,7 +18,13 @@ import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
 import { LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
-type AuthMode = 'sign_in' | 'sign_up';
+export type AuthMode =
+  | 'sign_in'
+  | 'sign_up'
+  | 'verify_signup_code'
+  | 'forgot_password'
+  | 'verify_reset_code'
+  | 'set_new_password';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const [mode, setMode] = useState<AuthMode>('sign_in');
@@ -25,8 +33,27 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const [signUpUsername, setSignUpUsername] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // OTP Code & Password Reset States
+  const [otpCode, setOtpCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingUsername, setPendingUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+
+  // Countdown timer for code resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -85,6 +112,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     return null;
   };
 
+  // 1. SIGN IN
   const handleSignIn = async () => {
     if (!supabase || !identifier.trim() || !password) {
       setStatus('error');
@@ -99,7 +127,9 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       targetEmail = await resolveEmailFromIdentifier(targetEmail);
       if (!targetEmail) {
         setStatus('error');
-        setMessage(`Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address instead.`);
+        setMessage(
+          `Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address instead.`,
+        );
         return;
       }
     }
@@ -111,6 +141,16 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
 
     if (error) {
       setStatus('error');
+      // If error indicates unconfirmed email, allow quick transition to OTP verification
+      if (
+        error.message.toLowerCase().includes('email not confirmed') ||
+        error.message.toLowerCase().includes('not confirmed')
+      ) {
+        setPendingEmail(targetEmail);
+        setMessage('Your email has not been verified yet. Enter the verification code sent to your email.');
+        setMode('verify_signup_code');
+        return;
+      }
       setMessage(error.message);
       return;
     }
@@ -130,13 +170,14 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     setStatus('success');
     const handle = data.user?.user_metadata?.username
       ? `@${data.user.user_metadata.username}`
-      : (data.user?.email || 'your account');
+      : data.user?.email || 'your account';
     setMessage(`Welcome back, ${handle}! Accessing your wallet…`);
     setTimeout(() => {
       if (onBack) onBack();
     }, 600);
   };
 
+  // 2. CREATE ACCOUNT (SIGN UP)
   const handleSignUp = async () => {
     if (!supabase) return;
     const cleanUsername = signUpUsername.trim().replace(/^@/, '');
@@ -165,16 +206,12 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     setStatus('loading');
     setMessage('');
 
-    const redirectUrl =
-      typeof window !== 'undefined' && window.location.origin.includes('showmelove.fun')
-        ? 'https://showmelove.fun/'
-        : `${window.location.origin}/`;
+    const targetEmail = signUpEmail.trim().toLowerCase();
 
     const { data, error } = await supabase.auth.signUp({
-      email: signUpEmail.trim(),
+      email: targetEmail,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
         data: {
           username: cleanUsername.toLowerCase(),
           display_name: cleanUsername,
@@ -189,27 +226,207 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       return;
     }
 
-    // Save username-to-email mapping
+    // Save username-to-email mapping locally
     try {
       const rawMap = localStorage.getItem('showmelove_user_map');
       const map = rawMap ? JSON.parse(rawMap) : {};
-      map[cleanUsername.toLowerCase()] = signUpEmail.trim().toLowerCase();
+      map[cleanUsername.toLowerCase()] = targetEmail;
       localStorage.setItem('showmelove_user_map', JSON.stringify(map));
     } catch {
       // Ignore storage error
     }
 
     if (data.session) {
+      // Instant session (auto-confirmation enabled in Supabase project)
       setStatus('success');
       setMessage(`Account created! Welcome to Showmelove, @${cleanUsername}.`);
       setTimeout(() => {
         if (onBack) onBack();
       }, 700);
     } else {
-      setStatus('success');
-      setMessage(
-        `Account created for @${cleanUsername}! Check your email (${signUpEmail.trim()}) to confirm your account and sign in.`,
-      );
+      // Verification code required: seamlessly switch to 6-digit code verification
+      setPendingEmail(targetEmail);
+      setPendingUsername(cleanUsername);
+      setOtpCode('');
+      setResendCooldown(45);
+      setStatus('idle');
+      setMessage(`We sent a 6-digit verification code to ${targetEmail}.`);
+      setMode('verify_signup_code');
+    }
+  };
+
+  // 3. VERIFY SIGNUP CODE (OTP)
+  const handleVerifySignUpCode = async () => {
+    if (!supabase || !pendingEmail || !otpCode.trim()) {
+      setStatus('error');
+      setMessage('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setStatus('loading');
+    setMessage('');
+
+    const cleanToken = otpCode.trim();
+
+    // Verify OTP using type 'signup' (or fallback to 'email')
+    let result = await supabase.auth.verifyOtp({
+      email: pendingEmail,
+      token: cleanToken,
+      type: 'signup',
+    });
+
+    if (result.error) {
+      result = await supabase.auth.verifyOtp({
+        email: pendingEmail,
+        token: cleanToken,
+        type: 'email',
+      });
+    }
+
+    if (result.error) {
+      setStatus('error');
+      setMessage(result.error.message || 'Invalid or expired verification code. Please check and try again.');
+      return;
+    }
+
+    setStatus('success');
+    const userHandle = pendingUsername ? `@${pendingUsername}` : pendingEmail;
+    setMessage(`Email verified! Welcome to Showmelove, ${userHandle}.`);
+    setTimeout(() => {
+      if (onBack) onBack();
+    }, 700);
+  };
+
+  // 4. FORGOT PASSWORD - REQUEST 6-DIGIT CODE
+  const handleSendResetCode = async () => {
+    if (!supabase || !identifier.trim()) {
+      setStatus('error');
+      setMessage('Enter your username or email address to receive a reset code.');
+      return;
+    }
+
+    setStatus('loading');
+    setMessage('');
+
+    let targetEmail: string | null = identifier.trim();
+    if (!targetEmail.includes('@')) {
+      targetEmail = await resolveEmailFromIdentifier(targetEmail);
+      if (!targetEmail) {
+        setStatus('error');
+        setMessage(
+          `Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address.`,
+        );
+        return;
+      }
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail);
+
+    if (error) {
+      setStatus('error');
+      setMessage(error.message);
+      return;
+    }
+
+    setPendingEmail(targetEmail);
+    setOtpCode('');
+    setResendCooldown(45);
+    setStatus('idle');
+    setMessage(`We sent a 6-digit security code to ${targetEmail}.`);
+    setMode('verify_reset_code');
+  };
+
+  // 5. VERIFY RESET PASSWORD CODE (OTP)
+  const handleVerifyResetCode = async () => {
+    if (!supabase || !pendingEmail || !otpCode.trim()) {
+      setStatus('error');
+      setMessage('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setStatus('loading');
+    setMessage('');
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: pendingEmail,
+      token: otpCode.trim(),
+      type: 'recovery',
+    });
+
+    if (error) {
+      setStatus('error');
+      setMessage(error.message || 'Invalid or expired reset code. Please try again.');
+      return;
+    }
+
+    setStatus('success');
+    setMessage('Code verified! Now set your new password.');
+    setTimeout(() => {
+      setStatus('idle');
+      setMessage('');
+      setMode('set_new_password');
+    }, 400);
+  };
+
+  // 6. SET NEW PASSWORD
+  const handleSetNewPassword = async () => {
+    if (!supabase) return;
+
+    if (!newPassword || newPassword.length < 6) {
+      setStatus('error');
+      setMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setStatus('error');
+      setMessage('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setStatus('loading');
+    setMessage('');
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      setStatus('error');
+      setMessage(error.message);
+      return;
+    }
+
+    setStatus('success');
+    setMessage('Password successfully updated! Accessing your wallet…');
+    setTimeout(() => {
+      if (onBack) onBack();
+    }, 700);
+  };
+
+  // RESEND CODE HELPER
+  const handleResendCode = async (purpose: 'signup' | 'recovery') => {
+    if (!supabase || !pendingEmail || resendCooldown > 0) return;
+    setStatus('loading');
+    setMessage('');
+
+    try {
+      if (purpose === 'signup') {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: pendingEmail,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(pendingEmail);
+        if (error) throw error;
+      }
+      setResendCooldown(45);
+      setStatus('idle');
+      setMessage(`A fresh 6-digit verification code has been sent to ${pendingEmail}.`);
+    } catch (err: any) {
+      setStatus('error');
+      setMessage(err.message || 'Failed to resend code. Please try again in a few seconds.');
     }
   };
 
@@ -217,8 +434,16 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     e.preventDefault();
     if (mode === 'sign_in') {
       void handleSignIn();
-    } else {
+    } else if (mode === 'sign_up') {
       void handleSignUp();
+    } else if (mode === 'verify_signup_code') {
+      void handleVerifySignUpCode();
+    } else if (mode === 'forgot_password') {
+      void handleSendResetCode();
+    } else if (mode === 'verify_reset_code') {
+      void handleVerifyResetCode();
+    } else if (mode === 'set_new_password') {
+      void handleSetNewPassword();
     }
   };
 
@@ -244,48 +469,66 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             <Sparkles className="w-3.5 h-3.5" /> Showmelove
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            {mode === 'sign_in' ? 'Sign In' : 'Create Account'}
+            {mode === 'sign_in' && 'Sign In'}
+            {mode === 'sign_up' && 'Create Account'}
+            {mode === 'verify_signup_code' && 'Verify Email Code'}
+            {mode === 'forgot_password' && 'Reset Password'}
+            {mode === 'verify_reset_code' && 'Enter Security Code'}
+            {mode === 'set_new_password' && 'Create New Password'}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
-            {mode === 'sign_in'
-              ? 'Enter your username or email and password to access your wallet.'
-              : 'Choose a unique username and enter your email to get started.'}
+            {mode === 'sign_in' && 'Enter your username or email and password to access your wallet.'}
+            {mode === 'sign_up' && 'Choose a unique username and enter your email to get started.'}
+            {mode === 'verify_signup_code' && (
+              <>
+                Enter the 6-digit verification code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
+              </>
+            )}
+            {mode === 'forgot_password' && 'Enter your username or email address and we will send you a 6-digit code to reset your password.'}
+            {mode === 'verify_reset_code' && (
+              <>
+                Enter the 6-digit security code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
+              </>
+            )}
+            {mode === 'set_new_password' && 'Choose a secure new password for your Showmelove account.'}
           </p>
         </div>
 
-        {/* 2-Mode Selector Tabs */}
-        <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('sign_in');
-              setMessage('');
-              setStatus('idle');
-            }}
-            className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
-              mode === 'sign_in'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('sign_up');
-              setMessage('');
-              setStatus('idle');
-            }}
-            className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
-              mode === 'sign_up'
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
+        {/* 2-Mode Selector Tabs (Shown only on main Sign In / Sign Up screens) */}
+        {(mode === 'sign_in' || mode === 'sign_up') && (
+          <div className="grid grid-cols-2 p-1 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('sign_in');
+                setMessage('');
+                setStatus('idle');
+              }}
+              className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                mode === 'sign_in'
+                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('sign_up');
+                setMessage('');
+                setStatus('idle');
+              }}
+              className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                mode === 'sign_up'
+                  ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+        )}
 
         {!isSupabaseAuthConfigured ? (
           <div role="alert" className="rounded-2xl bg-[#FFEAF2] p-4 text-sm text-[#9D174D] space-y-1">
@@ -297,7 +540,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* SIGN IN VIEW */}
+            {/* 1. SIGN IN VIEW */}
             {mode === 'sign_in' && (
               <>
                 <InputField
@@ -313,9 +556,22 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                 />
 
                 <div className="space-y-1.5">
-                  <label htmlFor="sign-in-password" className="block text-sm font-medium text-[var(--text-primary)]">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="sign-in-password" className="block text-sm font-medium text-[var(--text-primary)]">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('forgot_password');
+                        setMessage('');
+                        setStatus('idle');
+                      }}
+                      className="text-xs font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <input
                       id="sign-in-password"
@@ -331,7 +587,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -340,7 +596,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               </>
             )}
 
-            {/* SIGN UP VIEW */}
+            {/* 2. SIGN UP VIEW */}
             {mode === 'sign_up' && (
               <>
                 <InputField
@@ -385,7 +641,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -393,6 +649,194 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   <p className="text-xs text-[var(--text-secondary)]">Must be at least 6 characters</p>
                 </div>
               </>
+            )}
+
+            {/* 3. VERIFY SIGNUP CODE (OTP) */}
+            {mode === 'verify_signup_code' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="otp-signup-code" className="block text-sm font-medium text-[var(--text-primary)] text-center">
+                    6-Digit Verification Code
+                  </label>
+                  <input
+                    id="otp-signup-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                    required
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    className="w-full h-14 text-center tracking-[0.4em] font-mono text-2xl font-black rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                  />
+                  <p className="text-xs text-center text-[var(--text-secondary)]">
+                    Check your email inbox or spam folder for the code.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleResendCode('signup')}
+                    disabled={resendCooldown > 0 || status === 'loading'}
+                    className={`font-bold inline-flex items-center gap-1 cursor-pointer ${
+                      resendCooldown > 0
+                        ? 'text-[var(--text-secondary)] cursor-not-allowed'
+                        : 'text-[#E61472] dark:text-[#FF2385] hover:underline'
+                    }`}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${resendCooldown > 0 ? 'animate-spin' : ''}`} />
+                    <span>{resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('sign_up');
+                      setMessage('');
+                      setStatus('idle');
+                    }}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium cursor-pointer"
+                  >
+                    Change Email
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4. FORGOT PASSWORD VIEW */}
+            {mode === 'forgot_password' && (
+              <div className="space-y-4">
+                <InputField
+                  id="forgot-password-identifier"
+                  label="Username or Email"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="e.g. pbona or you@example.com"
+                  hint="We will send a 6-digit verification code to your email"
+                />
+
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('sign_in');
+                      setMessage('');
+                      setStatus('idle');
+                    }}
+                    className="text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 5. VERIFY RESET CODE (OTP) */}
+            {mode === 'verify_reset_code' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="otp-reset-code" className="block text-sm font-medium text-[var(--text-primary)] text-center">
+                    6-Digit Security Code
+                  </label>
+                  <input
+                    id="otp-reset-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    autoFocus
+                    required
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    className="w-full h-14 text-center tracking-[0.4em] font-mono text-2xl font-black rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
+                  />
+                  <p className="text-xs text-center text-[var(--text-secondary)]">
+                    Enter the code sent to {pendingEmail}.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleResendCode('recovery')}
+                    disabled={resendCooldown > 0 || status === 'loading'}
+                    className={`font-bold inline-flex items-center gap-1 cursor-pointer ${
+                      resendCooldown > 0
+                        ? 'text-[var(--text-secondary)] cursor-not-allowed'
+                        : 'text-[#E61472] dark:text-[#FF2385] hover:underline'
+                    }`}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${resendCooldown > 0 ? 'animate-spin' : ''}`} />
+                    <span>{resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Code'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('sign_in');
+                      setMessage('');
+                      setStatus('idle');
+                    }}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium cursor-pointer"
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 6. SET NEW PASSWORD VIEW */}
+            {mode === 'set_new_password' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="new-password" className="block text-sm font-medium text-[var(--text-primary)]">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="new-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      className="w-full min-h-[46px] px-4 pr-11 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:ring-2 focus:ring-[#E10B5C]/30 focus:border-[#E10B5C] transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="confirm-new-password" className="block text-sm font-medium text-[var(--text-primary)]">
+                    Confirm New Password
+                  </label>
+                  <input
+                    id="confirm-new-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your new password"
+                    className="w-full min-h-[46px] px-4 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/70 focus:outline-none focus:ring-2 focus:ring-[#E10B5C]/30 focus:border-[#E10B5C] transition-colors"
+                  />
+                </div>
+              </div>
             )}
 
             {/* Status / Error Message */}
@@ -410,7 +854,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               </p>
             )}
 
-            {/* Submit Button */}
+            {/* Primary Action Button */}
             <Button
               variant="primary"
               size="lg"
@@ -421,53 +865,74 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               {status === 'loading' ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  {mode === 'sign_in' ? 'Signing in…' : 'Creating account…'}
+                  {mode === 'sign_in' && 'Signing in…'}
+                  {mode === 'sign_up' && 'Creating account…'}
+                  {mode === 'verify_signup_code' && 'Verifying code…'}
+                  {mode === 'forgot_password' && 'Sending code…'}
+                  {mode === 'verify_reset_code' && 'Verifying code…'}
+                  {mode === 'set_new_password' && 'Updating password…'}
                 </>
               ) : mode === 'sign_in' ? (
                 <>
                   <Lock className="w-4 h-4 mr-2" /> Sign In
                 </>
-              ) : (
+              ) : mode === 'sign_up' ? (
                 <>
                   <UserPlus className="w-4 h-4 mr-2" /> Create Account
+                </>
+              ) : mode === 'verify_signup_code' ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 mr-2" /> Verify &amp; Activate Account
+                </>
+              ) : mode === 'forgot_password' ? (
+                <>
+                  <Mail className="w-4 h-4 mr-2" /> Send Verification Code
+                </>
+              ) : mode === 'verify_reset_code' ? (
+                <>
+                  <KeyRound className="w-4 h-4 mr-2" /> Verify Code
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" /> Update Password &amp; Sign In
                 </>
               )}
             </Button>
 
-            {/* Footer switcher */}
-            <div className="pt-2 text-center text-xs text-[var(--text-secondary)] space-y-1">
-              {mode === 'sign_in' ? (
-                <p>
-                  Don't have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('sign_up');
-                      setMessage('');
-                      setStatus('idle');
-                    }}
-                    className="font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
-                  >
-                    Create one now
-                  </button>
-                </p>
-              ) : (
-                <p>
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('sign_in');
-                      setMessage('');
-                      setStatus('idle');
-                    }}
-                    className="font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
-                  >
-                    Sign in
-                  </button>
-                </p>
-              )}
-            </div>
+            {/* Footer switcher for Sign In / Sign Up */}
+            {mode === 'sign_in' && (
+              <div className="pt-2 text-center text-xs text-[var(--text-secondary)]">
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('sign_up');
+                    setMessage('');
+                    setStatus('idle');
+                  }}
+                  className="font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
+                >
+                  Create one now
+                </button>
+              </div>
+            )}
+
+            {mode === 'sign_up' && (
+              <div className="pt-2 text-center text-xs text-[var(--text-secondary)]">
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('sign_in');
+                    setMessage('');
+                    setStatus('idle');
+                  }}
+                  className="font-bold text-[#E61472] dark:text-[#FF2385] hover:underline cursor-pointer"
+                >
+                  Sign in
+                </button>
+              </div>
+            )}
           </form>
         )}
       </section>

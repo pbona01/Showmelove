@@ -23,7 +23,6 @@ import { supabase } from '../lib/supabase';
 
 interface ProfileSettingsScreenProps {
   onOpenBalanceInfo: () => void;
-  onOpenAdmin: () => void;
   onOpenBuyCoins: () => void;
   onOpenWithdraw: () => void;
 }
@@ -32,7 +31,6 @@ type TxFilter = 'all' | 'coins' | 'rewards';
 
 export function ProfileSettingsScreen({
   onOpenBalanceInfo,
-  onOpenAdmin,
   onOpenBuyCoins,
   onOpenWithdraw,
 }: ProfileSettingsScreenProps) {
@@ -99,9 +97,6 @@ export function ProfileSettingsScreen({
     { id: 'recipient', label: 'Recipient', hint: 'ada@showmelove.ng' },
     { id: 'sender', label: 'Sender', hint: 'tunde@showmelove.ng' },
     { id: 'guest', label: 'Guest', hint: 'No sign-in' },
-    ...(showAdminTools
-      ? [{ id: 'admin' as const, label: 'Admin', hint: 'Catalog & payouts' }]
-      : []),
   ];
 
   const handleSaveBank = () => {
@@ -413,21 +408,6 @@ export function ProfileSettingsScreen({
                 <Info className="w-4 h-4 text-[#8439D5] dark:text-[#C084FC]" />
                 <span className="text-sm font-semibold text-[var(--text-primary)]">
                   Balance Info &amp; Fee Breakdown
-                </span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenAdmin}
-              data-testid="profile-open-admin-btn"
-              className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="w-4 h-4 text-[#7C3AED] dark:text-[#C084FC]" />
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  Super Admin Console
                 </span>
               </div>
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
