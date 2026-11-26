@@ -367,6 +367,17 @@ test('settleLoveCoinSpray reduces sender balance and settles fees even with empt
   assert.equal(res2.ok, true);
   assert.equal(res2.nextState.walletsByEmail[senderEmail].loveCoinsBalance, startBal - 11000);
   assert.equal(res2.nextState.adminMasterWallet.loveCoinsBalance, 330); // 30 + 300
+
+  // 3. Spray exceeding MAX_SPRAY_COINS is rejected
+  const resOver = settleLoveCoinSpray(res2.nextState, {
+    id: 'test_spray_over',
+    createdAt: new Date().toISOString(),
+    senderEmail,
+    recipientEmail: 'ada@showmelove.ng',
+    layoutId: 'classic',
+    grossCoins: ECONOMY_CONFIG.MAX_SPRAY_COINS + 1,
+  });
+  assert.equal(resOver.ok, false);
 });
 
 test('security: anti-self-gifting blocks sending a gift to oneself and blocks sender from claiming own gift', () => {

@@ -253,7 +253,7 @@ function getProfileInitials(name: string): string {
 
 function ShowmeloveShell() {
   const [route, setRoute] = useState<AppRoute>(() => parseLocationRoute());
-  const { state } = useShowmelove();
+  const { state, signInDemoEmail } = useShowmelove();
   const [authChecked, setAuthChecked] = useState(!isSupabaseAuthConfigured);
   const [hasLiveSession, setHasLiveSession] = useState(false);
   const [adminUnlocked, setAdminUnlocked] = useState(() => isAdminSessionUnlocked());
@@ -337,7 +337,10 @@ function ShowmeloveShell() {
     return (
       <AuthScreen
         onBack={() => navigate({ page: 'home' })}
-        onAdminRoute={() => {
+        onAdminRoute={(adminEmail?: string) => {
+          if (adminEmail) {
+            signInDemoEmail(adminEmail, adminEmail.split('@')[0]);
+          }
           setAdminUnlocked(true);
           navigate({ page: 'admin' });
         }}

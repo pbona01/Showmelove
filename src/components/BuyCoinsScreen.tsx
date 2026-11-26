@@ -189,7 +189,7 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
               Get Love Coins to send gifts &amp; spray
             </p>
             <p className="text-xs text-[#6B5F78] dark:text-[#DFC8DD] mt-0.5 tabular-nums">
-              100 Naira buys 93 Love Coins (7% fee deducted, no extra charge). Withdrawals are 1 Love Coin to ₦1.
+              100 Naira buys 93 Love Coins. Withdrawals are 1 Love Coin to ₦1 with zero hidden charges.
             </p>
           </div>
         </div>
@@ -237,16 +237,16 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
                   >
                     <GoldLoveCoinSvg className="w-9 h-9 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)] truncate">
+                      <p className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)] whitespace-nowrap">
                         {pkg.coins.toLocaleString('en-NG')} Love Coins
                       </p>
                       <p className="text-xs text-[var(--text-secondary)] tabular-nums">
-                        Pay ₦{pkg.priceNaira.toLocaleString('en-NG')} · 7% fee deducted
+                        Pay ₦{pkg.priceNaira.toLocaleString('en-NG')}
                       </p>
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-bold tabular-nums text-[var(--text-primary)]">
                       ₦{pkg.priceNaira.toLocaleString('en-NG')}
                     </span>
@@ -346,8 +346,8 @@ export function BuyCoinsScreen({ onBack, onGoToSendGift, onSignIn }: BuyCoinsScr
               </span>
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)] pt-1 border-t border-[var(--border-subtle)]">
-              <span>Processing fee (7%)</span>
-              <span className="tabular-nums">-{fundingCredit.feeCoins.toLocaleString('en-NG')} coins</span>
+              <span>Processing &amp; delivery</span>
+              <span className="text-emerald-500 font-medium">Included</span>
             </div>
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border-subtle)]">
               <span className="font-semibold text-[var(--text-primary)]">Total charged</span>

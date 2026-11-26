@@ -34,6 +34,8 @@ export const ECONOMY_CONFIG = {
   /** Minimum & maximum coin top-up bounds */
   MIN_COIN_PURCHASE: 10,
   MAX_COIN_PURCHASE: 500_000,
+  /** Maximum Love Coins allowed per spray session or single spray blast */
+  MAX_SPRAY_COINS: 500_000,
   /** Maximum voice note recording length in seconds */
   MAX_VOICE_NOTE_SECONDS: 30,
   /** User-facing balance unit. Stored field names remain unchanged for API compatibility. */

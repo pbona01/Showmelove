@@ -29,7 +29,7 @@ export type AuthMode =
 
 interface AuthScreenProps {
   onBack?: () => void;
-  onAdminRoute?: () => void;
+  onAdminRoute?: (adminEmail?: string) => void;
 }
 
 export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
@@ -148,7 +148,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       setStatus('success');
       setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
       setTimeout(() => {
-        if (onAdminRoute) onAdminRoute();
+        if (onAdminRoute) onAdminRoute(targetEmail);
         else if (onBack) onBack();
       }, 400);
       return;
@@ -166,7 +166,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
         setStatus('success');
         setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
         setTimeout(() => {
-          if (onAdminRoute) onAdminRoute();
+          if (onAdminRoute) onAdminRoute(targetEmail);
           else if (onBack) onBack();
         }, 500);
         return;
@@ -207,7 +207,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       setStatus('success');
       setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
       setTimeout(() => {
-        if (onAdminRoute) onAdminRoute();
+        if (onAdminRoute) onAdminRoute(userEmail);
         else if (onBack) onBack();
       }, 500);
       return;
@@ -343,7 +343,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       setAdminSessionUnlocked(true, true);
       setMessage('Email verified! Routing to Super Admin Dashboard…');
       setTimeout(() => {
-        if (onAdminRoute) onAdminRoute();
+        if (onAdminRoute) onAdminRoute(userEmail);
         else if (onBack) onBack();
       }, 600);
       return;
@@ -464,7 +464,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       setAdminSessionUnlocked(true, true);
       setMessage('Password updated! Routing to Super Admin Dashboard…');
       setTimeout(() => {
-        if (onAdminRoute) onAdminRoute();
+        if (onAdminRoute) onAdminRoute(userEmail);
         else if (onBack) onBack();
       }, 600);
       return;

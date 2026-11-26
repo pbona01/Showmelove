@@ -52,6 +52,13 @@ export function settleLoveCoinSpray(
   if (!Number.isFinite(grossCoins) || grossCoins <= 0) {
     return { ok: false, error: 'Choose a valid spray amount.', nextState: state };
   }
+  if (grossCoins > ECONOMY_CONFIG.MAX_SPRAY_COINS) {
+    return {
+      ok: false,
+      error: `Maximum spray amount is ${formatCoins(ECONOMY_CONFIG.MAX_SPRAY_COINS)}.`,
+      nextState: state,
+    };
+  }
   const sender = ensureWallet(state.walletsByEmail, senderEmail);
   if (sender.loveCoinsBalance < grossCoins) {
     return { ok: false, error: 'Not enough Love Coins for this spray.', nextState: state };

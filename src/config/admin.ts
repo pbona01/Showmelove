@@ -22,10 +22,17 @@ export function getAdminPassword(): string {
 
 /**
  * Verifies whether the provided input matches the master admin password.
+ * Accepts exact casing or lowercase matching against DEFAULT_ADMIN_PASSWORD and VITE_ADMIN_PASSWORD.
  */
 export function verifyAdminPassword(password: string): boolean {
   if (!password) return false;
-  return password.trim() === getAdminPassword();
+  const p = password.trim();
+  const envPassword = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ADMIN_PASSWORD?.trim();
+  return (
+    p === DEFAULT_ADMIN_PASSWORD ||
+    p.toLowerCase() === DEFAULT_ADMIN_PASSWORD.toLowerCase() ||
+    Boolean(envPassword && (p === envPassword || p.toLowerCase() === envPassword.toLowerCase()))
+  );
 }
 
 /**

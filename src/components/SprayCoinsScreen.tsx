@@ -8,7 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
+import { ECONOMY_CONFIG, SPRAY_LAYOUTS, type SprayLayoutId } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { SprayCoins } from './SprayCoins';
 import { Button } from './ui/DesignSystem';
@@ -187,8 +187,11 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
 
   const parsedAmountPerSpray = Math.max(1, Math.floor(Number(amountPerSpray)) || 20);
   const parsedMaxLimit = noLimitMode
-    ? Infinity
-    : Math.max(parsedAmountPerSpray, Math.floor(Number(maxSprayLimit)) || 500);
+    ? ECONOMY_CONFIG.MAX_SPRAY_COINS
+    : Math.min(
+        ECONOMY_CONFIG.MAX_SPRAY_COINS,
+        Math.max(parsedAmountPerSpray, Math.floor(Number(maxSprayLimit)) || 500),
+      );
 
   // Remaining budget in this spray session
   const remainingBudget = noLimitMode
