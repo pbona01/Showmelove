@@ -15,6 +15,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
+import { isUserAdmin, setAdminSessionUnlocked, verifyAdminPassword } from '../config/admin';
 import { LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
@@ -26,7 +27,12 @@ export type AuthMode =
   | 'verify_reset_code'
   | 'set_new_password';
 
-export function AuthScreen({ onBack }: { onBack?: () => void }) {
+interface AuthScreenProps {
+  onBack?: () => void;
+  onAdminRoute?: () => void;
+}
+
+export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const [mode, setMode] = useState<AuthMode>('sign_in');
   const [identifier, setIdentifier] = useState(''); // Email or Username
   const [password, setPassword] = useState('');
@@ -140,6 +146,18 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     });
 
     if (error) {
+      // Check if authorized admin signing in with master admin password
+      if (isUserAdmin(targetEmail) && verifyAdminPassword(password)) {
+        setAdminSessionUnlocked(true, true);
+        setStatus('success');
+        setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
+        setTimeout(() => {
+          if (onAdminRoute) onAdminRoute();
+          else if (onBack) onBack();
+        }, 500);
+        return;
+      }
+
       setStatus('error');
       // If error indicates unconfirmed email, allow quick transition to OTP verification
       if (
@@ -165,6 +183,20 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       } catch {
         // Ignore storage error
       }
+    }
+
+    const userEmail = data.user?.email || targetEmail;
+    const isAdmin = isUserAdmin(userEmail);
+
+    if (isAdmin) {
+      setAdminSessionUnlocked(true, true);
+      setStatus('success');
+      setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
+      setTimeout(() => {
+        if (onAdminRoute) onAdminRoute();
+        else if (onBack) onBack();
+      }, 500);
+      return;
     }
 
     setStatus('success');
@@ -290,6 +322,19 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     }
 
     setStatus('success');
+    const userEmail = pendingEmail;
+    const isAdmin = isUserAdmin(userEmail);
+
+    if (isAdmin) {
+      setAdminSessionUnlocked(true, true);
+      setMessage('Email verified! Routing to Super Admin Dashboard…');
+      setTimeout(() => {
+        if (onAdminRoute) onAdminRoute();
+        else if (onBack) onBack();
+      }, 600);
+      return;
+    }
+
     const userHandle = pendingUsername ? `@${pendingUsername}` : pendingEmail;
     setMessage(`Email verified! Welcome to Showmelove, ${userHandle}.`);
     setTimeout(() => {
@@ -398,6 +443,19 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     }
 
     setStatus('success');
+    const userEmail = pendingEmail;
+    const isAdmin = isUserAdmin(userEmail);
+
+    if (isAdmin) {
+      setAdminSessionUnlocked(true, true);
+      setMessage('Password updated! Routing to Super Admin Dashboard…');
+      setTimeout(() => {
+        if (onAdminRoute) onAdminRoute();
+        else if (onBack) onBack();
+      }, 600);
+      return;
+    }
+
     setMessage('Password successfully updated! Accessing your wallet…');
     setTimeout(() => {
       if (onBack) onBack();

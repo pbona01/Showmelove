@@ -334,7 +334,15 @@ function ShowmeloveShell() {
     route.page === 'inbox';
 
   if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
-    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
+    return (
+      <AuthScreen
+        onBack={() => navigate({ page: 'home' })}
+        onAdminRoute={() => {
+          setAdminUnlocked(true);
+          navigate({ page: 'admin' });
+        }}
+      />
+    );
   }
 
   const isHomeTab =
