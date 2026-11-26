@@ -11,7 +11,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
-import { isUserAdmin } from '../config/admin';
+import { isAdminSessionUnlocked, isUserAdmin } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { canAccessAdminTools } from '../services/giftRules';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
@@ -92,7 +92,7 @@ export function ProfileSettingsScreen({
   };
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
-  const showAdminTools = isUserAdmin(state.signedInEmail);
+  const showAdminTools = isUserAdmin(state.signedInEmail) || isAdminSessionUnlocked();
   const demoAdminEnabled = showAdminTools;
 
   const roles: Array<{ id: UserRole; label: string; hint: string }> = [
@@ -418,38 +418,36 @@ export function ProfileSettingsScreen({
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
 
-            {showAdminTools && (
-              <>
-                <button
-                  type="button"
-                  onClick={onOpenAdmin}
-                  data-testid="profile-open-admin-btn"
-                  className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Shield className="w-4 h-4 text-[#7C3AED] dark:text-[#C084FC]" />
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">
-                      Admin Console (Catalog &amp; Payouts)
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              data-testid="profile-open-admin-btn"
+              className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <Shield className="w-4 h-4 text-[#7C3AED] dark:text-[#C084FC]" />
+                <span className="text-sm font-semibold text-[var(--text-primary)]">
+                  Super Admin Console
+                </span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+            </button>
 
-                <button
-                  type="button"
-                  onClick={() => void resetDemo()}
-                  data-testid="profile-reset-demo-btn"
-                  className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <RotateCcw className="w-4 h-4 text-[#E61472] dark:text-[#FF2385]" />
-                    <span className="text-sm font-semibold text-[#E61472] dark:text-[#FF7AA8]">
-                      Reset Demo Data
-                    </span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                </button>
-              </>
+            {showAdminTools && (
+              <button
+                type="button"
+                onClick={() => void resetDemo()}
+                data-testid="profile-reset-demo-btn"
+                className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <RotateCcw className="w-4 h-4 text-[#E61472] dark:text-[#FF2385]" />
+                  <span className="text-sm font-semibold text-[#E61472] dark:text-[#FF7AA8]">
+                    Reset Demo Data
+                  </span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
             )}
           </section>
         </div>

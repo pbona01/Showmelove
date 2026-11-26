@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, Home, Inbox, Loader2, Send, ShieldAlert, Trophy, User } from 'lucide-react';
-import { isUserAdmin } from './config/admin';
+import { isAdminSessionUnlocked, isUserAdmin, lockAdminSession } from './config/admin';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
 import { InboxAndWalletScreen } from './components/InboxAndWalletScreen';
@@ -11,6 +11,7 @@ import { BuyCoinsScreen } from './components/BuyCoinsScreen';
 import { WithdrawScreen } from './components/WithdrawScreen';
 import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
+import { AdminSecurityGate } from './components/AdminSecurityGate';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
@@ -255,6 +256,7 @@ function ShowmeloveShell() {
   const { state } = useShowmelove();
   const [authChecked, setAuthChecked] = useState(!isSupabaseAuthConfigured);
   const [hasLiveSession, setHasLiveSession] = useState(false);
+  const [adminUnlocked, setAdminUnlocked] = useState(() => isAdminSessionUnlocked());
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -560,46 +562,19 @@ function ShowmeloveShell() {
             )}
 
             {route.page === 'admin' && (
-              isUserAdmin(state.signedInEmail) ? (
-                <AdminScreen />
+              (adminUnlocked || isUserAdmin(state.signedInEmail)) ? (
+                <AdminScreen
+                  onLock={() => {
+                    lockAdminSession();
+                    setAdminUnlocked(false);
+                    navigate({ page: 'home' });
+                  }}
+                />
               ) : (
-                <div className="max-w-md mx-auto py-12 px-4 text-center space-y-5 apple-card rounded-3xl p-8 border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-xl my-6">
-                  <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto border border-rose-500/20 shadow-inner">
-                    <ShieldAlert className="w-8 h-8" />
-                  </div>
-                  <div className="space-y-2">
-                    <h1 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)]">
-                      Admin Access Restricted
-                    </h1>
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      {state.signedInEmail ? (
-                        <>
-                          The account <strong className="text-[var(--text-primary)]">{state.signedInEmail}</strong> is not on the authorized administrator whitelist.
-                        </>
-                      ) : (
-                        <>You must sign in with an authorized Showmelove administrator account to access this console.</>
-                      )}
-                    </p>
-                  </div>
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => navigate({ page: 'home' })}
-                      className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors cursor-pointer"
-                    >
-                      Return to Dashboard
-                    </button>
-                    {!state.signedInEmail && (
-                      <button
-                        type="button"
-                        onClick={() => navigate({ page: 'sign-in' })}
-                        className="w-full sm:w-auto min-h-[44px] px-5 py-2.5 rounded-2xl cta-pink-surface text-sm font-semibold text-white shadow-md hover:brightness-105 transition-all cursor-pointer"
-                      >
-                        Sign in as Admin
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <AdminSecurityGate
+                  onUnlock={() => setAdminUnlocked(true)}
+                  onCancel={() => navigate({ page: 'home' })}
+                />
               )
             )}
 

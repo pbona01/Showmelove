@@ -140,7 +140,11 @@ interface SupportTicket {
   messages: { sender: string; text: string; time: string }[];
 }
 
-export function AdminScreen() {
+interface AdminScreenProps {
+  onLock?: () => void;
+}
+
+export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const { state, updateCatalogItem, setSeasonalConfig, resolvePayout } = useShowmelove();
 
   // Navigation state
@@ -588,8 +592,11 @@ export function AdminScreen() {
   };
 
   const handleConfirmMasterWithdrawCode = () => {
-    if (masterWithdrawCode.trim() !== generatedSampleCode) {
-      setMasterWithdrawError(`Invalid verification code. Use sent code (${generatedSampleCode})`);
+    if (
+      masterWithdrawCode.trim() !== generatedSampleCode &&
+      masterWithdrawCode.trim() !== '123SHOWmelove'
+    ) {
+      setMasterWithdrawError(`Invalid code. Enter 2FA code (${generatedSampleCode}) or admin password (123SHOWmelove)`);
       return;
     }
     setMasterWithdrawError('');
@@ -751,6 +758,17 @@ export function AdminScreen() {
             <Wallet className="w-3.5 h-3.5" />
             <span>Master Wallet</span>
           </button>
+
+          {onLock && (
+            <button
+              type="button"
+              onClick={onLock}
+              className="h-9 px-3 rounded-xl bg-[var(--bg-raised)] border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Lock Console</span>
+            </button>
+          )}
         </div>
       </header>
 
