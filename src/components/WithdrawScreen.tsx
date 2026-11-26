@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   AlertCircle,
@@ -8,8 +8,10 @@ import {
   ChevronRight,
   Clock,
   Coins,
+  Loader2,
   Lock,
   Receipt,
+  Search,
   Send,
   Wallet as WalletIcon,
   XCircle,
@@ -19,6 +21,7 @@ import {
   ECONOMY_CONFIG,
   formatNaira,
 } from '../config/economy';
+import { NIGERIAN_BANKS, findBankByName, findBankByCode } from '../config/banks';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
 import { PurpleGiftBoxSvg } from './GiftArtwork';
@@ -57,11 +60,19 @@ export function WithdrawScreen({
       : String(ECONOMY_CONFIG.MIN_WITHDRAWAL_NAIRA),
   );
   const [bankSheetOpen, setBankSheetOpen] = useState(false);
-  const [bankName, setBankName] = useState(state.defaultBankAccount.bankName);
+  const [bankName, setBankName] = useState(state.defaultBankAccount.bankName || 'Guaranty Trust Bank (GTBank)');
+  const [bankCode, setBankCode] = useState(() => {
+    return state.defaultBankAccount.bankCode || findBankByName(state.defaultBankAccount.bankName)?.code || '058';
+  });
+  const [bankSearch, setBankSearch] = useState('');
   const [accountNumber, setAccountNumber] = useState(
     state.defaultBankAccount.accountNumber,
   );
   const [accountName, setAccountName] = useState(state.defaultBankAccount.accountName);
+  const [isResolvingAccount, setIsResolvingAccount] = useState(false);
+  const [resolvedAccountName, setResolvedAccountName] = useState<string | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successReceipt, setSuccessReceipt] = useState<{
@@ -70,6 +81,42 @@ export function WithdrawScreen({
     bankName: string;
     maskedAccount: string;
   } | null>(null);
+
+  // Live account name resolution via Paystack/NIBSS
+  useEffect(() => {
+    const cleanNum = accountNumber.trim().replace(/\D/g, '');
+    if (cleanNum.length !== 10 || !bankCode) {
+      setResolvedAccountName(null);
+      setResolveError(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsResolvingAccount(true);
+    setResolveError(null);
+
+    fetch(`/api/paystack/resolve-account?account_number=${cleanNum}&bank_code=${encodeURIComponent(bankCode)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        setIsResolvingAccount(false);
+        if (data.ok && data.account_name) {
+          setResolvedAccountName(data.account_name);
+          setAccountName(data.account_name);
+          setResolveError(null);
+        } else {
+          setResolveError(data.error || 'Could not verify account name.');
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setIsResolvingAccount(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accountNumber, bankCode]);
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const normalizedEmail = state.signedInEmail.trim().toLowerCase();
@@ -121,6 +168,7 @@ export function WithdrawScreen({
   const handleConfirmWithdrawal = () => {
     const res = submitWithdrawal(parsedAmount, {
       bankName: bankName.trim(),
+      bankCode: bankCode,
       accountNumber: accountNumber.trim(),
       accountName: accountName.trim(),
     });
@@ -139,12 +187,13 @@ export function WithdrawScreen({
   };
 
   const handleSaveBankDetails = () => {
-    if (!bankName.trim() || accountNumber.trim().length < 6 || !accountName.trim()) {
-      setError('Enter a valid bank name, account number, and account name.');
+    if (!bankName.trim() || accountNumber.trim().length !== 10 || !accountName.trim()) {
+      setError('Enter a valid bank name, 10-digit NUBAN account number, and account name.');
       return;
     }
     updateDefaultBankAccount({
       bankName: bankName.trim(),
+      bankCode: bankCode,
       accountNumber: accountNumber.trim(),
       accountName: accountName.trim(),
     });
@@ -546,51 +595,121 @@ export function WithdrawScreen({
       {/* Bank Account Linking Sheet */}
       <BottomSheet
         open={bankSheetOpen}
-        title="Link Nigerian bank account (Demo)"
+        title="Link Nigerian Bank Account"
         onClose={() => setBankSheetOpen(false)}
       >
         <p className="text-xs text-[var(--text-secondary)]">
-          Demo payout details are stored locally in this browser.
+          Select your Nigerian bank and enter your 10-digit NUBAN account number. Your account name will be verified automatically.
         </p>
 
-        <div className="flex flex-wrap gap-2">
-          {DEMO_BANK_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => {
-                setBankName(preset.bankName);
-                setAccountNumber(preset.accountNumber);
-                setAccountName(preset.accountName);
-              }}
-              className="px-3 py-1.5 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] hover:border-[#8439D5]/50 cursor-pointer"
-            >
-              {preset.bankName}
-            </button>
-          ))}
+        {/* Popular Bank Quick Select */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-[var(--text-secondary)] block">
+            Popular Banks
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { name: 'GTBank', code: '058' },
+              { name: 'Access Bank', code: '044' },
+              { name: 'Zenith Bank', code: '057' },
+              { name: 'UBA', code: '033' },
+              { name: 'First Bank', code: '011' },
+              { name: 'Kuda Bank', code: '50211' },
+              { name: 'OPay', code: '999992' },
+              { name: 'Moniepoint', code: '50515' },
+              { name: 'PalmPay', code: '999991' },
+            ].map((b) => (
+              <button
+                key={b.code}
+                type="button"
+                onClick={() => {
+                  setBankName(b.name);
+                  setBankCode(b.code);
+                }}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                  bankCode === b.code
+                    ? 'border-[#8439D5] bg-[#8439D5]/10 text-[#8439D5] dark:text-[#C084FC]'
+                    : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] hover:border-[#8439D5]/40'
+                }`}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <InputField
-          id="sheet-bank-name"
-          label="Bank name"
-          type="text"
-          value={bankName}
-          onChange={(e) => setBankName(e.target.value)}
-        />
-        <InputField
-          id="sheet-acct-num"
-          label="Account number (NUBAN)"
-          type="text"
-          value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value)}
-          className="font-mono tabular-nums"
-        />
+        {/* Bank Selection Dropdown */}
+        <div className="space-y-1.5">
+          <label htmlFor="sheet-select-bank" className="block text-xs font-bold text-[var(--text-secondary)]">
+            Select Bank
+          </label>
+          <select
+            id="sheet-select-bank"
+            value={bankCode}
+            onChange={(e) => {
+              const selected = NIGERIAN_BANKS.find((b) => b.code === e.target.value);
+              if (selected) {
+                setBankCode(selected.code);
+                setBankName(selected.name);
+              }
+            }}
+            className="w-full min-h-[46px] px-3.5 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm font-semibold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#8439D5] cursor-pointer"
+          >
+            {NIGERIAN_BANKS.map((b) => (
+              <option key={b.code} value={b.code}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 10-digit NUBAN Account Number */}
+        <div className="space-y-1.5">
+          <label htmlFor="sheet-acct-num" className="block text-xs font-bold text-[var(--text-secondary)]">
+            Account Number (10 digits)
+          </label>
+          <input
+            id="sheet-acct-num"
+            type="text"
+            inputMode="numeric"
+            maxLength={10}
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            placeholder="0123456789"
+            className="w-full min-h-[46px] px-3.5 py-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm font-mono tracking-wider tabular-nums font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#8439D5]"
+          />
+        </div>
+
+        {/* Live Paystack Verification Status */}
+        {isResolvingAccount && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-xs font-semibold text-purple-600 dark:text-purple-300">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            <span>Verifying account name via Paystack/NIBSS…</span>
+          </div>
+        )}
+
+        {resolvedAccountName && !isResolvingAccount && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+            <span>Verified: {resolvedAccountName}</span>
+          </div>
+        )}
+
+        {resolveError && !isResolvingAccount && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs font-medium text-rose-600 dark:text-rose-400">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+            <span>{resolveError}</span>
+          </div>
+        )}
+
+        {/* Account Name */}
         <InputField
           id="sheet-acct-name"
           label="Account name"
           type="text"
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
+          placeholder="e.g. BONA PEDRO"
         />
 
         <div className="flex gap-2.5 pt-2">

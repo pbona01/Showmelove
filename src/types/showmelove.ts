@@ -124,6 +124,7 @@ export interface EarningsTransaction {
 export interface DemoBankAccount {
   id?: string;
   bankName: string;
+  bankCode?: string;
   accountNumber: string;
   accountName: string;
 }
@@ -143,6 +144,8 @@ export interface PayoutRequest {
   failureReason?: string;
   riskLevel?: 'low' | 'manual_review';
   reviewNotes?: string[];
+  paystackTransferCode?: string;
+  paystackReference?: string;
 }
 
 export interface WalletState {

@@ -390,6 +390,15 @@ export default async function handler(req: any, res: any) {
     }
 
     const event = JSON.parse(raw) as { event?: string; data?: { reference?: string } };
+
+    // Handle Paystack Transfer webhook events (Withdrawals / Payouts)
+    if (event.event === 'transfer.success' || event.event === 'transfer.failed' || event.event === 'transfer.reversed') {
+      const transferData = event.data as any;
+      const transferReference = transferData?.reference || '';
+      const transferStatus = event.event === 'transfer.success' ? 'completed' : 'failed';
+      return reply(res, 200, { received: true, transferReference, transferStatus });
+    }
+
     if (event.event !== 'charge.success' || !event.data?.reference) {
       return reply(res, 200, { received: true, ignored: true });
     }

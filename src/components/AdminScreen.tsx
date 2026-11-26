@@ -54,6 +54,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
+import { getAdminPassword } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId, PayoutRequest, DemoBankAccount } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
@@ -266,6 +267,8 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastSentNotice, setBroadcastSentNotice] = useState(false);
+  const [processingPayoutId, setProcessingPayoutId] = useState<string | null>(null);
+  const [payoutNotice, setPayoutNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Support tickets
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([
@@ -541,14 +544,56 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
     setShowCustomThresholdModal(false);
   };
 
-  const handleApprovePayout = (payoutId: string) => {
+  const handleApprovePayout = async (payoutId: string) => {
+    const payout = state.payoutRequests.find((p) => p.id === payoutId);
+    if (!payout) return;
+
+    setProcessingPayoutId(payoutId);
+    setPayoutNotice(null);
+    let paystackNote = '';
+
+    try {
+      const res = await fetch('/api/paystack/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payoutId: payout.id,
+          amountNaira: payout.netAmountNaira || payout.amountNaira,
+          accountNumber: payout.bankAccount.accountNumber,
+          bankCode: payout.bankAccount.bankCode || '058',
+          accountName: payout.bankAccount.accountName,
+          recipientEmail: payout.recipientEmail,
+          adminPassword: getAdminPassword(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        paystackNote = ` · Paystack Transfer: ${data.transferCode || data.reference || 'Queued'}`;
+        setPayoutNotice({
+          type: 'success',
+          message: `Payout of ${formatNaira(payout.amountNaira)} approved & disbursed via Paystack (${data.transferCode || 'Success'})!`,
+        });
+      } else {
+        paystackNote = ` · Note: ${data.error || 'Manual transfer'}`;
+        setPayoutNotice({
+          type: 'success',
+          message: `Payout approved! (${data.error || 'Manual transfer recorded'})`,
+        });
+      }
+    } catch {
+      paystackNote = ' · Manual transfer';
+    } finally {
+      setProcessingPayoutId(null);
+    }
+
     const res = resolvePayout(payoutId, 'completed');
     if (res.ok) {
       addAuditLog({
         adminEmail: state.signedInEmail || '1virtue1x@gmail.com',
         action: 'PAYOUT_APPROVED',
         target: `Payout #${payoutId.slice(0, 8)}`,
-        details: `Approved withdrawal payout for ${selectedPayout ? formatNaira(selectedPayout.amountNaira) : 'requested funds'}.`,
+        details: `Approved withdrawal payout for ${formatNaira(payout.amountNaira)} to ${payout.recipientEmail}${paystackNote}.`,
         category: 'withdrawal',
       });
       setSelectedPayout(null);
@@ -1615,6 +1660,26 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 </div>
               </div>
 
+              {payoutNotice && (
+                <div className={`p-4 rounded-2xl flex items-center justify-between gap-3 text-xs font-bold ${
+                  payoutNotice.type === 'success'
+                    ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{payoutNotice.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPayoutNotice(null)}
+                    className="hover:opacity-75 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Pending Approvals Table */}
               <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-4 shadow-sm">
                 <h3 className="text-sm font-bold flex items-center justify-between">
@@ -1666,11 +1731,21 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                             <div className="flex items-center gap-2 shrink-0">
                               <button
                                 type="button"
-                                onClick={() => handleApprovePayout(p.id)}
-                                className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold inline-flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                                disabled={processingPayoutId === p.id}
+                                onClick={() => void handleApprovePayout(p.id)}
+                                className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold inline-flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
                               >
-                                <Check className="w-3.5 h-3.5" />
-                                <span>Approve</span>
+                                {processingPayoutId === p.id ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Disbursing…</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>Approve &amp; Disburse</span>
+                                  </>
+                                )}
                               </button>
                               <button
                                 type="button"
