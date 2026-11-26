@@ -46,6 +46,7 @@ import {
   User,
   UserCheck,
   UserMinus,
+  UserPlus,
   Users,
   Wallet,
   Wifi,
@@ -54,7 +55,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
-import { getAdminPassword } from '../config/admin';
+import { addAdminEmail, getAdminEmails, getAdminPassword, removeAdminEmail } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId, PayoutRequest, DemoBankAccount } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
@@ -88,7 +89,7 @@ interface AdminAuditLog {
   action: string;
   target: string;
   details: string;
-  category: 'withdrawal' | 'wallet' | 'user' | 'broadcast' | 'system' | 'catalog';
+  category: 'withdrawal' | 'wallet' | 'user' | 'broadcast' | 'system' | 'catalog' | 'governance';
 }
 
 interface UserInspectionData {
@@ -270,245 +271,239 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const [processingPayoutId, setProcessingPayoutId] = useState<string | null>(null);
   const [payoutNotice, setPayoutNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Support tickets
-  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([
-    {
-      id: 'TCK-8921',
-      subject: 'Withdrawal verification inquiry for ₦50,000',
-      userEmail: 'tunde@showmelove.ng',
-      userName: 'Tunde Adeyemi',
-      category: 'withdrawal',
-      priority: 'high',
-      status: 'open',
-      createdAt: '2026-11-24T14:32:00Z',
-      assignedTo: 'Support Agent Chioma',
-      messages: [
-        { sender: 'user', text: 'Hello, my demo withdrawal was submitted earlier, wanted to check when funds hit my GTBank account.', time: '14:32' },
-      ],
-    },
-    {
-      id: 'TCK-8919',
-      subject: 'Coin Spray not credited during live room session',
-      userEmail: 'linda.joy@gmail.com',
-      userName: 'Linda Joy',
-      category: 'gift',
-      priority: 'medium',
-      status: 'in_progress',
-      createdAt: '2026-11-24T11:15:00Z',
-      assignedTo: 'Finance Admin',
-      messages: [
-        { sender: 'user', text: 'I sprayed 200 coins in the Figo layout, just confirming the celebrant received the alert.', time: '11:15' },
-        { sender: 'staff', text: 'Checking ledger transaction records now. One moment.', time: '11:25' },
-      ],
-    },
-    {
-      id: 'TCK-8890',
-      subject: 'Payment receipt confirmation via Paystack card',
-      userEmail: 'emeka@gmail.com',
-      userName: 'Emeka Eze',
-      category: 'payment',
-      priority: 'low',
-      status: 'resolved',
-      createdAt: '2026-11-23T19:40:00Z',
-      assignedTo: 'Automated Webhook',
-      messages: [
-        { sender: 'user', text: 'Payment was charged but page redirected. Solved now!', time: '19:40' },
-      ],
-    },
-  ]);
+  // Admin Management state
+  const [adminList, setAdminList] = useState<string[]>(() => getAdminEmails());
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminRole, setNewAdminRole] = useState('Super Admin');
+  const [adminNotice, setAdminNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const handleAddAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdminEmail.trim() || !newAdminEmail.includes('@')) {
+      setAdminNotice({ type: 'error', message: 'Enter a valid email address.' });
+      return;
+    }
+    const clean = newAdminEmail.trim().toLowerCase();
+    const ok = addAdminEmail(clean);
+    if (ok) {
+      setAdminList(getAdminEmails());
+      setAdminNotice({
+        type: 'success',
+        message: `Successfully granted ${newAdminRole} permissions to ${clean}! They can now log in and manage the platform.`,
+      });
+      addAuditLog({
+        adminEmail: state.signedInEmail || 'pbona717@gmail.com',
+        action: 'GRANT_ADMIN_ACCESS',
+        target: clean,
+        details: `Added ${clean} as an authorized ${newAdminRole}.`,
+        category: 'governance',
+      });
+      setNewAdminEmail('');
+    } else {
+      setAdminNotice({ type: 'error', message: 'Failed to add admin or email already exists.' });
+    }
+  };
+
+  const handleRemoveAdmin = (email: string) => {
+    if (email.toLowerCase() === 'pbona717@gmail.com') {
+      setAdminNotice({ type: 'error', message: 'Primary owner account (pbona717@gmail.com) cannot be removed.' });
+      return;
+    }
+    removeAdminEmail(email);
+    setAdminList(getAdminEmails());
+    setAdminNotice({ type: 'success', message: `Revoked admin privileges from ${email}.` });
+    addAuditLog({
+      adminEmail: state.signedInEmail || 'pbona717@gmail.com',
+      action: 'REVOKE_ADMIN_ACCESS',
+      target: email,
+      details: `Removed admin access for ${email}.`,
+      category: 'governance',
+    });
+  };
+
+  // Support tickets (Live / Saved)
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(() => {
+    try {
+      const saved = localStorage.getItem('showmelove_admin_support_tickets');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [ticketReplyText, setTicketReplyText] = useState('');
   const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
 
-  // Fraud alerts
-  const [fraudAlerts, setFraudAlerts] = useState([
-    {
-      id: 'fr_1',
-      userEmail: 'wash_attempt@suspicious.com',
-      userName: 'Suspicious Bot User',
-      type: 'Anti-Self-Gifting Trigger',
-      details: 'Attempted to claim ₦850,000 gift created from matching funding card fingerprint.',
-      severity: 'critical',
-      status: 'active',
-      date: '2026-11-24 16:12',
-    },
-    {
-      id: 'fr_2',
-      userEmail: 'fast_clicks@proxy.ng',
-      userName: 'High Frequency Sprayer',
-      type: 'Abnormal Spray Velocity',
-      details: '50 rapid spray actions per second detected from non-residential IP.',
-      severity: 'warning',
-      status: 'investigating',
-      date: '2026-11-24 14:05',
-    },
-  ]);
+  // Fraud alerts (Live / Saved)
+  const [fraudAlerts, setFraudAlerts] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('showmelove_admin_fraud_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  // Seeded User Directory
-  const userDirectory: UserInspectionData[] = useMemo(() => [
-    {
-      id: 'usr_tunde_01',
-      name: 'Tunde Adeyemi',
-      username: 'tunde',
-      email: 'tunde@showmelove.ng',
-      country: 'Nigeria',
-      region: 'Lagos State',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      registeredAt: '2026-10-12',
-      lastActive: '2 mins ago',
-      isOnline: true,
-      status: 'active',
-      loveCoinsBalance: 3400,
-      totalReceivedNaira: 125000,
-      totalGiftedNaira: 450000,
-      totalWithdrawnNaira: 95000,
-      deviceInfo: 'iPhone 15 Pro · Safari iOS 17.5',
-      ipAddress: '102.89.44.120',
-      incomeSources: [
-        { source: 'Gifts Received', percentage: 70, amount: '₦87,500' },
-        { source: 'Coin Sprays Received', percentage: 25, amount: '₦31,250' },
-        { source: 'Direct Funding', percentage: 5, amount: '₦6,250' },
-      ],
-      recentTxs: [
-        { id: 'tx_981', date: 'Today 17:20', type: 'Gift Received', amount: '+1,000 Coins', status: 'Settled' },
-        { id: 'tx_980', date: 'Yesterday', type: 'Spray Sent', amount: '-200 Coins', status: 'Completed' },
-      ],
-      reportsCount: 0,
-    },
-    {
-      id: 'usr_ada_02',
-      name: 'Adaeze Okafor',
-      username: 'ada',
-      email: 'ada@showmelove.ng',
-      country: 'Nigeria',
-      region: 'Abuja FCT',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      registeredAt: '2026-09-04',
-      lastActive: 'Just now',
-      isOnline: true,
-      status: 'active',
-      loveCoinsBalance: 12850,
-      totalReceivedNaira: 1420000,
-      totalGiftedNaira: 85000,
-      totalWithdrawnNaira: 890000,
-      deviceInfo: 'MacBook Air · Chrome 125 · macOS Sonoma',
-      ipAddress: '105.112.78.22',
-      incomeSources: [
-        { source: 'Gifts Received', percentage: 88, amount: '₦1,249,600' },
-        { source: 'Coin Sprays Received', percentage: 12, amount: '₦170,400' },
-      ],
-      recentTxs: [
-        { id: 'tx_976', date: 'Today 18:05', type: 'Withdrawal Payout', amount: '-₦150,000', status: 'Pending Review' },
-        { id: 'tx_974', date: 'Today 15:40', type: 'Rose Gift Claimed', amount: '+₦5,000', status: 'Claimed' },
-      ],
-      reportsCount: 0,
-    },
-    {
-      id: 'usr_linda_03',
-      name: 'Linda Joy',
-      username: 'linda_joy',
-      email: 'linda.joy@gmail.com',
-      country: 'United Kingdom',
-      region: 'London',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-      registeredAt: '2026-11-01',
-      lastActive: '8 mins ago',
-      isOnline: true,
-      status: 'active',
-      loveCoinsBalance: 42000,
-      totalReceivedNaira: 15000,
-      totalGiftedNaira: 2450000,
-      totalWithdrawnNaira: 0,
-      deviceInfo: 'iPhone 14 · Safari iOS 17.2',
-      ipAddress: '82.165.197.1',
-      incomeSources: [
-        { source: 'Direct Card Funding', percentage: 95, amount: '₦2,327,500' },
-        { source: 'Gifts Received', percentage: 5, amount: '₦122,500' },
-      ],
-      recentTxs: [
-        { id: 'tx_960', date: 'Today 16:40', type: 'Funded Love Coins (Paystack)', amount: '+10,000 Coins', status: 'Success' },
-        { id: 'tx_958', date: 'Today 16:45', type: 'Gift Sent to @ada', amount: '-5,000 Coins', status: 'Delivered' },
-      ],
-      reportsCount: 0,
-    },
-    {
-      id: 'usr_virtue_04',
-      name: 'Virtue Super Admin',
-      username: 'virtue',
-      email: '1virtue1x@gmail.com',
-      country: 'Nigeria',
-      region: 'Lagos',
-      avatar: '/assets/showmelove-brand-heart.jpg',
-      registeredAt: '2026-08-15',
-      lastActive: 'Active Now',
-      isOnline: true,
-      status: 'active',
-      loveCoinsBalance: 88500,
-      totalReceivedNaira: 3200000,
-      totalGiftedNaira: 1200000,
-      totalWithdrawnNaira: 1500000,
-      deviceInfo: 'Super Admin Terminal · Chrome 126',
-      ipAddress: '197.210.8.44',
-      incomeSources: [
-        { source: 'Platform Allocation', percentage: 100, amount: '₦3,200,000' },
-      ],
-      recentTxs: [
-        { id: 'tx_999', date: 'Today 18:30', type: 'Master Wallet Audit Sync', amount: '₦0', status: 'Verified' },
-      ],
-      reportsCount: 0,
-    },
-    {
-      id: 'usr_pedro_05',
-      name: 'Pedro Admin',
-      username: 'pedrrovx',
-      email: 'pbona717@gmail.com',
-      country: 'Nigeria',
-      region: 'Lagos',
-      avatar: '/assets/showmelove-brand-heart.jpg',
-      registeredAt: '2026-08-15',
-      lastActive: 'Active Now',
-      isOnline: true,
-      status: 'active',
-      loveCoinsBalance: 97,
-      totalReceivedNaira: 5400000,
-      totalGiftedNaira: 890000,
-      totalWithdrawnNaira: 2800000,
-      deviceInfo: 'Super Admin Mobile · Safari iOS',
-      ipAddress: '102.89.33.1',
-      incomeSources: [
-        { source: 'Platform Super Admin', percentage: 100, amount: '₦5,400,000' },
-      ],
-      recentTxs: [
-        { id: 'tx_998', date: 'Today 18:00', type: 'Master Wallet Review', amount: '₦0', status: 'Verified' },
-      ],
-      reportsCount: 0,
-    },
-    {
-      id: 'usr_fraud_06',
-      name: 'Suspicious Device',
-      username: 'shadow_user',
-      email: 'wash_attempt@suspicious.com',
-      country: 'Seychelles',
-      region: 'Victoria',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-      registeredAt: '2026-11-23',
-      lastActive: '1 hr ago',
-      isOnline: false,
-      status: 'restricted',
-      loveCoinsBalance: 850000,
-      totalReceivedNaira: 850000,
-      totalGiftedNaira: 0,
-      totalWithdrawnNaira: 0,
-      deviceInfo: 'Headless Chrome · Linux Bot',
-      ipAddress: '185.220.101.5',
-      incomeSources: [
-        { source: 'Suspicious Gift', percentage: 100, amount: '₦850,000' },
-      ],
-      recentTxs: [
-        { id: 'tx_912', date: 'Nov 23', type: 'Self Wash Gift Attempt', amount: '850,000 Coins', status: 'Frozen' },
-      ],
-      reportsCount: 4,
-    },
-  ], []);
+  // Real Platform User Directory computed dynamically from live state (wallets, gifts, payouts, registered accounts)
+  const userDirectory: UserInspectionData[] = useMemo(() => {
+    const allEmails = new Set<string>();
+
+    if (state.signedInEmail && state.signedInEmail.includes('@')) {
+      allEmails.add(state.signedInEmail.toLowerCase().trim());
+    }
+
+    Object.keys(state.walletsByEmail || {}).forEach((em) => {
+      if (em && em.includes('@')) allEmails.add(em.toLowerCase().trim());
+    });
+
+    (state.gifts || []).forEach((g) => {
+      if (g.senderEmail && g.senderEmail.includes('@')) allEmails.add(g.senderEmail.toLowerCase().trim());
+      if (g.recipientEmail && g.recipientEmail.includes('@')) allEmails.add(g.recipientEmail.toLowerCase().trim());
+    });
+
+    (state.payoutRequests || []).forEach((p) => {
+      if (p.recipientEmail && p.recipientEmail.includes('@')) allEmails.add(p.recipientEmail.toLowerCase().trim());
+    });
+
+    getAdminEmails().forEach((em) => {
+      if (em && em.includes('@')) allEmails.add(em.toLowerCase().trim());
+    });
+
+    try {
+      const rawMap = localStorage.getItem('showmelove_user_map');
+      if (rawMap) {
+        const parsed = JSON.parse(rawMap) as Record<string, string>;
+        Object.values(parsed).forEach((em) => {
+          if (em && em.includes('@')) allEmails.add(em.toLowerCase().trim());
+        });
+      }
+    } catch {
+      // Ignore
+    }
+
+    let usernameMap: Record<string, string> = {};
+    try {
+      const rawMap = localStorage.getItem('showmelove_user_map');
+      if (rawMap) {
+        const parsed = JSON.parse(rawMap) as Record<string, string>;
+        Object.entries(parsed).forEach(([uname, em]) => {
+          usernameMap[em.toLowerCase().trim()] = uname;
+        });
+      }
+    } catch {
+      // Ignore
+    }
+
+    const emailList = Array.from(allEmails);
+
+    return emailList.map((email, idx) => {
+      const wallet = state.walletsByEmail?.[email];
+      const username = usernameMap[email] || email.split('@')[0];
+      const displayName =
+        email === 'pbona717@gmail.com'
+          ? 'Pbona (Super Admin)'
+          : email === '1virtue1x@gmail.com'
+          ? 'Virtue (Super Admin)'
+          : username.charAt(0).toUpperCase() + username.slice(1);
+
+      const receivedGifts = (state.gifts || []).filter(
+        (g) => g.recipientEmail?.toLowerCase() === email
+      );
+      const totalReceivedNaira = receivedGifts.reduce(
+        (sum, g) => sum + (g.recipientEarningsNaira || g.amountNaira || 0),
+        wallet?.availableEarningsNaira ? Math.max(wallet.availableEarningsNaira, 0) : 0
+      );
+
+      const sentGifts = (state.gifts || []).filter(
+        (g) => g.senderEmail?.toLowerCase() === email
+      );
+      const totalGiftedNaira = sentGifts.reduce((sum, g) => sum + (g.amountNaira || 0), 0);
+
+      const userPayouts = (state.payoutRequests || []).filter(
+        (p) => p.recipientEmail?.toLowerCase() === email && p.status === 'completed'
+      );
+      const totalWithdrawnNaira = userPayouts.reduce((sum, p) => sum + p.amountNaira, 0);
+
+      const isCurrentSession =
+        Boolean(state.signedInEmail && state.signedInEmail.toLowerCase() === email);
+
+      const recentTxs: { id: string; date: string; type: string; amount: string; status: string }[] = [];
+      if (wallet?.coinTransactions) {
+        wallet.coinTransactions.slice(-3).forEach((tx) => {
+          recentTxs.push({
+            id: tx.id,
+            date: new Date(tx.createdAt).toLocaleDateString(),
+            type: tx.type === 'purchase' ? 'Coins Funded' : 'Coins Spent',
+            amount: `${tx.coinsDelta > 0 ? '+' : ''}${tx.coinsDelta} Coins`,
+            status: 'Settled',
+          });
+        });
+      }
+      if (receivedGifts.length > 0) {
+        receivedGifts.slice(-2).forEach((g) => {
+          recentTxs.push({
+            id: g.id,
+            date: new Date(g.createdAt).toLocaleDateString(),
+            type: 'Gift Received',
+            amount: `+${formatNaira(g.recipientEarningsNaira || g.amountNaira)}`,
+            status: g.claimedAt ? 'Claimed' : 'Pending',
+          });
+        });
+      }
+
+      const totalIncome = totalReceivedNaira + (wallet?.loveCoinsBalance || 0);
+      const giftPct = totalIncome > 0 ? Math.round((totalReceivedNaira / totalIncome) * 100) : 100;
+      const coinPct = totalIncome > 0 ? 100 - giftPct : 0;
+
+      return {
+        id: `usr_${idx + 1}_${username}`,
+        name: displayName,
+        username,
+        email,
+        country: 'Nigeria',
+        region: 'Lagos',
+        avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(email)}`,
+        registeredAt: wallet?.coinTransactions?.[0]?.createdAt
+          ? new Date(wallet.coinTransactions[0].createdAt).toLocaleDateString()
+          : '2026-11-20',
+        lastActive: isCurrentSession ? 'Just now' : 'Active today',
+        isOnline: isCurrentSession,
+        status: 'active',
+        loveCoinsBalance: wallet?.loveCoinsBalance || 0,
+        totalReceivedNaira,
+        totalGiftedNaira,
+        totalWithdrawnNaira,
+        deviceInfo: isCurrentSession ? 'Active Browser Session' : 'Showmelove Web App',
+        ipAddress: 'Active Session',
+        incomeSources: [
+          { source: 'Gifts & Love Received', percentage: giftPct, amount: formatNaira(totalReceivedNaira) },
+          { source: 'Coins Funded', percentage: coinPct, amount: `${(wallet?.loveCoinsBalance || 0).toLocaleString()} Coins` },
+        ],
+        recentTxs: recentTxs.length > 0 ? recentTxs : [
+          { id: `reg_${idx}`, date: 'Today', type: 'Account Active', amount: 'Verified', status: 'Active' }
+        ],
+        reportsCount: 0,
+      };
+    });
+  }, [state.walletsByEmail, state.gifts, state.payoutRequests, state.signedInEmail, adminList]);
+
+  // Aggregate Platform Totals (100% Real, zero fake offsets)
+  const totalCombinedCoins = useMemo(() => {
+    return Object.values(state.walletsByEmail || {}).reduce(
+      (sum, w) => sum + (w.loveCoinsBalance || 0),
+      0
+    );
+  }, [state.walletsByEmail]);
+
+  const totalCombinedEarningsNaira = useMemo(() => {
+    return Object.values(state.walletsByEmail || {}).reduce(
+      (sum, w) => sum + (w.availableEarningsNaira || 0),
+      0
+    );
+  }, [state.walletsByEmail]);
+
+  const totalGiftValueNaira = useMemo(() => {
+    return (state.gifts || []).reduce((sum, g) => sum + (g.amountNaira || 0), 0);
+  }, [state.gifts]);
 
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'restricted' | 'suspended'>('all');
@@ -1167,7 +1162,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
           {/* ========================================================= */}
           {activeSection === 'overview' && (
             <div className="space-y-6">
-              {/* Primary KPI Grid (All Major Statistics Clickable) */}
+              {/* Primary KPI Grid (All Major Statistics Clickable - Real Live Data) */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <button
                   type="button"
@@ -1175,9 +1170,9 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                   className="text-left rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 shadow-2xs hover:border-[#E10B5C]/50 transition-all cursor-pointer"
                 >
                   <p className="text-xs font-medium text-[var(--text-secondary)]">Total Registered</p>
-                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">14,820</p>
+                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">{userDirectory.length}</p>
                   <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +128 today
+                    <TrendingUp className="w-3 h-3" /> Live Users
                   </span>
                 </button>
 
@@ -1190,7 +1185,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <p className="text-xs font-medium text-[var(--text-secondary)]">Online Users</p>
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   </div>
-                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">342 live</p>
+                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">{userDirectory.filter((u) => u.isOnline).length || 1} live</p>
                   <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">Active right now</span>
                 </button>
 
@@ -1199,9 +1194,9 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                   onClick={() => setActiveSection('wallets')}
                   className="text-left rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4 shadow-2xs hover:border-[#E10B5C]/50 transition-all cursor-pointer"
                 >
-                  <p className="text-xs font-medium text-[var(--text-secondary)]">Combined Wallet Balance</p>
-                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">14.2M Coins</p>
-                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">≈ ₦14,250,000</span>
+                  <p className="text-xs font-medium text-[var(--text-secondary)]">User Coins In Circulation</p>
+                  <p className="text-2xl font-black tabular-nums text-[var(--text-primary)] mt-1">{formatCoins(totalCombinedCoins)}</p>
+                  <span className="text-[10px] text-[var(--text-secondary)] mt-1 block">Withdrawable: {formatNaira(totalCombinedEarningsNaira)}</span>
                 </button>
 
                 <button
@@ -1211,10 +1206,10 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 >
                   <p className="text-xs font-medium text-[var(--text-secondary)]">Platform Net Revenue</p>
                   <p className="text-2xl font-black tabular-nums text-[#087F56] dark:text-[#24C888] mt-1">
-                    {formatNaira(state.adminMasterWallet.loveCoinsBalance * 1000 + 5230000)}
+                    {formatNaira(state.adminMasterWallet.loveCoinsBalance)}
                   </p>
                   <span className="text-[10px] text-emerald-500 font-semibold mt-1 inline-flex items-center gap-0.5">
-                    <TrendingUp className="w-3 h-3" /> +18.4% this month
+                    <TrendingUp className="w-3 h-3" /> 100% Platform Earnings
                   </span>
                 </button>
               </div>
@@ -1223,15 +1218,15 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5">
                   <p className="text-xs text-[var(--text-secondary)]">Daily Active Users (DAU)</p>
-                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">2,140</p>
+                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">{userDirectory.filter((u) => u.isOnline).length || 1}</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5">
-                  <p className="text-xs text-[var(--text-secondary)]">Monthly Active (MAU)</p>
-                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">12,380</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Total User Directory</p>
+                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">{userDirectory.length}</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] p-3.5">
                   <p className="text-xs text-[var(--text-secondary)]">Total Love Gifted</p>
-                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">98.4M Coins</p>
+                  <p className="text-lg font-bold tabular-nums text-[var(--text-primary)] mt-0.5">{formatNaira(totalGiftValueNaira)}</p>
                 </div>
                 <button
                   type="button"
@@ -1240,9 +1235,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 >
                   <p className="text-xs text-[var(--text-secondary)]">Pending Withdrawals</p>
                   <p className="text-lg font-bold tabular-nums text-amber-500 mt-0.5">
-                    {pendingPayouts.length > 0
-                      ? formatNaira(pendingPayouts.reduce((sum, p) => sum + p.amountNaira, 0))
-                      : '₦4,650,000'}
+                    {formatNaira(pendingPayouts.reduce((sum, p) => sum + p.amountNaira, 0))}
                   </p>
                 </button>
               </div>
@@ -1254,32 +1247,37 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <h2 className="text-base font-bold text-[var(--text-primary)]">Gifting &amp; Spray Activity Volume</h2>
                     <p className="text-xs text-[var(--text-secondary)]">7-Day moving volume of Love Coins spent and sprayed</p>
                   </div>
-                  <span className="text-xs font-mono font-bold text-emerald-500">+24% vs last week</span>
+                  <span className="text-xs font-mono font-bold text-emerald-500">Live Platform Activity</span>
                 </div>
 
                 {/* Simplified SVG Bar Chart for Zero Extra Dependencies */}
                 <div className="h-44 w-full flex items-end gap-3 pt-6 pb-2 px-2 border-b border-[var(--border-subtle)]">
-                  {[
-                    { day: 'Mon', coins: 142000, height: '45%' },
-                    { day: 'Tue', coins: 185000, height: '60%' },
-                    { day: 'Wed', coins: 210000, height: '70%' },
-                    { day: 'Thu', coins: 195000, height: '65%' },
-                    { day: 'Fri', coins: 280000, height: '90%' },
-                    { day: 'Sat', coins: 340000, height: '100%' },
-                    { day: 'Sun', coins: 290000, height: '85%' },
-                  ].map((bar) => (
-                    <div key={bar.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                      <div
-                        style={{ height: bar.height }}
-                        className="w-full rounded-xl bg-gradient-to-t from-[#E10B5C] to-[#FF62A9] transition-all group-hover:brightness-110 relative"
-                      >
-                        <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap">
-                          {bar.coins.toLocaleString()}
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, idx) => {
+                    const todayDayIdx = (new Date().getDay() + 6) % 7;
+                    const isToday = idx === todayDayIdx;
+                    const dayGiftsCoins = isToday ? totalGiftValueNaira : 0;
+                    const maxCoins = Math.max(totalGiftValueNaira, 1000);
+                    const pct = Math.max(Math.round((dayGiftsCoins / maxCoins) * 100), 6);
+                    return (
+                      <div key={day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                        <div
+                          style={{ height: `${pct}%` }}
+                          className={`w-full rounded-xl transition-all group-hover:brightness-110 relative ${
+                            dayGiftsCoins > 0
+                              ? 'bg-gradient-to-t from-[#E10B5C] to-[#FF62A9]'
+                              : 'bg-[var(--bg-raised)] border border-[var(--border-subtle)]'
+                          }`}
+                        >
+                          <span className="opacity-0 group-hover:opacity-100 absolute -top-7 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] font-mono px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap">
+                            {dayGiftsCoins.toLocaleString()} Coins
+                          </span>
+                        </div>
+                        <span className={`text-[11px] font-semibold ${isToday ? 'text-[#E10B5C]' : 'text-[var(--text-secondary)]'}`}>
+                          {day}
                         </span>
                       </div>
-                      <span className="text-[11px] font-semibold text-[var(--text-secondary)]">{bar.day}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
@@ -1516,18 +1514,18 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4">
                   <p className="text-xs text-[var(--text-secondary)]">Total User Coins In Circulation</p>
-                  <p className="text-xl font-black tabular-nums mt-1">14,250,000 Coins</p>
+                  <p className="text-xl font-black tabular-nums mt-1">{formatCoins(totalCombinedCoins)}</p>
                   <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Strictly non-withdrawable</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4">
                   <p className="text-xs text-[var(--text-secondary)]">Total Redeemable Gift Rewards</p>
-                  <p className="text-xl font-black tabular-nums text-purple-600 dark:text-purple-400 mt-1">₦34,800,000</p>
+                  <p className="text-xl font-black tabular-nums text-purple-600 dark:text-purple-400 mt-1">{formatNaira(totalCombinedEarningsNaira)}</p>
                   <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">100% backed in reserve</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-4">
                   <p className="text-xs text-[var(--text-secondary)]">Commissions &amp; Net Platform Fees</p>
                   <p className="text-xl font-black tabular-nums text-[#087F56] dark:text-[#24C888] mt-1">
-                    {formatNaira(state.adminMasterWallet.loveCoinsBalance * 1000 + 5230000)}
+                    {formatNaira(state.adminMasterWallet.loveCoinsBalance)}
                   </p>
                   <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Segregated from user funds</p>
                 </div>
@@ -1814,25 +1812,25 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-2">
                   <p className="text-xs font-semibold text-[var(--text-secondary)]">7% Card Funding Fee</p>
                   <p className="text-2xl font-black tabular-nums text-[var(--text-primary)]">
-                    {formatNaira(state.adminMasterWallet.totalFundingFees * 1000 + 2996000)}
+                    {formatNaira(state.adminMasterWallet.totalFundingFees)}
                   </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">Paystack takes 2% · Platform Net = 5%</p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">Processing fee (7%) · Platform Net Fee</p>
                 </div>
 
                 <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-2">
                   <p className="text-xs font-semibold text-[var(--text-secondary)]">8% Guest Checkout Fee</p>
                   <p className="text-2xl font-black tabular-nums text-[var(--text-primary)]">
-                    {formatNaira(state.adminMasterWallet.totalGuestGiftFees * 1000 + 1456000)}
+                    {formatNaira(state.adminMasterWallet.totalGuestGiftFees)}
                   </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">Paystack takes 2% · Platform Net = 6%</p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">Guest gift fee · Platform Net Fee</p>
                 </div>
 
                 <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-2">
                   <p className="text-xs font-semibold text-[var(--text-secondary)]">3% Spray Coin Fee</p>
                   <p className="text-2xl font-black tabular-nums text-[var(--text-primary)]">
-                    {formatNaira(state.adminMasterWallet.totalSprayFees * 1000 + 780000)}
+                    {formatNaira(state.adminMasterWallet.totalSprayFees)}
                   </p>
-                  <p className="text-[11px] text-[var(--text-secondary)]">In-App Spray · Platform Net = 3%</p>
+                  <p className="text-[11px] text-[var(--text-secondary)]">In-App Spray · Platform Net Fee</p>
                 </div>
               </div>
             </div>
@@ -1877,7 +1875,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 font-bold">Non-Withdrawable</span>
                   </div>
                   <p className="text-2xl font-black tabular-nums text-[var(--text-primary)]">
-                    14,250,000 Coins
+                    {formatCoins(totalCombinedCoins)}
                   </p>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     Purchased/deposited by users via Paystack. Strictly spendable for gifts &amp; sprays.
@@ -1891,7 +1889,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 font-bold">100% Redeemable</span>
                   </div>
                   <p className="text-2xl font-black tabular-nums text-purple-600 dark:text-purple-400">
-                    ₦34,800,000
+                    {formatNaira(totalCombinedEarningsNaira)}
                   </p>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     Received from admirers as gifts or sprays. Users can redeem to their NUBAN bank accounts.
@@ -1905,7 +1903,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">Platform Profit</span>
                   </div>
                   <p className="text-2xl font-black tabular-nums text-white">
-                    {formatNaira(state.adminMasterWallet.loveCoinsBalance * 1000 + 5230000)}
+                    {formatNaira(state.adminMasterWallet.loveCoinsBalance)}
                   </p>
                   <p className="text-xs text-purple-200/80 leading-relaxed">
                     Platform revenue accrued from card funding (5% net), guest gifts (6% net), and sprays (3% net).
@@ -1948,19 +1946,19 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
 
               {/* Emoji Leaderboard */}
               <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-4 shadow-sm">
-                <h3 className="text-sm font-bold">Emoji Leaderboard (Times Sent)</h3>
+                <h3 className="text-sm font-bold">Gift Artwork Sent Breakdown</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
-                    { emoji: '💖', label: 'Heart Burst', count: 14200, coins: '14.2M' },
-                    { emoji: '🌹', label: 'Red Rose', count: 8420, coins: '42.1M' },
-                    { emoji: '🧸', label: 'Teddy Hug', count: 4120, coins: '12.3M' },
-                    { emoji: '🎁', label: 'Surprise Box', count: 2980, coins: '14.9M' },
+                    { emoji: '💖', label: 'Love Gifts', count: state.gifts.length, coins: formatCoins(totalGiftValueNaira) },
+                    { emoji: '🌹', label: 'Red Rose', count: state.gifts.filter((g) => g.snapshot?.name?.toLowerCase().includes('rose')).length, coins: 'Live' },
+                    { emoji: '🧸', label: 'Teddy Hug', count: state.gifts.filter((g) => g.snapshot?.name?.toLowerCase().includes('teddy')).length, coins: 'Live' },
+                    { emoji: '🎁', label: 'Celebration Box', count: state.gifts.filter((g) => g.snapshot?.name?.toLowerCase().includes('box')).length, coins: 'Live' },
                   ].map((e) => (
                     <div key={e.label} className="p-3.5 rounded-2xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-center space-y-1">
                       <span className="text-3xl">{e.emoji}</span>
                       <p className="text-xs font-bold text-[var(--text-primary)]">{e.label}</p>
                       <p className="text-xs font-bold text-[#E10B5C] tabular-nums">{e.count.toLocaleString()} sent</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">Val: {e.coins} Coins</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">Val: {e.coins}</p>
                     </div>
                   ))}
                 </div>
@@ -1979,27 +1977,19 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
               </div>
 
               <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-4 shadow-sm">
-                <h3 className="text-sm font-bold">Top 5 Countries by Registrations</h3>
+                <h3 className="text-sm font-bold">Active Platform Countries</h3>
                 <div className="space-y-3">
-                  {[
-                    { country: '🇳🇬 Nigeria', share: 64, users: '9,484', volume: '₦62.8M' },
-                    { country: '🇬🇭 Ghana', share: 14, users: '2,074', volume: '₦14.2M' },
-                    { country: '🇬🇧 United Kingdom', share: 8, users: '1,185', volume: '₦18.4M' },
-                    { country: '🇺🇸 United States', share: 7, users: '1,037', volume: '₦16.1M' },
-                    { country: '🇰🇪 Kenya', share: 4, users: '592', volume: '₦4.8M' },
-                  ].map((c) => (
-                    <div key={c.country} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold">{c.country}</span>
-                        <span className="font-medium text-[var(--text-secondary)]">
-                          {c.users} users ({c.share}%) · {c.volume} volume
-                        </span>
-                      </div>
-                      <div className="w-full h-2.5 rounded-full bg-[var(--bg-raised)] overflow-hidden">
-                        <div style={{ width: `${c.share}%` }} className="h-full bg-gradient-to-r from-[#E10B5C] to-purple-600" />
-                      </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold">🇳🇬 Nigeria</span>
+                      <span className="font-medium text-[var(--text-secondary)]">
+                        {userDirectory.length} users (100%) · {formatNaira(totalGiftValueNaira)} volume
+                      </span>
                     </div>
-                  ))}
+                    <div className="w-full h-2.5 rounded-full bg-[var(--bg-raised)] overflow-hidden">
+                      <div style={{ width: '100%' }} className="h-full bg-gradient-to-r from-[#E10B5C] to-purple-600" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2031,8 +2021,8 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                         onChange={(e) => setBroadcastTarget(e.target.value)}
                         className="w-full py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-xs font-semibold"
                       >
-                        <option value="All Users">All Registered Users (14,820)</option>
-                        <option value="Active (<7d)">Active in last 7 days (7,450)</option>
+                        <option value="All Users">All Registered Users ({userDirectory.length})</option>
+                        <option value="Active (<7d)">Active Users ({userDirectory.filter((u) => u.isOnline).length || 1})</option>
                         <option value="Inactive (>30d)">Inactive Users (&gt;30 days)</option>
                         <option value="Wallet Balance > 1,000 Coins">High Balance Users (&gt;1,000 Coins)</option>
                         <option value="Nigeria only">Nigeria only (64%)</option>
@@ -2290,12 +2280,166 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
           {/* ========================================================= */}
           {activeSection === 'roles' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold">Admin Roles &amp; Permissions Matrix</h2>
-                <p className="text-xs text-[var(--text-secondary)]">Strict role-based access control (RBAC) across Showmelove administrative scopes</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold">Authorized Administrators &amp; Team Access</h2>
+                  <p className="text-xs text-[var(--text-secondary)]">Manage admin accounts authorized to access the Super Admin Dashboard</p>
+                </div>
               </div>
 
+              {/* Status Banner */}
+              {adminNotice && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs flex items-center justify-between gap-3 ${
+                    adminNotice.type === 'success'
+                      ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                      : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {adminNotice.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    )}
+                    <span>{adminNotice.message}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAdminNotice(null)}
+                    className="p-1 hover:bg-white/10 rounded-lg cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Add New Administrator Card */}
+              <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-4 shadow-sm">
+                <div>
+                  <h3 className="text-sm font-bold flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-[#E10B5C]" />
+                    <span>Add New Administrator</span>
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Authorized admins are automatically recognized upon login and routed directly to this Super Admin Console.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAddAdmin} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-6 space-y-1">
+                    <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase">Email Address</label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. 1virtue1x@gmail.com"
+                        value={newAdminEmail}
+                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                        className="w-full h-10 pl-9 pr-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[#E10B5C]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-3 space-y-1">
+                    <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase">Assigned Role</label>
+                    <select
+                      value={newAdminRole}
+                      onChange={(e) => setNewAdminRole(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[#E10B5C]"
+                    >
+                      <option value="Super Admin">Super Admin</option>
+                      <option value="Finance Admin">Finance Admin</option>
+                      <option value="Support Admin">Support Admin</option>
+                      <option value="Content Admin">Content Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <button
+                      type="submit"
+                      className="w-full h-10 px-4 rounded-xl bg-gradient-to-r from-[#E10B5C] to-[#FF62A9] text-white text-xs font-bold shadow-md hover:brightness-105 active:scale-95 transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add Admin</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Active Platform Administrators Table */}
+              <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-5 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span>Active Platform Administrators ({adminList.length})</span>
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold uppercase">
+                    Master Password: 123SHOWmelove
+                  </span>
+                </div>
+
+                <div className="divide-y divide-[var(--border-subtle)] text-xs">
+                  {adminList.map((email) => {
+                    const isOwner = email.toLowerCase() === 'pbona717@gmail.com';
+                    const isVirtue = email.toLowerCase() === '1virtue1x@gmail.com';
+                    return (
+                      <div key={email} className="py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E10B5C] to-purple-600 flex items-center justify-center text-white font-bold text-xs uppercase shrink-0">
+                            {email.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-[var(--text-primary)]">{email}</p>
+                              {isOwner && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold">
+                                  Primary Owner
+                                </span>
+                              )}
+                              {isVirtue && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold">
+                                  Co-Founder / Admin
+                                </span>
+                              )}
+                              {!isOwner && !isVirtue && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E10B5C]/20 text-[#FF62A9] font-bold">
+                                  Super Admin
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-[var(--text-secondary)]">Full Dashboard &amp; Payout Access</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isOwner ? (
+                            <span className="text-[10px] text-[var(--text-secondary)] font-mono px-2 py-1 bg-[var(--bg-raised)] rounded-lg">
+                              Immutable
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAdmin(email)}
+                              className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer font-bold"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* RBAC Matrix Table */}
               <div className="rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-[var(--border-subtle)]">
+                  <h3 className="text-sm font-bold">Role-Based Access Control (RBAC) Matrix</h3>
+                  <p className="text-xs text-[var(--text-secondary)]">Granular permission breakdown for administrative operations</p>
+                </div>
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[var(--bg-raised)] border-b border-[var(--border-subtle)] font-bold text-[10px] uppercase text-[var(--text-secondary)]">
                     <tr>
@@ -2666,7 +2810,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     className="w-full py-2.5 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-base font-black tabular-nums"
                   />
                   <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-                    Available Master Profit: {formatNaira(state.adminMasterWallet.loveCoinsBalance * 1000 + 5230000)}
+                    Available Master Profit: {formatNaira(state.adminMasterWallet.loveCoinsBalance)}
                   </p>
                 </div>
 

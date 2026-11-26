@@ -70,11 +70,59 @@ export function lockAdminSession(): void {
   setAdminSessionUnlocked(false);
 }
 
+const CUSTOM_ADMINS_STORAGE_KEY = 'showmelove_custom_admins';
+
+/**
+ * Retrieves custom admins saved via the Super Admin Dashboard.
+ */
+export function getCustomAdminEmails(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_ADMINS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Adds an email to the authorized admin list.
+ */
+export function addAdminEmail(email: string): boolean {
+  if (!email || !email.includes('@')) return false;
+  const clean = email.trim().toLowerCase();
+  try {
+    const custom = getCustomAdminEmails();
+    if (!custom.includes(clean)) {
+      custom.push(clean);
+      localStorage.setItem(CUSTOM_ADMINS_STORAGE_KEY, JSON.stringify(custom));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Removes an email from the custom authorized admin list.
+ */
+export function removeAdminEmail(email: string): boolean {
+  const clean = email.trim().toLowerCase();
+  try {
+    const custom = getCustomAdminEmails().filter((e) => e !== clean);
+    localStorage.setItem(CUSTOM_ADMINS_STORAGE_KEY, JSON.stringify(custom));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Returns the normalized list of authorized admin emails.
- * Supports dynamic addition via VITE_ADMIN_EMAILS in .env or Vercel.
+ * Supports dynamic addition via Admin Console, VITE_ADMIN_EMAILS, and DEFAULT_ADMIN_EMAILS.
  */
 export function getAdminEmails(): string[] {
+  const customAdmins = getCustomAdminEmails();
   const envAdmins = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ADMIN_EMAILS
     ? String((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ADMIN_EMAILS)
         .split(',')
@@ -82,7 +130,11 @@ export function getAdminEmails(): string[] {
         .filter(Boolean)
     : [];
 
-  const combined = new Set([...DEFAULT_ADMIN_EMAILS.map((e) => e.toLowerCase()), ...envAdmins]);
+  const combined = new Set([
+    ...DEFAULT_ADMIN_EMAILS.map((e) => e.toLowerCase()),
+    ...envAdmins,
+    ...customAdmins.map((e) => e.trim().toLowerCase()),
+  ]);
   return Array.from(combined);
 }
 

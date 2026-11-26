@@ -140,6 +140,20 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       }
     }
 
+    // Immediate Super Admin Access Gate:
+    // If an authorized admin enters the master admin password (e.g. 123SHOWmelove),
+    // instantly authenticate and auto-route to the Super Admin Dashboard.
+    if (isUserAdmin(targetEmail) && verifyAdminPassword(password)) {
+      setAdminSessionUnlocked(true, true);
+      setStatus('success');
+      setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
+      setTimeout(() => {
+        if (onAdminRoute) onAdminRoute();
+        else if (onBack) onBack();
+      }, 400);
+      return;
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: targetEmail,
       password,
