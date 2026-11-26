@@ -15,7 +15,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
-import { isUserAdmin, setAdminSessionUnlocked, verifyAdminPassword } from '../config/admin';
+import { isUserAdmin, setAdminSessionUnlocked } from '../config/admin';
 import { LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
@@ -140,38 +140,12 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       }
     }
 
-    // Immediate Super Admin Access Gate:
-    // If an authorized admin enters the master admin password (e.g. 123SHOWmelove),
-    // instantly authenticate and auto-route to the Super Admin Dashboard.
-    if (isUserAdmin(targetEmail) && verifyAdminPassword(password)) {
-      setAdminSessionUnlocked(true, true);
-      setStatus('success');
-      setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
-      setTimeout(() => {
-        if (onAdminRoute) onAdminRoute(targetEmail);
-        else if (onBack) onBack();
-      }, 400);
-      return;
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email: targetEmail,
       password,
     });
 
     if (error) {
-      // Check if authorized admin signing in with master admin password
-      if (isUserAdmin(targetEmail) && verifyAdminPassword(password)) {
-        setAdminSessionUnlocked(true, true);
-        setStatus('success');
-        setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
-        setTimeout(() => {
-          if (onAdminRoute) onAdminRoute(targetEmail);
-          else if (onBack) onBack();
-        }, 500);
-        return;
-      }
-
       setStatus('error');
       // If error indicates unconfirmed email, allow quick transition to OTP verification
       if (

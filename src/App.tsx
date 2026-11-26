@@ -291,6 +291,9 @@ function ShowmeloveShell() {
     void supabase.auth.getSession().then(({ data }: { data: any }) => {
       setHasLiveSession(Boolean(data.session));
       setAuthChecked(true);
+      if (data.session?.user?.email && isUserAdmin(data.session.user.email)) {
+        setAdminUnlocked(true);
+      }
       if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
@@ -298,6 +301,9 @@ function ShowmeloveShell() {
     const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setHasLiveSession(Boolean(session));
       setAuthChecked(true);
+      if (session?.user?.email && isUserAdmin(session.user.email)) {
+        setAdminUnlocked(true);
+      }
       if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
