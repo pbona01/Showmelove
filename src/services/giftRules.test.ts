@@ -455,7 +455,7 @@ test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, 
   // Default available is 6000, so 50000 will be over limit
   assert.equal(validHighValue.ok, false);
 
-  // Normal valid withdrawal
+  // Normal valid withdrawal (<= ₦2,000,000 has low risk, automated)
   const validReq = requestWithdrawal(
     initial,
     recipient,
@@ -467,4 +467,26 @@ test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, 
   assert.equal(validReq.ok, true);
   assert.equal(validReq.payout?.bankAccount.accountNumber, '0123456789');
   assert.equal(validReq.payout?.riskLevel, 'low');
+
+  // High value > ₦2,000,000 tagged for manual review
+  const highWalletState = {
+    ...initial,
+    walletsByEmail: {
+      ...initial.walletsByEmail,
+      [recipient]: {
+        ...initial.walletsByEmail[recipient],
+        availableEarningsNaira: 5000000,
+      },
+    },
+  };
+  const highReq = requestWithdrawal(
+    highWalletState,
+    recipient,
+    2500000,
+    DEMO_DEFAULT_BANK,
+    'pay_high_val',
+    new Date().toISOString(),
+  );
+  assert.equal(highReq.ok, true);
+  assert.equal(highReq.payout?.riskLevel, 'manual_review');
 });

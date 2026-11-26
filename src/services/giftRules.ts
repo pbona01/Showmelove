@@ -711,9 +711,12 @@ export function requestWithdrawal(
   const reviewNotes: string[] = [];
   let riskLevel: 'low' | 'manual_review' = 'low';
 
-  if (rounded >= 50000) {
+  // Strict High-Value Policy: Only withdrawals strictly above ₦2,000,000 require manual Super Admin approval
+  if (rounded > ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA) {
     riskLevel = 'manual_review';
-    reviewNotes.push('High-value withdrawal (>= ₦50,000)');
+    reviewNotes.push(
+      `High-value withdrawal (> ${formatNaira(ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA)}) - Manual Super Admin approval required`,
+    );
   }
 
   if (senderEmails.size === 1 && claimedGiftsFromSenders.length >= 3) {

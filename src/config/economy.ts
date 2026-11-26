@@ -17,6 +17,13 @@ export const ECONOMY_CONFIG = {
   WITHDRAWAL_FEE_BPS: 0,
   /** Minimum withdrawal amount in Naira */
   MIN_WITHDRAWAL_NAIRA: 100,
+  /**
+   * Fixed high-value manual approval threshold in Naira.
+   * Locked permanently at ₦2,000,000 (cannot be adjusted from admin panel).
+   * Withdrawals <= ₦2,000,000 are processed automatically without admin approval.
+   * Only withdrawals strictly above ₦2,000,000 require manual Super Admin approval.
+   */
+  HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA: 2_000_000,
   /** Payout processing copy reflecting demo / production policy */
   PAYOUT_PROCESSING_COPY:
     'Demo requests start as Pending and settle immediately when approved. Standard Nigerian bank transfers clear within 1–2 business days.',

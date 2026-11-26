@@ -54,7 +54,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { formatCoins, formatNaira } from '../config/economy';
+import { ECONOMY_CONFIG, formatCoins, formatNaira } from '../config/economy';
 import { addAdminEmail, getAdminEmails, getAdminPassword, removeAdminEmail } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId, PayoutRequest, DemoBankAccount } from '../types/showmelove';
@@ -153,17 +153,8 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const [activeSection, setActiveSection] = useState<AdminSection>('overview');
   const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | 'all'>('7d');
 
-  // Configurable manual approval threshold (stored in localStorage)
-  const [approvalThreshold, setApprovalThreshold] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('showmelove_admin_threshold');
-      return saved ? Number(saved) : 2000000;
-    } catch {
-      return 2000000;
-    }
-  });
-  const [customThresholdInput, setCustomThresholdInput] = useState('');
-  const [showCustomThresholdModal, setShowCustomThresholdModal] = useState(false);
+  // High-value manual approval threshold is fixed permanently at ₦2,000,000 (cannot be adjusted from admin panel)
+  const APPROVAL_THRESHOLD = ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA;
 
   // User inspection modal
   const [selectedUser, setSelectedUser] = useState<UserInspectionData | null>(null);
@@ -519,25 +510,10 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
     });
   }, [userDirectory, userSearchQuery, userStatusFilter]);
 
-  // Combined real & demo payout requests
-  const pendingPayouts = state.payoutRequests.filter((p) => p.status === 'pending');
-
-  const handleUpdateThreshold = (newVal: number) => {
-    setApprovalThreshold(newVal);
-    try {
-      localStorage.setItem('showmelove_admin_threshold', String(newVal));
-    } catch {
-      // ignore
-    }
-    addAuditLog({
-      adminEmail: state.signedInEmail || '1virtue1x@gmail.com',
-      action: 'APPROVAL_THRESHOLD_UPDATED',
-      target: 'Withdrawal Approvals',
-      details: `Manual approval threshold updated to ${formatNaira(newVal)}`,
-      category: 'withdrawal',
-    });
-    setShowCustomThresholdModal(false);
-  };
+  // Only withdrawals strictly exceeding ₦2,000,000 require manual Super Admin approval
+  const pendingPayouts = state.payoutRequests.filter(
+    (p) => p.status === 'pending' && p.amountNaira > APPROVAL_THRESHOLD,
+  );
 
   const handleApprovePayout = async (payoutId: string) => {
     const payout = state.payoutRequests.find((p) => p.id === payoutId);
@@ -1627,34 +1603,14 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 <div>
                   <h2 className="text-xl font-bold">Withdrawal Approval Centre</h2>
                   <p className="text-xs text-[var(--text-secondary)]">
-                    Large withdrawals (≥ {formatNaira(approvalThreshold)}) are automatically flagged for manual Super Admin review.
+                    Only high-value withdrawals strictly exceeding {formatNaira(APPROVAL_THRESHOLD)} require manual Super Admin review. All withdrawals of {formatNaira(APPROVAL_THRESHOLD)} and below are processed automatically.
                   </p>
                 </div>
 
-                {/* Threshold Configuration Controls */}
-                <div className="flex items-center gap-2 flex-wrap bg-[var(--bg-card)] border border-[var(--border-subtle)] p-1.5 rounded-2xl">
-                  <span className="text-[11px] font-bold text-[var(--text-secondary)] px-2">Approval Threshold:</span>
-                  {[500000, 1000000, 2000000].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => handleUpdateThreshold(t)}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        approvalThreshold === t
-                          ? 'bg-[#E10B5C] text-white shadow-xs'
-                          : 'bg-[var(--bg-raised)] text-[var(--text-primary)] hover:border-[#E10B5C]/40'
-                      }`}
-                    >
-                      {formatNaira(t)}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomThresholdModal(true)}
-                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-[var(--bg-raised)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] cursor-pointer"
-                  >
-                    Custom…
-                  </button>
+                {/* Permanent Locked Security Threshold Badge */}
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs font-bold">
+                  <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Fixed Security Threshold: {formatNaira(APPROVAL_THRESHOLD)} (Locked · Non-Adjustable)</span>
                 </div>
               </div>
 
@@ -1692,7 +1648,8 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                 ) : (
                   <div className="divide-y divide-[var(--border-subtle)]">
                     {state.payoutRequests.map((p) => {
-                      const requiresManualApproval = p.amountNaira >= approvalThreshold || p.riskLevel === 'manual_review';
+                      const isAbove2M = p.amountNaira > APPROVAL_THRESHOLD;
+                      const requiresManualApproval = isAbove2M || p.riskLevel === 'manual_review';
                       return (
                         <div key={p.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
                           <div className="space-y-1">
@@ -1701,9 +1658,13 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                                 {formatNaira(p.amountNaira)}
                               </span>
                               <span className="font-medium text-[var(--text-secondary)]">· {p.recipientEmail}</span>
-                              {requiresManualApproval && (
+                              {isAbove2M ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                                  ⚠️ Manual Approval Required (≥ {formatNaira(approvalThreshold)})
+                                  ⚠️ Manual Approval Required (&gt; {formatNaira(APPROVAL_THRESHOLD)})
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                                  ⚡ Automated Instant (≤ {formatNaira(APPROVAL_THRESHOLD)})
                                 </span>
                               )}
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -1741,7 +1702,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                                 ) : (
                                   <>
                                     <Check className="w-3.5 h-3.5" />
-                                    <span>Approve &amp; Disburse</span>
+                                    <span>{isAbove2M ? 'Approve & Disburse' : 'Auto-Disburse Now'}</span>
                                   </>
                                 )}
                               </button>
@@ -1754,7 +1715,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                                 className="h-8 px-3 rounded-xl border border-rose-500/40 text-rose-500 hover:bg-rose-500/10 font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <X className="w-3.5 h-3.5" />
-                                <span>Reject &amp; Refund</span>
+                                <span>Reject</span>
                               </button>
                             </div>
                           )}
@@ -2453,8 +2414,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                   <tbody className="divide-y divide-[var(--border-subtle)] text-xs">
                     {[
                       { cap: 'Master Wallet 2FA Withdrawals', super: true, fin: false, sup: false, cont: false },
-                      { cap: 'Configure Approval Threshold (₦2M+)', super: true, fin: false, sup: false, cont: false },
-                      { cap: 'Approve & Reject Withdrawals', super: true, fin: true, sup: false, cont: false },
+                      { cap: 'Approve High-Value Withdrawals (> ₦2M)', super: true, fin: true, sup: false, cont: false },
                       { cap: 'Inspect User Incomes & Ledger Records', super: true, fin: true, sup: true, cont: false },
                       { cap: 'Freeze Suspicious User Accounts', super: true, fin: true, sup: true, cont: false },
                       { cap: 'Send Email Broadcasts & Popups', super: true, fin: false, sup: false, cont: true },
@@ -2718,50 +2678,6 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODAL 2: CUSTOM APPROVAL THRESHOLD MODAL */}
-      {/* ========================================================= */}
-      {showCustomThresholdModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="max-w-md w-full rounded-3xl bg-[var(--bg-card)] border border-[var(--border-subtle)] p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-[var(--text-primary)]">Set Custom Manual Approval Threshold</h3>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Any withdrawal request equal to or exceeding this amount will automatically require manual Super Admin approval before disbursement.
-            </p>
-            <div>
-              <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1">Threshold Amount (₦)</label>
-              <input
-                type="number"
-                min={100000}
-                step={50000}
-                value={customThresholdInput}
-                onChange={(e) => setCustomThresholdInput(e.target.value)}
-                placeholder="e.g. 1500000"
-                className="w-full py-2 px-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-sm font-bold"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowCustomThresholdModal(false)}
-                className="px-4 py-2 rounded-xl bg-[var(--bg-raised)] text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const val = Number(customThresholdInput);
-                  if (val && val >= 50000) handleUpdateThreshold(val);
-                }}
-                className="px-4 py-2 rounded-xl bg-[#E10B5C] text-white text-xs font-bold"
-              >
-                Save Threshold
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================= */}
       {/* MODAL 3: MASTER WALLET 4-STEP WITHDRAWAL MODAL (User Spec 16) */}

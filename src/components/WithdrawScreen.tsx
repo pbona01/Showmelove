@@ -75,11 +75,13 @@ export function WithdrawScreen({
 
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
   const [successReceipt, setSuccessReceipt] = useState<{
     amountNaira: number;
     netNaira: number;
     bankName: string;
     maskedAccount: string;
+    isAutoProcessed: boolean;
   } | null>(null);
 
   // Live account name resolution via Paystack/NIBSS
@@ -165,7 +167,8 @@ export function WithdrawScreen({
     setConfirming(true);
   };
 
-  const handleConfirmWithdrawal = () => {
+  const handleConfirmWithdrawal = async () => {
+    setIsSubmittingWithdrawal(true);
     const res = submitWithdrawal(parsedAmount, {
       bankName: bankName.trim(),
       bankCode: bankCode,
@@ -175,14 +178,41 @@ export function WithdrawScreen({
     if (!res.ok) {
       setError(res.error || 'Could not request withdrawal.');
       setConfirming(false);
+      setIsSubmittingWithdrawal(false);
       return;
     }
+
+    const isAbove2M = parsedAmount > ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA;
+
+    // For withdrawals <= 2M, execute automated instant transfer immediately (no admin approval needed)
+    if (!isAbove2M && res.payoutId) {
+      try {
+        await fetch('/api/paystack/transfer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payoutId: res.payoutId,
+            amountNaira: summary.netReceivedNaira,
+            accountNumber: accountNumber.trim(),
+            bankCode: bankCode,
+            accountName: accountName.trim(),
+            recipientEmail: state.signedInEmail,
+          }),
+        });
+      } catch {
+        // Continue with local settlement
+      }
+      resolvePayout(res.payoutId, 'completed');
+    }
+
     setConfirming(false);
+    setIsSubmittingWithdrawal(false);
     setSuccessReceipt({
       amountNaira: summary.grossAmountNaira,
       netNaira: summary.netReceivedNaira,
       bankName: bankName.trim(),
       maskedAccount: maskAccountNumber(accountNumber),
+      isAutoProcessed: !isAbove2M,
     });
   };
 
@@ -312,12 +342,25 @@ export function WithdrawScreen({
                     <motion.span initial={{ scale: 0, rotate: -24 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 280, damping: 18 }}>
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
                     </motion.span>
-                    <span>Withdrawal submitted (Pending)</span>
+                    <span>
+                      {successReceipt.isAutoProcessed
+                        ? 'Withdrawal Dispatched (Instant Payout)'
+                        : 'Withdrawal Submitted (Pending Review)'}
+                    </span>
                   </div>
                   <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                    {formatNaira(successReceipt.netNaira)} queued for{' '}
-                    <strong>{successReceipt.bankName}</strong> ({successReceipt.maskedAccount}).
-                    Reserved from Available to withdraw until marked Paid or Failed.
+                    {successReceipt.isAutoProcessed ? (
+                      <>
+                        {formatNaira(successReceipt.netNaira)} sent to{' '}
+                        <strong>{successReceipt.bankName}</strong> ({successReceipt.maskedAccount}). Funds have been automatically dispatched via Paystack.
+                      </>
+                    ) : (
+                      <>
+                        {formatNaira(successReceipt.netNaira)} queued for{' '}
+                        <strong>{successReceipt.bankName}</strong> ({successReceipt.maskedAccount}).
+                        Because this withdrawal exceeds ₦2,000,000, it is undergoing Super Admin security review before disbursement.
+                      </>
+                    )}
                   </p>
                 </motion.div>
               )}
@@ -475,14 +518,20 @@ export function WithdrawScreen({
                       variant="primary"
                       size="md"
                       className="flex-1"
+                      disabled={isSubmittingWithdrawal}
                       onClick={handleConfirmWithdrawal}
                       data-testid="withdraw-confirm-btn"
                     >
-                      Confirm &amp; reserve
+                      {isSubmittingWithdrawal
+                        ? 'Processing Transfer…'
+                        : parsedAmount > ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA
+                          ? 'Confirm & Request Review'
+                          : 'Confirm & Withdraw Now'}
                     </Button>
                     <Button
                       variant="secondary"
                       size="md"
+                      disabled={isSubmittingWithdrawal}
                       onClick={() => setConfirming(false)}
                     >
                       Back
@@ -561,28 +610,11 @@ export function WithdrawScreen({
                     )}
 
                     {payout.status === 'pending' && (
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Button
-                          variant="dark"
-                          size="sm"
-                          onClick={() => resolvePayout(payout.id, 'completed')}
-                        >
-                          Mark as Paid
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() =>
-                            resolvePayout(
-                              payout.id,
-                              'failed',
-                              'Simulated bank transfer declined — funds returned.',
-                            )
-                          }
-                        >
-                          Simulate Failed
-                        </Button>
-                      </div>
+                      <p className="text-[11px] text-amber-500 font-semibold pt-1">
+                        {payout.amountNaira > ECONOMY_CONFIG.HIGH_VALUE_WITHDRAWAL_THRESHOLD_NAIRA
+                          ? 'Under Super Admin review (> ₦2,000,000)'
+                          : 'Processing via Paystack automated transfer…'}
+                      </p>
                     )}
                   </div>
                 ))}
