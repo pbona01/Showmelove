@@ -11,7 +11,6 @@ import { BuyCoinsScreen } from './components/BuyCoinsScreen';
 import { WithdrawScreen } from './components/WithdrawScreen';
 import { ProfileSettingsScreen } from './components/ProfileSettingsScreen';
 import { AdminScreen } from './components/AdminScreen';
-import { AdminSecurityGate } from './components/AdminSecurityGate';
 import { GiftRevealExperience } from './components/GiftRevealExperience';
 import { SprayCoinsScreen } from './components/SprayCoinsScreen';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
@@ -333,6 +332,27 @@ function ShowmeloveShell() {
     route.page === 'profile' ||
     route.page === 'inbox';
 
+  const isAuthorizedAdmin = adminUnlocked || isUserAdmin(state.signedInEmail);
+
+  if (route.page === 'admin' && !isAuthorizedAdmin) {
+    if (hasLiveSession || (state.activeRole !== 'guest' && Boolean(state.signedInEmail))) {
+      navigate({ page: 'home' });
+      return null;
+    }
+    return (
+      <AuthScreen
+        onBack={() => navigate({ page: 'home' })}
+        onAdminRoute={(adminEmail?: string) => {
+          if (adminEmail) {
+            signInDemoEmail(adminEmail, adminEmail.split('@')[0]);
+          }
+          setAdminUnlocked(true);
+          navigate({ page: 'admin' });
+        }}
+      />
+    );
+  }
+
   if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
     return (
       <AuthScreen
@@ -573,7 +593,7 @@ function ShowmeloveShell() {
             )}
 
             {route.page === 'admin' && (
-              (adminUnlocked || isUserAdmin(state.signedInEmail)) ? (
+              isAuthorizedAdmin ? (
                 <AdminScreen
                   onLock={() => {
                     lockAdminSession();
@@ -581,12 +601,7 @@ function ShowmeloveShell() {
                     navigate({ page: 'home' });
                   }}
                 />
-              ) : (
-                <AdminSecurityGate
-                  onUnlock={() => setAdminUnlocked(true)}
-                  onCancel={() => navigate({ page: 'home' })}
-                />
-              )
+              ) : null
             )}
 
             {route.page === 'spray-coins' && (
