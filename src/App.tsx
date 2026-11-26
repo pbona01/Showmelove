@@ -567,6 +567,8 @@ function ShowmeloveShell() {
                 onOpenBalanceInfo={() => navigate({ page: 'balance-info' })}
                 onOpenBuyCoins={() => navigate({ page: 'buy-coins' })}
                 onOpenWithdraw={() => navigate({ page: 'withdraw' })}
+                onSignOut={() => navigate({ page: 'sign-in' })}
+                onSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
 

@@ -11,7 +11,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
-import { isAdminSessionUnlocked, isUserAdmin } from '../config/admin';
+import { isAdminSessionUnlocked, isUserAdmin, lockAdminSession } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import { canAccessAdminTools } from '../services/giftRules';
 import { DEMO_BANK_PRESETS } from '../services/seedData';
@@ -25,6 +25,8 @@ interface ProfileSettingsScreenProps {
   onOpenBalanceInfo: () => void;
   onOpenBuyCoins: () => void;
   onOpenWithdraw: () => void;
+  onSignOut?: () => void;
+  onSignIn?: () => void;
 }
 
 type TxFilter = 'all' | 'coins' | 'rewards';
@@ -33,6 +35,8 @@ export function ProfileSettingsScreen({
   onOpenBalanceInfo,
   onOpenBuyCoins,
   onOpenWithdraw,
+  onSignOut,
+  onSignIn,
 }: ProfileSettingsScreenProps) {
   const {
     state,
@@ -92,6 +96,21 @@ export function ProfileSettingsScreen({
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
   const showAdminTools = isUserAdmin(state.signedInEmail) || isAdminSessionUnlocked();
   const demoAdminEnabled = showAdminTools;
+
+  const handleSignOut = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch {
+      // Ignore
+    }
+    lockAdminSession();
+    switchRole('guest');
+    if (onSignOut) {
+      onSignOut();
+    }
+  };
 
   const roles: Array<{ id: UserRole; label: string; hint: string }> = [
     { id: 'recipient', label: 'Recipient', hint: 'ada@showmelove.ng' },
@@ -235,7 +254,36 @@ export function ProfileSettingsScreen({
               </div>
             )}
 
-            {demoAdminEnabled ? (
+            {isSignedIn && (
+              <div className="pt-3 border-t border-[var(--border-subtle)]">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onClick={handleSignOut}
+                  data-testid="profile-signout-btn"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20"
+                >
+                  <LogOut className="w-4 h-4 mr-1.5" />
+                  Log Out of Showmelove
+                </Button>
+              </div>
+            )}
+
+            {!isSignedIn && onSignIn && (
+              <div className="pt-3 border-t border-[var(--border-subtle)]">
+                <Button
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  onClick={onSignIn}
+                >
+                  Sign in to your account
+                </Button>
+              </div>
+            )}
+
+            {demoAdminEnabled && (
               <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
                 <p className="text-xs font-semibold text-[var(--text-secondary)] inline-flex items-center gap-1.5">
                   <UserCheck className="w-3.5 h-3.5" />
@@ -267,38 +315,19 @@ export function ProfileSettingsScreen({
                   })}
                 </div>
               </div>
-            ) : (
-              <>
-                {isSignedIn && (
-                  <div className="pt-3 border-t border-[var(--border-subtle)]">
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      fullWidth
-                      onClick={async () => {
-                        await supabase?.auth.signOut();
-                        switchRole('guest');
-                      }}
-                      data-testid="profile-signout-btn"
-                    >
-                      <LogOut className="w-4 h-4 mr-1.5" />
-                      Sign out of Showmelove
-                    </Button>
-                  </div>
-                )}
-                {/* Preserved hidden for test harness compatibility */}
-                <div className="hidden" aria-hidden="true">
-                  {roles.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => switchRole(r.id)}
-                      data-testid={`profile-role-${r.id}`}
-                    />
-                  ))}
-                </div>
-              </>
             )}
+
+            {/* Preserved hidden for test harness compatibility */}
+            <div className="hidden" aria-hidden="true">
+              {roles.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => switchRole(r.id)}
+                  data-testid={`profile-role-${r.id}`}
+                />
+              ))}
+            </div>
           </section>
 
           {/* Appearance (Light / Dark / System) */}
@@ -424,6 +453,22 @@ export function ProfileSettingsScreen({
                   <RotateCcw className="w-4 h-4 text-[#E61472] dark:text-[#FF2385]" />
                   <span className="text-sm font-semibold text-[#E61472] dark:text-[#FF7AA8]">
                     Reset Demo Data
+                  </span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
+            )}
+
+            {isSignedIn && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-red-500/5 transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <LogOut className="w-4 h-4 text-red-500" />
+                  <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                    Log Out
                   </span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
