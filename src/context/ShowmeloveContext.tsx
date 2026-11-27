@@ -32,7 +32,6 @@ import {
   type ComposeGiftDraft,
   type CheckoutResult,
 } from '../services/giftRules';
-import { BUNDLED_SAMPLE_GIFT, DEMO_USERS } from '../services/seedData';
 import { showmeloveStorage } from '../services/storage';
 import { audioStorage } from '../services/audioStorage';
 import { supabase } from '../lib/supabase';
@@ -94,22 +93,15 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
 
   const switchRole = useCallback(
     (role: UserRole) => {
+      // Role switching is not a production feature. Supabase sessions provide
+      // the real identity, and server-backed roles control admin access.
+      if (role !== 'guest') return;
       const prev = stateRef.current;
-      if (role === 'guest') {
-        commitNext({
-          ...prev,
-          activeRole: 'guest',
-          signedInEmail: '',
-          signedInName: 'Guest',
-        });
-        return;
-      }
-      const user = DEMO_USERS[role];
       commitNext({
         ...prev,
-        activeRole: role,
-        signedInEmail: user.email,
-        signedInName: user.displayName,
+        activeRole: 'guest',
+        signedInEmail: '',
+        signedInName: 'Guest',
       });
     },
     [commitNext],
@@ -121,21 +113,15 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       const prev = stateRef.current;
       commitNext({
         ...prev,
-        activeRole:
-          normalized === DEMO_USERS.admin.email
-            ? 'admin'
-            : normalized === DEMO_USERS.sender.email
-              ? 'sender'
-              : 'recipient',
+        activeRole: normalized ? 'recipient' : 'guest',
         signedInEmail: normalized,
-        signedInName: displayName?.trim() || normalized.split('@')[0] || 'Demo User',
+        signedInName: displayName?.trim() || normalized.split('@')[0] || 'Member',
       });
     },
     [commitNext],
   );
 
-  // Real Supabase sessions are the source of identity in production. The demo role
-  // remains only as an offline-preview fallback; it is never used by Paystack APIs.
+  // Supabase sessions are the source of identity in production.
   const refreshLiveWallet = useCallback(
     async (userId?: string, email?: string) => {
       try {
@@ -384,7 +370,6 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
     (giftId: string): SentGift | undefined => {
       const found = state.gifts.find((g) => g.id === giftId);
       if (found) return found;
-      if (giftId === BUNDLED_SAMPLE_GIFT.id) return BUNDLED_SAMPLE_GIFT;
       return undefined;
     },
     [state.gifts],
