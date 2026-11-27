@@ -15,7 +15,6 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
-import { isUserAdmin, setAdminSessionUnlocked } from '../config/admin';
 import { LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
@@ -173,20 +172,6 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       }
     }
 
-    const userEmail = data.user?.email || targetEmail;
-    const isAdmin = isUserAdmin(userEmail);
-
-    if (isAdmin) {
-      setAdminSessionUnlocked(true, true);
-      setStatus('success');
-      setMessage('Welcome, Super Admin! Routing to Super Admin Dashboard…');
-      setTimeout(() => {
-        if (onAdminRoute) onAdminRoute(userEmail);
-        else if (onBack) onBack();
-      }, 500);
-      return;
-    }
-
     setStatus('success');
     const handle = data.user?.user_metadata?.username
       ? `@${data.user.user_metadata.username}`
@@ -310,19 +295,6 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
     }
 
     setStatus('success');
-    const userEmail = pendingEmail;
-    const isAdmin = isUserAdmin(userEmail);
-
-    if (isAdmin) {
-      setAdminSessionUnlocked(true, true);
-      setMessage('Email verified! Routing to Super Admin Dashboard…');
-      setTimeout(() => {
-        if (onAdminRoute) onAdminRoute(userEmail);
-        else if (onBack) onBack();
-      }, 600);
-      return;
-    }
-
     const userHandle = pendingUsername ? `@${pendingUsername}` : pendingEmail;
     setMessage(`Email verified! Welcome to Showmelove, ${userHandle}.`);
     setTimeout(() => {
@@ -431,19 +403,6 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
     }
 
     setStatus('success');
-    const userEmail = pendingEmail;
-    const isAdmin = isUserAdmin(userEmail);
-
-    if (isAdmin) {
-      setAdminSessionUnlocked(true, true);
-      setMessage('Password updated! Routing to Super Admin Dashboard…');
-      setTimeout(() => {
-        if (onAdminRoute) onAdminRoute(userEmail);
-        else if (onBack) onBack();
-      }, 600);
-      return;
-    }
-
     setMessage('Password successfully updated! Accessing your wallet…');
     setTimeout(() => {
       if (onBack) onBack();
