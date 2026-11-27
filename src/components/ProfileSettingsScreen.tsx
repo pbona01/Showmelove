@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Building2,
   CheckCircle2,
@@ -47,9 +47,18 @@ export function ProfileSettingsScreen({
   const [txFilter, setTxFilter] = useState<TxFilter>('all');
 
   const [profileName, setProfileName] = useState(state.signedInName);
-  const [profileUsername, setProfileUsername] = useState(() => {
-    return state.signedInEmail.split('@')[0] || '';
-  });
+  const [profileUsername, setProfileUsername] = useState('');
+
+  useEffect(() => {
+    setProfileName(state.signedInName);
+    if (!supabase) return;
+    void supabase.auth.getUser().then(({ data }) => {
+      const username = data.user?.user_metadata?.username;
+      if (typeof username === 'string') {
+        setProfileUsername(username);
+      }
+    });
+  }, [state.signedInName]);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -200,7 +209,7 @@ export function ProfileSettingsScreen({
                 <div className="space-y-2.5">
                   <InputField
                     id="profile-username"
-                    label="Username"
+                    label="Username (your @handle)"
                     type="text"
                     value={profileUsername}
                     onChange={(e) => setProfileUsername(e.target.value.replace(/[^a-zA-Z0-9_@]/g, ''))}
@@ -209,11 +218,13 @@ export function ProfileSettingsScreen({
                   />
                   <InputField
                     id="profile-display-name"
-                    label="Display Name"
+                    label="Name"
                     type="text"
+                    autoComplete="name"
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
-                    placeholder="e.g. Pbona"
+                    placeholder="e.g. Peter Davvy"
+                    hint="This is the name shown on your profile, gifts, and dashboard."
                   />
                 </div>
 
