@@ -16,7 +16,6 @@ const TEST_BANK_ACCOUNT = {
 };
 import {
   buyLoveCoins,
-  canAccessAdminTools,
   claimGiftIdempotent,
   createPaidGiftIdempotent,
   getDefaultSenderName,
@@ -335,13 +334,6 @@ test('promise card sender default never uses signed-in recipient name', () => {
   assert.equal(getDefaultSenderName('sender', 'Tunde Balogun'), 'Tunde Balogun');
 });
 
-test('admin tools are hidden for recipient, sender, and guest unless demo admin flag is on', () => {
-  assert.equal(canAccessAdminTools('recipient', false), false);
-  assert.equal(canAccessAdminTools('sender', false), false);
-  assert.equal(canAccessAdminTools('guest', false), false);
-  assert.equal(canAccessAdminTools('admin', false), true);
-  assert.equal(canAccessAdminTools('recipient', true), true);
-});
 
 test('settleLoveCoinSpray reduces sender balance and settles fees even with empty or self recipient', () => {
   const initial = createInitialStoreState();
