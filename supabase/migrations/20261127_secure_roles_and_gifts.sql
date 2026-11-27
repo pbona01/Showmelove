@@ -23,17 +23,6 @@ create policy "users can read own role"
 -- select id, 'admin' from auth.users where email = 'person@example.com'
 -- on conflict (user_id) do update set role = excluded.role, updated_at = now();
 
--- Remove the insecure public gift policies installed by the previous migration.
-drop policy if exists "allow read gifts" on public.gifts;
-drop policy if exists "allow insert gifts" on public.gifts;
-drop policy if exists "allow update gifts" on public.gifts;
-
--- Authenticated recipients can access their own inbox; gift-link access should
--- be served through a dedicated tokenized endpoint, not a public table policy.
-create policy "recipients read own gifts"
-  on public.gifts for select to authenticated
-  using (lower(recipient_email) = lower(auth.jwt() ->> 'email'));
-
-create policy "senders read own gifts"
-  on public.gifts for select to authenticated
-  using (lower(sender_email) = lower(auth.jwt() ->> 'email'));
+-- Gift-link access remains unchanged in this migration. Do not remove its existing
+-- reveal policy until token-scoped public gift retrieval is deployed end to end.
+-- This migration is intentionally limited to database-backed administrator roles.
