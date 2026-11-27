@@ -224,9 +224,9 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       const email = session?.user?.email;
       const metadata = session?.user?.user_metadata || {};
       const displayName = String(
-        metadata.username ||
         metadata.display_name ||
         metadata.full_name ||
+        metadata.username ||
         (email ? email.split('@')[0] : '')
       );
       if (email) {
@@ -472,9 +472,7 @@ export function ShowmeloveProvider({ children }: { children: ReactNode }) {
       const cleanUsername = profile.username
         ? profile.username.trim().replace(/^@/, '').toLowerCase()
         : undefined;
-      const cleanName = profile.displayName
-        ? profile.displayName.trim()
-        : cleanUsername || prev.signedInName;
+      const cleanName = profile.displayName?.trim() || prev.signedInName;
 
       commitNext({
         ...prev,
