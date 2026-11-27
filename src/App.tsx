@@ -335,12 +335,9 @@ function ShowmeloveShell() {
     return <PaymentVerificationScreen onDone={() => navigate({ page: 'wallet' })} />;
   }
 
-  // Protected routes: unauthenticated users cannot access private account actions (withdrawing, profile settings, personal inbox)
-  // Public routes (sending gifts via gift links, revealing gifts, home exploration) are open to all visitors without requiring an account!
-  const isProtectedRoute =
-    route.page === 'withdraw' ||
-    route.page === 'profile' ||
-    route.page === 'inbox';
+  // The app opens on the normal sign-up/sign-in screen. Gift reveal links remain public
+  // so a recipient can open a link without creating an account first.
+  const isProtectedRoute = route.page !== 'reveal' && route.page !== 'payment-verify';
 
   const isAuthorizedAdmin = isAdminRole(adminRole);
 
