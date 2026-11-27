@@ -586,10 +586,9 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
 
   const handleConfirmMasterWithdrawCode = () => {
     if (
-      masterWithdrawCode.trim() !== generatedSampleCode &&
-      masterWithdrawCode.trim() !== '123SHOWmelove'
+      masterWithdrawCode.trim() !== generatedSampleCode
     ) {
-      setMasterWithdrawError(`Invalid code. Enter 2FA code (${generatedSampleCode}) or admin password (123SHOWmelove)`);
+      setMasterWithdrawError('Invalid verification code.');
       return;
     }
     setMasterWithdrawError('');
