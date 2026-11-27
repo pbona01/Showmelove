@@ -101,18 +101,6 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       // Fallback
     }
 
-    // Default admin and demo shortcuts fallback
-    const WELL_KNOWN: Record<string, string> = {
-      pbona: 'pbona717@gmail.com',
-      pbona717: 'pbona717@gmail.com',
-      '1virtue1x': '1virtue1x@gmail.com',
-      virtue: '1virtue1x@gmail.com',
-      ada: 'ada@showmelove.ng',
-      tunde: 'tunde@showmelove.ng',
-    };
-    if (WELL_KNOWN[clean.toLowerCase()]) {
-      return WELL_KNOWN[clean.toLowerCase()];
-    }
 
     return null;
   };
@@ -249,13 +237,13 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
         if (onBack) onBack();
       }, 700);
     } else {
-      // Verification code required: seamlessly switch to 6-digit code verification
+      // Verification code required: seamlessly switch to 8-digit code verification
       setPendingEmail(targetEmail);
       setPendingUsername(cleanUsername);
       setOtpCode('');
       setResendCooldown(45);
       setStatus('idle');
-      setMessage(`We sent a 6-digit verification code to ${targetEmail}.`);
+      setMessage(`We sent a 8-digit verification code to ${targetEmail}.`);
       setMode('verify_signup_code');
     }
   };
@@ -264,7 +252,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const handleVerifySignUpCode = async () => {
     if (!supabase || !pendingEmail || !otpCode.trim()) {
       setStatus('error');
-      setMessage('Please enter the 6-digit verification code.');
+      setMessage('Please enter the 8-digit verification code.');
       return;
     }
 
@@ -337,7 +325,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
     setOtpCode('');
     setResendCooldown(45);
     setStatus('idle');
-    setMessage(`We sent a 6-digit security code to ${targetEmail}.`);
+    setMessage(`We sent a 8-digit security code to ${targetEmail}.`);
     setMode('verify_reset_code');
   };
 
@@ -345,7 +333,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const handleVerifyResetCode = async () => {
     if (!supabase || !pendingEmail || !otpCode.trim()) {
       setStatus('error');
-      setMessage('Please enter the 6-digit verification code.');
+      setMessage('Please enter the 8-digit verification code.');
       return;
     }
 
@@ -428,7 +416,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       }
       setResendCooldown(45);
       setStatus('idle');
-      setMessage(`A fresh 6-digit verification code has been sent to ${pendingEmail}.`);
+      setMessage(`A fresh 8-digit verification code has been sent to ${pendingEmail}.`);
     } catch (err: any) {
       setStatus('error');
       setMessage(err.message || 'Failed to resend code. Please try again in a few seconds.');
@@ -486,13 +474,13 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
             {mode === 'sign_up' && 'Choose a unique username and enter your email to get started.'}
             {mode === 'verify_signup_code' && (
               <>
-                Enter the 6-digit verification code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
+                Enter the 8-digit verification code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
               </>
             )}
-            {mode === 'forgot_password' && 'Enter your username or email address and we will send you a 6-digit code to reset your password.'}
+            {mode === 'forgot_password' && 'Enter your username or email address and we will send you a 8-digit code to reset your password.'}
             {mode === 'verify_reset_code' && (
               <>
-                Enter the 6-digit security code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
+                Enter the 8-digit security code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
               </>
             )}
             {mode === 'set_new_password' && 'Choose a secure new password for your Showmelove account.'}
@@ -661,19 +649,19 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label htmlFor="otp-signup-code" className="block text-sm font-medium text-[var(--text-primary)] text-center">
-                    6-Digit Verification Code
+                    8-Digit Verification Code
                   </label>
                   <input
                     id="otp-signup-code"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={6}
+                    maxLength={8}
                     autoFocus
                     required
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                    placeholder="123456"
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 8))}
+                    placeholder="12345678"
                     className="w-full h-14 text-center tracking-[0.4em] font-mono text-2xl font-black rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
                   />
                   <p className="text-xs text-center text-[var(--text-secondary)]">
@@ -723,7 +711,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="e.g. pbona or you@example.com"
-                  hint="We will send a 6-digit verification code to your email"
+                  hint="We will send a 8-digit verification code to your email"
                 />
 
                 <div className="pt-1 text-center">
@@ -747,19 +735,19 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label htmlFor="otp-reset-code" className="block text-sm font-medium text-[var(--text-primary)] text-center">
-                    6-Digit Security Code
+                    8-Digit Security Code
                   </label>
                   <input
                     id="otp-reset-code"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={6}
+                    maxLength={8}
                     autoFocus
                     required
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                    placeholder="123456"
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 8))}
+                    placeholder="12345678"
                     className="w-full h-14 text-center tracking-[0.4em] font-mono text-2xl font-black rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-raised)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[#FF2385]"
                   />
                   <p className="text-xs text-center text-[var(--text-secondary)]">
