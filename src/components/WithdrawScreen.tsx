@@ -23,7 +23,6 @@ import {
 } from '../config/economy';
 import { NIGERIAN_BANKS, findBankByName, findBankByCode } from '../config/banks';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { DEMO_BANK_PRESETS } from '../services/seedData';
 import { PurpleGiftBoxSvg } from './GiftArtwork';
 import { BottomSheet, Button, InputField } from './ui/DesignSystem';
 import { Counter, ProgressRing } from './ui/MotionPrimitives';
