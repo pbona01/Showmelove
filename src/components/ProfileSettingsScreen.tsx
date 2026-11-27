@@ -6,16 +6,9 @@ import {
   Gift as GiftIcon,
   Info,
   LogOut,
-  RotateCcw,
-  Shield,
-  UserCheck,
 } from 'lucide-react';
 import { formatCoins, formatNaira } from '../config/economy';
-import { isAdminSessionUnlocked, isUserAdmin, lockAdminSession } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { canAccessAdminTools } from '../services/giftRules';
-import { DEMO_BANK_PRESETS } from '../services/seedData';
-import type { UserRole } from '../types/showmelove';
 import { GoldLoveCoinSvg, LoveCoinHeartSvg } from './GiftArtwork';
 import { Button, InputField, ThemeSwitcher, TransactionRow } from './ui/DesignSystem';
 import { AnimatedTabs, Reveal } from './ui/MotionPrimitives';
@@ -44,7 +37,6 @@ export function ProfileSettingsScreen({
     switchRole,
     updateDefaultBankAccount,
     updateUserProfile,
-    resetDemo,
   } = useShowmelove();
 
   const [bankName, setBankName] = useState(state.defaultBankAccount.bankName);
@@ -94,8 +86,6 @@ export function ProfileSettingsScreen({
   };
 
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
-  const showAdminTools = isUserAdmin(state.signedInEmail) || isAdminSessionUnlocked();
-  const demoAdminEnabled = showAdminTools;
 
   const handleSignOut = async () => {
     try {
@@ -105,18 +95,12 @@ export function ProfileSettingsScreen({
     } catch {
       // Ignore
     }
-    lockAdminSession();
     switchRole('guest');
     if (onSignOut) {
       onSignOut();
     }
   };
 
-  const roles: Array<{ id: UserRole; label: string; hint: string }> = [
-    { id: 'recipient', label: 'Recipient', hint: 'ada@showmelove.ng' },
-    { id: 'sender', label: 'Sender', hint: 'tunde@showmelove.ng' },
-    { id: 'guest', label: 'Guest', hint: 'No sign-in' },
-  ];
 
   const handleSaveBank = () => {
     if (!bankName.trim() || accountNumber.trim().length < 6 || !accountName.trim()) {
@@ -176,7 +160,7 @@ export function ProfileSettingsScreen({
             Profile &amp; Settings
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            Manage appearance, bank payout details, account role, and full transaction ledger.
+            Manage appearance, bank payout details, and your transaction ledger.
           </p>
         </div>
       </div>
@@ -195,7 +179,7 @@ export function ProfileSettingsScreen({
                   {isSignedIn ? state.signedInName : 'Guest Visitor'}
                 </h2>
                 <p className="text-xs text-[var(--text-secondary)] truncate">
-                  {isSignedIn ? state.signedInEmail : 'No sign-in active · Demo mode'}
+                  {isSignedIn ? state.signedInEmail : 'No sign-in active'}
                 </p>
                 {isSignedIn && (
                   <p className="text-xs font-semibold tabular-nums text-[#E10B5C] dark:text-[#FF3888] mt-1">
@@ -283,51 +267,9 @@ export function ProfileSettingsScreen({
               </div>
             )}
 
-            {demoAdminEnabled && (
-              <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
-                <p className="text-xs font-semibold text-[var(--text-secondary)] inline-flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Switch demo account</span>
-                </p>
-                <div
-                  className={`grid gap-2 ${
-                    roles.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
-                  }`}
-                >
-                  {roles.map((r) => {
-                    const active = state.activeRole === r.id;
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => switchRole(r.id)}
-                        data-testid={`profile-role-${r.id}`}
-                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                          active
-                            ? 'border-[#E61472] dark:border-[#FF2385] bg-[#FFF0F6] dark:bg-[#2A1426]'
-                            : 'border-[var(--border-subtle)] bg-[var(--bg-raised)] hover:border-[#7C3AED]/45'
-                        }`}
-                      >
-                        <p className="text-xs font-bold text-[var(--text-primary)]">{r.label}</p>
-                        <p className="text-[11px] text-[var(--text-secondary)] truncate">{r.hint}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* Preserved hidden for test harness compatibility */}
-            <div className="hidden" aria-hidden="true">
-              {roles.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => switchRole(r.id)}
-                  data-testid={`profile-role-${r.id}`}
-                />
-              ))}
-            </div>
+
+
           </section>
 
           {/* Appearance (Light / Dark / System) */}
@@ -352,27 +294,9 @@ export function ProfileSettingsScreen({
                   Payout bank details
                 </h2>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Used for Gifted Rewards withdrawals (demo storage).
+                  Used for Gifted Rewards withdrawals.
                 </p>
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {DEMO_BANK_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => {
-                    setBankName(preset.bankName);
-                    setAccountNumber(preset.accountNumber);
-                    setAccountName(preset.accountName);
-                    setBankError(null);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-[var(--bg-raised)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] hover:border-[#8439D5]/50 cursor-pointer"
-                >
-                  {preset.bankName}
-                </button>
-              ))}
             </div>
 
             <div className="space-y-3">
@@ -442,22 +366,7 @@ export function ProfileSettingsScreen({
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
             </button>
 
-            {showAdminTools && (
-              <button
-                type="button"
-                onClick={() => void resetDemo()}
-                data-testid="profile-reset-demo-btn"
-                className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-[var(--bg-raised)] transition-colors text-left cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <RotateCcw className="w-4 h-4 text-[#E61472] dark:text-[#FF2385]" />
-                  <span className="text-sm font-semibold text-[#E61472] dark:text-[#FF7AA8]">
-                    Reset Demo Data
-                  </span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-              </button>
-            )}
+
 
             {isSignedIn && (
               <button
