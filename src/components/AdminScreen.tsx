@@ -511,22 +511,26 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
         }),
       });
 
-      const data = await res.json();
-      if (data.ok) {
-        paystackNote = ` · Paystack Transfer: ${data.transferCode || data.reference || 'Queued'}`;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
         setPayoutNotice({
-          type: 'success',
-          message: `Payout of ${formatNaira(payout.amountNaira)} approved & disbursed via Paystack (${data.transferCode || 'Success'})!`,
+          type: 'error',
+          message: data.error || 'Payout was not sent. Nothing has been marked as completed.',
         });
-      } else {
-        paystackNote = ` · Note: ${data.error || 'Manual transfer'}`;
-        setPayoutNotice({
-          type: 'success',
-          message: `Payout approved! (${data.error || 'Manual transfer recorded'})`,
-        });
+        return;
       }
+
+      paystackNote = ` · Paystack Transfer: ${data.transferCode || data.reference || 'Queued'}`;
+      setPayoutNotice({
+        type: 'success',
+        message: `Payout of ${formatNaira(payout.amountNaira)} was queued with Paystack.`,
+      });
     } catch {
-      paystackNote = ' · Manual transfer';
+      setPayoutNotice({
+        type: 'error',
+        message: 'Payout service could not be reached. Nothing has been marked as completed.',
+      });
+      return;
     } finally {
       setProcessingPayoutId(null);
     }
