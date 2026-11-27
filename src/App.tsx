@@ -18,7 +18,7 @@ import { TransactionHistoryScreen } from './components/TransactionHistoryScreen'
 import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
 import { PromiseCardGivingScreen } from './components/PromiseCardGivingScreen';
-import { LoveCoinHeartSvg, ShowmeloveBrandIcon } from './components/GiftArtwork';
+import { LoveCoinHeartSvg } from './components/GiftArtwork';
 import { stopAllConfetti } from './utils/confettiEffects';
 import {
   PageTransition,
@@ -387,7 +387,11 @@ function ShowmeloveShell() {
             }}
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
-            <ShowmeloveBrandIcon className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full border border-[var(--border-subtle)] shadow-xs" />
+            <LoveCoinHeartSvg
+              className="w-9 h-9 min-w-[36px] min-h-[36px] object-contain"
+              alt="Showmelove heart mascot"
+              priority
+            />
             <span>
               Showme
               <span className="text-[#E61472] dark:text-[#FF2385]">love</span>
@@ -462,6 +466,18 @@ function ShowmeloveShell() {
                 />
               )}
             </button>
+
+            {isAuthorizedAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate({ page: 'admin' })}
+                aria-label="Open admin console"
+                data-testid="topbar-admin-btn"
+                className="w-10 h-10 rounded-full border border-[#7C3AED]/35 bg-[#7C3AED]/10 text-[#7C3AED] dark:text-[#C084FC] flex items-center justify-center hover:bg-[#7C3AED]/18 transition-colors cursor-pointer"
+              >
+                <ShieldAlert className="w-[18px] h-[18px]" />
+              </button>
+            )}
 
             <button
               type="button"
