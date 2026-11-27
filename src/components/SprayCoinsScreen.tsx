@@ -28,14 +28,8 @@ export interface CelebrantOption {
   email?: string;
 }
 
-const DEFAULT_CELEBRANTS: CelebrantOption[] = [
-  { displayName: 'Bene', username: 'pbona', tag: 'Creator', email: 'pbona717@gmail.com' },
-  { displayName: 'Virtue', username: '1virtue1x', tag: 'Celebrant', email: '1virtue1x@gmail.com' },
-  { displayName: 'Adaeze Okafor', username: 'ada', tag: 'Celebrant', email: 'ada@showmelove.ng' },
-  { displayName: 'Tunde Adeyemi', username: 'tunde', tag: 'Creator', email: 'tunde@showmelove.ng' },
-  { displayName: 'Chioma Ade', username: 'chioma', tag: 'Celebrant' },
-  { displayName: 'Celebration Room', username: 'open_room', tag: 'Public Room' },
-];
+const DEFAULT_CELEBRANTS: CelebrantOption[] = [];
+
 
 export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
   const { state, currentWallet, sprayLoveCoins } = useShowmelove();
@@ -284,7 +278,7 @@ export function SprayCoinsScreen({ onBack, onSignIn }: SprayCoinsScreenProps) {
                   type="text"
                   value={targetName}
                   onChange={(e) => setTargetName(e.target.value)}
-                  placeholder="Type @username (e.g. @ada, @pbona, @virtue)"
+                  placeholder="Type a recipient’s @username"
                   className={`w-full rounded-xl border bg-[var(--bg-raised)] px-3.5 py-2 text-sm font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/50 focus:outline-none focus:ring-2 ${
                     isInvalidUser
                       ? 'border-[#E61472] dark:border-[#FF2385] focus:ring-[#FF2385]'
