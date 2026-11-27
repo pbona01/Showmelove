@@ -7,7 +7,13 @@ import {
   ECONOMY_CONFIG,
   validateGiftAmount,
 } from '../config/economy';
-import { createInitialStoreState, DEMO_DEFAULT_BANK } from './seedData';
+import { createInitialStoreState } from './seedData';
+
+const TEST_BANK_ACCOUNT = {
+  bankName: 'Test Bank',
+  accountNumber: '0123456789',
+  accountName: 'Test User',
+};
 import {
   buyLoveCoins,
   canAccessAdminTools,
@@ -172,7 +178,7 @@ test('withdrawal calculates net summary, reserves funds, clears on completion, a
     initial,
     email,
     startAvailable + 500,
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_over',
     '2026-11-16T12:00:00.000Z',
   );
@@ -182,7 +188,7 @@ test('withdrawal calculates net summary, reserves funds, clears on completion, a
     initial,
     email,
     2500,
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_1',
     '2026-11-16T12:01:00.000Z',
   );
@@ -205,7 +211,7 @@ test('withdrawal calculates net summary, reserves funds, clears on completion, a
     failed.nextState,
     email,
     2000,
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_2',
     '2026-11-16T12:03:00.000Z',
   );
@@ -289,7 +295,7 @@ test('sent gift status transitions from Unclaimed to Revealed to Claimed and fil
     'Claimed',
   );
 
-  // Tunde sees his sent gifts (sample + teddy), Adaeze sees none yet, Guest sees none until creating one
+  // Senders only see gifts they created; recipients only see gifts sent to them.
   const tundeSent = getSentGiftsForViewer(claimed.nextState.gifts, 'sender', 'tunde@showmelove.ng');
   assert.deepEqual(
     tundeSent.map((g) => g.id),
@@ -459,7 +465,7 @@ test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, 
     initial,
     recipient,
     50000, // Available is 6000 by default, let's bump it first
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_high_val',
     new Date().toISOString(),
   );
@@ -471,7 +477,7 @@ test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, 
     initial,
     recipient,
     2000,
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_valid_nuban',
     new Date().toISOString(),
   );
@@ -494,7 +500,7 @@ test('security: withdrawal enforces 10-digit NUBAN, blocks sender account wash, 
     highWalletState,
     recipient,
     2500000,
-    DEMO_DEFAULT_BANK,
+    TEST_BANK_ACCOUNT,
     'pay_high_val',
     new Date().toISOString(),
   );
