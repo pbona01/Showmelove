@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, Home, Inbox, Loader2, Send, ShieldAlert, Trophy, User } from 'lucide-react';
-import { isAdminSessionUnlocked, isUserAdmin, lockAdminSession } from './config/admin';
+import { getAdminRoleForUser, isAdminRole, type AppRole } from './config/admin';
 import { ShowmeloveProvider, useShowmelove } from './context/ShowmeloveContext';
 import { ComposeAndCheckoutScreen } from './components/ComposeAndCheckoutScreen';
 import { InboxAndWalletScreen } from './components/InboxAndWalletScreen';
@@ -252,10 +252,10 @@ function getProfileInitials(name: string): string {
 
 function ShowmeloveShell() {
   const [route, setRoute] = useState<AppRoute>(() => parseLocationRoute());
-  const { state, signInDemoEmail } = useShowmelove();
+  const { state } = useShowmelove();
   const [authChecked, setAuthChecked] = useState(!isSupabaseAuthConfigured);
   const [hasLiveSession, setHasLiveSession] = useState(false);
-  const [adminUnlocked, setAdminUnlocked] = useState(() => isAdminSessionUnlocked());
+  const [adminRole, setAdminRole] = useState<AppRole>('user');
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -291,8 +291,10 @@ function ShowmeloveShell() {
     void supabase.auth.getSession().then(({ data }: { data: any }) => {
       setHasLiveSession(Boolean(data.session));
       setAuthChecked(true);
-      if (data.session?.user?.email && isUserAdmin(data.session.user.email)) {
-        setAdminUnlocked(true);
+      if (data.session?.user?.id) {
+        void getAdminRoleForUser(supabase, data.session.user.id).then(setAdminRole);
+      } else {
+        setAdminRole('user');
       }
       if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -301,8 +303,10 @@ function ShowmeloveShell() {
     const { data } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       setHasLiveSession(Boolean(session));
       setAuthChecked(true);
-      if (session?.user?.email && isUserAdmin(session.user.email)) {
-        setAdminUnlocked(true);
+      if (session?.user?.id) {
+        void getAdminRoleForUser(supabase, session.user.id).then(setAdminRole);
+      } else {
+        setAdminRole('user');
       }
       if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -338,40 +342,18 @@ function ShowmeloveShell() {
     route.page === 'profile' ||
     route.page === 'inbox';
 
-  const isAuthorizedAdmin = adminUnlocked || isUserAdmin(state.signedInEmail);
+  const isAuthorizedAdmin = isAdminRole(adminRole);
 
   if (route.page === 'admin' && !isAuthorizedAdmin) {
-    if (hasLiveSession || (state.activeRole !== 'guest' && Boolean(state.signedInEmail))) {
+    if (hasLiveSession) {
       navigate({ page: 'home' });
       return null;
     }
-    return (
-      <AuthScreen
-        onBack={() => navigate({ page: 'home' })}
-        onAdminRoute={(adminEmail?: string) => {
-          if (adminEmail) {
-            signInDemoEmail(adminEmail, adminEmail.split('@')[0]);
-          }
-          setAdminUnlocked(true);
-          navigate({ page: 'admin' });
-        }}
-      />
-    );
+    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
   }
 
   if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
-    return (
-      <AuthScreen
-        onBack={() => navigate({ page: 'home' })}
-        onAdminRoute={(adminEmail?: string) => {
-          if (adminEmail) {
-            signInDemoEmail(adminEmail, adminEmail.split('@')[0]);
-          }
-          setAdminUnlocked(true);
-          navigate({ page: 'admin' });
-        }}
-      />
-    );
+    return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
   }
 
   const isHomeTab =
@@ -602,8 +584,8 @@ function ShowmeloveShell() {
               isAuthorizedAdmin ? (
                 <AdminScreen
                   onLock={() => {
-                    lockAdminSession();
-                    setAdminUnlocked(false);
+                    void supabase?.auth.signOut();
+                    setAdminRole('user');
                     navigate({ page: 'home' });
                   }}
                 />
