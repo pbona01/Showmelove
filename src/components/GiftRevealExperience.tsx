@@ -27,7 +27,6 @@ import {
 } from '../audio/sampleVoiceNote';
 import { audioStorage } from '../services/audioStorage';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { DEMO_USERS } from '../services/seedData';
 import { Button, PriceLabel, PromisePaperCard } from './ui/DesignSystem';
 import {
   fireClaimCelebrationExplosion,
@@ -1087,32 +1086,6 @@ export function GiftRevealExperience({
                                 Verify &amp; Claim
                               </Button>
                             </div>
-
-                            {(gift.isBundledSample || gift.id === 'sample') && (
-                              <div className="flex flex-wrap items-center gap-2 text-xs">
-                                <span className="text-[#ADA4BA]">Sample reveal sign-in:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setVerifyEmailInput(DEMO_USERS.recipient.email);
-                                    handleClaimAttempt(DEMO_USERS.recipient.email);
-                                  }}
-                                  className="px-2.5 py-1 rounded-xl bg-[#2B1726] text-[#FF7AA8] font-medium cursor-pointer"
-                                >
-                                  {DEMO_USERS.recipient.email}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setVerifyEmailInput('stranger@example.com');
-                                    handleClaimAttempt('stranger@example.com');
-                                  }}
-                                  className="px-2.5 py-1 rounded-xl bg-[#14131B] border border-white/12 text-[#ADA4BA] font-medium cursor-pointer"
-                                >
-                                  Test wrong email
-                                </button>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
