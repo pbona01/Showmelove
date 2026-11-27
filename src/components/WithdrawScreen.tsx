@@ -50,7 +50,6 @@ export function WithdrawScreen({
     currentWallet,
     submitWithdrawal,
     resolvePayout,
-    switchRole,
     updateDefaultBankAccount,
   } = useShowmelove();
 
@@ -267,10 +266,10 @@ export function WithdrawScreen({
             Sign in to withdraw Gifted Rewards
           </h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Switch to the seeded demo recipient account to test bank linking and Pending, Paid, and Failed payouts.
+            Sign in to access your eligible Gifted Rewards and payout details.
           </p>
-          <Button variant="primary" size="md" onClick={() => switchRole('recipient')}>
-            Sign in as Adaeze (Recipient)
+          <Button variant="primary" size="md" onClick={() => window.location.assign('/sign-in')}>
+            Sign in
           </Button>
         </section>
       ) : (
