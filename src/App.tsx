@@ -19,7 +19,6 @@ import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
 import { PromiseCardGivingScreen } from './components/PromiseCardGivingScreen';
 import { LoveCoinHeartSvg, ShowmeloveBrandIcon } from './components/GiftArtwork';
-import { BUNDLED_SAMPLE_GIFT } from './services/seedData';
 import { stopAllConfetti } from './utils/confettiEffects';
 import {
   PageTransition,
@@ -61,7 +60,7 @@ function parseLocationRoute(): AppRoute {
   const params = new URLSearchParams(window.location.search);
 
   if (path === '/sample' || path === '/gift/sample') {
-    return { page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id };
+    return { page: 'home' };
   }
   if (path.startsWith('/gift/')) {
     const giftId = decodeURIComponent(path.slice('/gift/'.length));
@@ -208,19 +207,9 @@ function RevealRouteView({
             Gift link not found
           </h1>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            This demo link wasn&apos;t found in this browser&apos;s storage. Without an optional Supabase sync backend, newly created demo links only open on the browser where they were created — or you can open the bundled sample reveal instead.
+            This gift link is invalid, unavailable, or has been removed.
           </p>
-          <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                window.history.pushState({}, '', `/gift/${BUNDLED_SAMPLE_GIFT.id}`);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              }}
-              className="min-h-[44px] px-4 py-2 rounded-2xl cta-pink-surface text-white text-sm font-semibold transition-all cursor-pointer"
-            >
-              Open sample reveal
-            </button>
+          <div className="flex justify-center pt-2">
             <button
               type="button"
               onClick={onExit}
@@ -512,9 +501,6 @@ function ShowmeloveShell() {
                 onOpenInbox={() => navigate({ page: 'inbox' })}
                 onOpenProfile={() => navigate({ page: 'profile' })}
                 onOpenTransactions={() => navigate({ page: 'transactions' })}
-                onTrySampleReveal={() =>
-                  navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
-                }
                 onOpenSpray={() => navigate({ page: 'spray-coins' })}
                 onOpenLeaderboard={() => navigate({ page: 'leaderboard' })}
                 onOpenSignIn={() => navigate({ page: 'sign-in' })}
@@ -547,9 +533,6 @@ function ShowmeloveShell() {
                 onGoToWallet={() => navigate({ page: 'home' })}
                 onGoToWithdraw={() => navigate({ page: 'withdraw' })}
                 onSendGift={() => navigate({ page: 'send' })}
-                onTrySampleReveal={() =>
-                  navigate({ page: 'reveal', giftId: BUNDLED_SAMPLE_GIFT.id })
-                }
                 onSignIn={() => navigate({ page: 'sign-in' })}
               />
             )}
