@@ -5,15 +5,8 @@ export interface VerifiedUser {
   tag?: string;
 }
 
-export const BASE_PLATFORM_USERS: VerifiedUser[] = [
-  { displayName: 'Bene', username: 'pbona', tag: 'Creator', email: 'pbona717@gmail.com' },
-  { displayName: 'Pedro', username: 'pedrrovx', tag: 'Super Admin', email: 'pbona717@gmail.com' },
-  { displayName: 'Virtue', username: '1virtue1x', tag: 'Celebrant', email: '1virtue1x@gmail.com' },
-  { displayName: 'Adaeze Okafor', username: 'ada', tag: 'Celebrant', email: 'ada@showmelove.ng' },
-  { displayName: 'Tunde Adeyemi', username: 'tunde', tag: 'Creator', email: 'tunde@showmelove.ng' },
-  { displayName: 'Chioma Ade', username: 'chioma', tag: 'Celebrant', email: 'chioma@showmelove.ng' },
-  { displayName: 'Linda Joy', username: 'linda_joy', tag: 'Celebrant', email: 'linda.joy@gmail.com' },
-];
+export const BASE_PLATFORM_USERS: VerifiedUser[] = [];
+
 
 /**
  * Validates and confirms whether a username belongs to a verified Showmelove account.
@@ -27,7 +20,7 @@ export function lookupVerifiedUser(
   const clean = inputUsername.trim().replace(/^@/, '').toLowerCase();
   if (!clean) return null;
 
-  // 1. Check base platform users
+  // 1. Check users discovered from live account data
   const baseMatch = BASE_PLATFORM_USERS.find(
     (u) => u.username.toLowerCase() === clean,
   );
