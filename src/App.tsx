@@ -256,6 +256,7 @@ function ShowmeloveShell() {
   const [authChecked, setAuthChecked] = useState(!isSupabaseAuthConfigured);
   const [hasLiveSession, setHasLiveSession] = useState(false);
   const [adminRole, setAdminRole] = useState<AppRole>('user');
+  const [adminRoleChecked, setAdminRoleChecked] = useState(!isSupabaseAuthConfigured);
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -292,9 +293,12 @@ function ShowmeloveShell() {
       setHasLiveSession(Boolean(data.session));
       setAuthChecked(true);
       if (data.session?.user?.id) {
-        void getAdminRoleForUser(supabase, data.session.user.id).then(setAdminRole);
+        void getAdminRoleForUser(supabase, data.session.user.id)
+          .then(setAdminRole)
+          .finally(() => setAdminRoleChecked(true));
       } else {
         setAdminRole('user');
+        setAdminRoleChecked(true);
       }
       if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -304,9 +308,13 @@ function ShowmeloveShell() {
       setHasLiveSession(Boolean(session));
       setAuthChecked(true);
       if (session?.user?.id) {
-        void getAdminRoleForUser(supabase, session.user.id).then(setAdminRole);
+        setAdminRoleChecked(false);
+        void getAdminRoleForUser(supabase, session.user.id)
+          .then(setAdminRole)
+          .finally(() => setAdminRoleChecked(true));
       } else {
         setAdminRole('user');
+        setAdminRoleChecked(true);
       }
       if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -342,6 +350,9 @@ function ShowmeloveShell() {
   const isAuthorizedAdmin = isAdminRole(adminRole);
 
   if (route.page === 'admin' && !isAuthorizedAdmin) {
+    if (hasLiveSession && !adminRoleChecked) {
+      return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
+    }
     if (hasLiveSession) {
       navigate({ page: 'home' });
       return null;
