@@ -55,7 +55,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { ECONOMY_CONFIG, formatCoins, formatNaira } from '../config/economy';
-import { addAdminEmail, getAdminEmails, getAdminPassword, removeAdminEmail } from '../config/admin';
 import { useShowmelove } from '../context/ShowmeloveContext';
 import type { CollectionId, PayoutRequest, DemoBankAccount } from '../types/showmelove';
 import { GiftArtworkSvg } from './GiftArtwork';
@@ -263,7 +262,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const [payoutNotice, setPayoutNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Admin Management state
-  const [adminList, setAdminList] = useState<string[]>(() => getAdminEmails());
+  const adminList: string[] = [];
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminRole, setNewAdminRole] = useState('Super Admin');
   const [adminNotice, setAdminNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -271,44 +270,19 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   const handleAddAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminEmail.trim() || !newAdminEmail.includes('@')) {
-      setAdminNotice({ type: 'error', message: 'Enter a valid email address.' });
+      setAdminNotice({ type: 'error', message: 'Enter the email address of an existing Showmelove account.' });
       return;
     }
-    const clean = newAdminEmail.trim().toLowerCase();
-    const ok = addAdminEmail(clean);
-    if (ok) {
-      setAdminList(getAdminEmails());
-      setAdminNotice({
-        type: 'success',
-        message: `Successfully granted ${newAdminRole} permissions to ${clean}! They can now log in and manage the platform.`,
-      });
-      addAuditLog({
-        adminEmail: state.signedInEmail || 'pbona717@gmail.com',
-        action: 'GRANT_ADMIN_ACCESS',
-        target: clean,
-        details: `Added ${clean} as an authorized ${newAdminRole}.`,
-        category: 'governance',
-      });
-      setNewAdminEmail('');
-    } else {
-      setAdminNotice({ type: 'error', message: 'Failed to add admin or email already exists.' });
-    }
+    setAdminNotice({
+      type: 'error',
+      message: 'Admin roles are managed securely in Supabase. Run the role assignment SQL for this existing account; browser-only changes are intentionally disabled.',
+    });
   };
 
   const handleRemoveAdmin = (email: string) => {
-    if (email.toLowerCase() === 'pbona717@gmail.com') {
-      setAdminNotice({ type: 'error', message: 'Primary owner account (pbona717@gmail.com) cannot be removed.' });
-      return;
-    }
-    removeAdminEmail(email);
-    setAdminList(getAdminEmails());
-    setAdminNotice({ type: 'success', message: `Revoked admin privileges from ${email}.` });
-    addAuditLog({
-      adminEmail: state.signedInEmail || 'pbona717@gmail.com',
-      action: 'REVOKE_ADMIN_ACCESS',
-      target: email,
-      details: `Removed admin access for ${email}.`,
-      category: 'governance',
+    setAdminNotice({
+      type: 'error',
+      message: `To revoke ${email}, update public.user_roles in Supabase. Browser-only role changes are intentionally disabled.`,
     });
   };
 
@@ -355,7 +329,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
       if (p.recipientEmail && p.recipientEmail.includes('@')) allEmails.add(p.recipientEmail.toLowerCase().trim());
     });
 
-    getAdminEmails().forEach((em) => {
+    adminList.forEach((em) => {
       if (em && em.includes('@')) allEmails.add(em.toLowerCase().trim());
     });
 
@@ -534,7 +508,6 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
           bankCode: payout.bankAccount.bankCode || '058',
           accountName: payout.bankAccount.accountName,
           recipientEmail: payout.recipientEmail,
-          adminPassword: getAdminPassword(),
         }),
       });
 
@@ -2283,7 +2256,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <span>Add New Administrator</span>
                   </h3>
                   <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Authorized admins are automatically recognized upon login and routed directly to this Super Admin Console.
+                    Admins sign in through the normal page. Grant access only after they have created an account, using the secure Supabase role record.
                   </p>
                 </div>
 
@@ -2337,7 +2310,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                     <span>Active Platform Administrators ({adminList.length})</span>
                   </h3>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold uppercase">
-                    Master Password: 123SHOWmelove
+                    Database-backed roles
                   </span>
                 </div>
 
@@ -2370,7 +2343,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10px] text-[var(--text-secondary)]">Full Dashboard &amp; Payout Access</p>
+                            <p className="text-[10px] text-[var(--text-secondary)]">Admin access is verified at sign-in</p>
                           </div>
                         </div>
 
