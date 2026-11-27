@@ -19,7 +19,6 @@ import {
   getSentGiftStatus,
   type SentGiftLinkStatus,
 } from '../services/giftRules';
-import { DEMO_USERS } from '../services/seedData';
 import { GiftArtworkSvg, PurpleGiftBoxSvg } from './GiftArtwork';
 import { Button, TransactionRow } from './ui/DesignSystem';
 import { springs, usePrefersReducedMotion } from '../lib/animation';
@@ -29,7 +28,6 @@ interface InboxScreenProps {
   onGoToWallet: () => void;
   onGoToWithdraw: () => void;
   onSendGift: () => void;
-  onTrySampleReveal?: () => void;
   onSignIn?: () => void;
 }
 
@@ -49,7 +47,6 @@ export function InboxAndWalletScreen({
   onGoToWallet,
   onGoToWithdraw,
   onSendGift,
-  onTrySampleReveal,
   onSignIn,
 }: InboxScreenProps) {
   const { state, currentWallet, switchRole, signInDemoEmail } = useShowmelove();
@@ -294,18 +291,13 @@ export function InboxAndWalletScreen({
                       : `No received gifts for ${state.signedInEmail} yet`}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
-                  Send a gift addressed to {state.signedInEmail} or try the sample reveal.
+                  When someone sends a gift to this email address, it will appear here.
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 pt-1">
                 <Button variant="primary" size="sm" onClick={onSendGift}>
                   Send a gift
                 </Button>
-                {onTrySampleReveal && (
-                  <Button variant="secondary" size="sm" onClick={onTrySampleReveal}>
-                    Try a sample reveal
-                  </Button>
-                )}
               </div>
             </div>
           ) : (
