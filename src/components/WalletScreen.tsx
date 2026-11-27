@@ -11,7 +11,6 @@ import {
   Gift as GiftIcon,
   Heart,
   Info,
-  Play,
   Plus,
   Send,
   Share2,
@@ -36,7 +35,6 @@ import {
   formatNaira,
 } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { DEMO_USERS } from '../services/seedData';
 import {
   GiftArtworkSvg,
   GoldLoveCoinSvg,
@@ -54,7 +52,6 @@ interface WalletScreenProps {
   onOpenInbox: () => void;
   onOpenProfile?: () => void;
   onOpenTransactions?: () => void;
-  onTrySampleReveal?: () => void;
   onOpenSpray: () => void;
   onOpenLeaderboard: () => void;
   onOpenSignIn?: () => void;
@@ -68,12 +65,11 @@ export function WalletScreen({
   onOpenInbox,
   onOpenProfile,
   onOpenTransactions,
-  onTrySampleReveal,
   onOpenSpray,
   onOpenLeaderboard,
   onOpenSignIn,
 }: WalletScreenProps) {
-  const { state, currentWallet, switchRole, refreshLiveWallet } = useShowmelove();
+  const { state, currentWallet, refreshLiveWallet } = useShowmelove();
   const isSignedIn = state.activeRole !== 'guest' && Boolean(state.signedInEmail);
 
   useEffect(() => {
@@ -339,15 +335,7 @@ export function WalletScreen({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onTrySampleReveal || onOpenInbox}
-            data-testid="home-sample-reveal-btn"
-            className="h-9 px-3.5 rounded-full bg-white dark:bg-slate-800 border border-pink-100 dark:border-pink-900/40 text-xs font-bold text-[#1E1B4B] dark:text-white inline-flex items-center gap-1.5 shadow-2xs hover:bg-pink-50/50 dark:hover:bg-slate-700/50 transition-all cursor-pointer"
-          >
-            <Play className="w-3.5 h-3.5 text-[#E10B5C] fill-[#E10B5C]" />
-            <span>Reveal</span>
-          </button>
+
           <button
             type="button"
             onClick={onOpenBalanceInfo}
@@ -396,11 +384,7 @@ export function WalletScreen({
             </Button>
           </div>
 
-          {/* Preserved hidden for test harness compatibility */}
-          <div className="hidden" aria-hidden="true">
-            <button type="button" onClick={() => switchRole('recipient')} data-testid="wallet-signin-recipient-btn" />
-            <button type="button" onClick={() => switchRole('sender')} data-testid="wallet-signin-sender-btn" />
-          </div>
+
         </section>
       ) : (
         <>
