@@ -870,15 +870,3 @@ export function getDefaultSenderName(
   }
   return '';
 }
-
-/**
- * Admin Console and Reset Demo Data are strictly hidden for regular recipient,
- * sender, and guest users unless role === 'admin' or the demo admin flag is enabled.
- */
-export function canAccessAdminTools(
-  activeRole: UserRole,
-  demoAdminFlag = false,
-): boolean {
-  return activeRole === 'admin' || demoAdminFlag === true;
-}
-
