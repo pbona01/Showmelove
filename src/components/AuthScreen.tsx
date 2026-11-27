@@ -36,6 +36,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const [identifier, setIdentifier] = useState(''); // Email or Username
   const [password, setPassword] = useState('');
   const [signUpUsername, setSignUpUsername] = useState('');
+  const [signUpName, setSignUpName] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -185,6 +186,12 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       setMessage('Username can only contain letters, numbers, and underscores (3-20 characters).');
       return;
     }
+    const cleanName = signUpName.trim();
+    if (!cleanName) {
+      setStatus('error');
+      setMessage('Enter the name you want people to see on Showmelove.');
+      return;
+    }
     if (!signUpEmail.trim() || !signUpEmail.includes('@')) {
       setStatus('error');
       setMessage('Enter a valid email address.');
@@ -207,8 +214,8 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       options: {
         data: {
           username: cleanUsername.toLowerCase(),
-          display_name: cleanUsername,
-          full_name: cleanUsername,
+          display_name: cleanName,
+          full_name: cleanName,
         },
       },
     });
@@ -471,7 +478,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
           </h1>
           <p className="text-sm text-[var(--text-secondary)] max-w-xs mx-auto leading-relaxed">
             {mode === 'sign_in' && 'Enter your username or email and password to access your wallet.'}
-            {mode === 'sign_up' && 'Choose a unique username and enter your email to get started.'}
+            {mode === 'sign_up' && 'Add the name people will see, choose a username, and enter your email to get started.'}
             {mode === 'verify_signup_code' && (
               <>
                 Enter the 8-digit verification code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
@@ -602,6 +609,18 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
                   onChange={(e) => setSignUpUsername(e.target.value.replace(/[^a-zA-Z0-9_@]/g, ''))}
                   placeholder="e.g. pbona"
                   hint="Letters, numbers, and underscores (3-20 characters)"
+                />
+
+                <InputField
+                  id="sign-up-name"
+                  label="Your Name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={signUpName}
+                  onChange={(e) => setSignUpName(e.target.value)}
+                  placeholder="e.g. Peter Davvy"
+                  hint="This is the name people see on your profile, gifts, and dashboard."
                 />
 
                 <InputField
