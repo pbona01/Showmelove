@@ -2,13 +2,9 @@ import { ArrowLeft, Crown, Heart, Trophy } from 'lucide-react';
 import { useMemo } from 'react';
 import { formatCoinCount } from '../config/economy';
 import { useShowmelove } from '../context/ShowmeloveContext';
-import { DEMO_USERS } from '../services/seedData';
 
 interface LeaderboardScreenProps { onBack: () => void }
 
-const namesByEmail = Object.fromEntries(
-  Object.values(DEMO_USERS).map((user) => [user.email.toLowerCase(), user.displayName]),
-);
 
 export function LeaderboardScreen({ onBack }: LeaderboardScreenProps) {
   const { state } = useShowmelove();
@@ -42,7 +38,7 @@ export function LeaderboardScreen({ onBack }: LeaderboardScreenProps) {
             {leaders.map((leader, index) => (
               <li key={leader.email} className="flex items-center gap-3 py-3.5">
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${index === 0 ? 'bg-[#F7C948] text-[#4A2B00]' : 'bg-[var(--bg-raised)] text-[var(--text-secondary)]'}`}>{index === 0 ? <Crown className="h-5 w-5" /> : index + 1}</span>
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[var(--text-primary)]">{namesByEmail[leader.email] ?? leader.email.split('@')[0]}</p><p className="text-xs text-[var(--text-secondary)]">Gifts {formatCoinCount(leader.gifts)} · Sprays {formatCoinCount(leader.sprays)}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[var(--text-primary)]">{leader.email.split('@')[0]}</p><p className="text-xs text-[var(--text-secondary)]">Gifts {formatCoinCount(leader.gifts)} · Sprays {formatCoinCount(leader.sprays)}</p></div>
                 <div className="text-right"><p className="inline-flex items-center gap-1 text-base font-bold tabular-nums text-[#E10B5C] dark:text-[#FF7AA8]"><Heart className="h-3.5 w-3.5 fill-current" />{formatCoinCount(leader.totalCoins)}</p></div>
               </li>
             ))}
