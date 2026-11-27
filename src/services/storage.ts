@@ -1,7 +1,7 @@
 import type { ShowmeloveStoreState } from '../types/showmelove';
-import { BUNDLED_SAMPLE_GIFT, createInitialStoreState } from './seedData';
+import { createInitialStoreState } from './seedData';
 
-export const STORAGE_KEY = 'showmelove_demo_state_v1';
+export const STORAGE_KEY = 'showmelove_state_v2';
 
 /**
  * Storage adapter interface so browser localStorage can be replaced
@@ -21,8 +21,6 @@ function hydrateState(raw: string | null): ShowmeloveStoreState {
   try {
     const parsed = JSON.parse(raw) as Partial<ShowmeloveStoreState>;
     const gifts = Array.isArray(parsed.gifts) ? parsed.gifts : fallback.gifts;
-    // Always guarantee bundled sample gift exists in state
-    const hasSample = gifts.some((g) => g.id === BUNDLED_SAMPLE_GIFT.id);
     return {
       ...fallback,
       ...parsed,
@@ -30,7 +28,7 @@ function hydrateState(raw: string | null): ShowmeloveStoreState {
         Array.isArray(parsed.catalog) && parsed.catalog.length > 0
           ? parsed.catalog
           : fallback.catalog,
-      gifts: hasSample ? gifts : [BUNDLED_SAMPLE_GIFT, ...gifts],
+      gifts,
       processedCheckoutIds: Array.isArray(parsed.processedCheckoutIds)
         ? parsed.processedCheckoutIds
         : fallback.processedCheckoutIds,
