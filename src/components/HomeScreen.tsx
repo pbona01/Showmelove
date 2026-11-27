@@ -1,4 +1,4 @@
-import { ArrowRight, Gift as GiftIcon, Play, Sparkles } from 'lucide-react';
+import { ArrowRight, Gift as GiftIcon, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
   ECONOMY_CONFIG,
@@ -10,10 +10,9 @@ import { Button, PromisePaperCard, TactileGiftCard } from './ui/DesignSystem';
 
 interface HomeScreenProps {
   onStartSend: (giftId?: string) => void;
-  onTrySampleReveal: () => void;
 }
 
-export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) {
+export function HomeScreen({ onStartSend }: HomeScreenProps) {
   const { state } = useShowmelove();
 
   const reducedMotion =
@@ -58,7 +57,7 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
               Pick an animated gift, write a Digital Promise Card, and record a voice note. Share one link on WhatsApp—watch your gift come to life and let them redeem their Love Coin rewards.
             </p>
 
-            {/* Primary CTA first, Sample Reveal second */}
+            {/* Primary call to action */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
               <Button
                 variant="primary"
@@ -69,16 +68,6 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
                 <GiftIcon className="w-5 h-5" />
                 <span>Send a gift</span>
                 <ArrowRight className="w-4 h-4" />
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={onTrySampleReveal}
-                data-testid="home-sample-reveal-btn"
-              >
-                <Play className="w-4 h-4 text-[#DF0756] dark:text-[#FF176C] fill-current" />
-                <span>Try a sample reveal</span>
               </Button>
             </div>
 
@@ -129,9 +118,9 @@ export function HomeScreen({ onStartSend, onTrySampleReveal }: HomeScreenProps) 
 
               <div className="w-full">
                 <PromisePaperCard
-                  promiseText="Dinner's on me this weekend."
-                  senderName="Tunde"
-                  recipientName="Adaeze"
+                  promiseText="A little promise, made with love."
+                  senderName="Someone special"
+                  recipientName="You"
                 />
               </div>
             </div>
