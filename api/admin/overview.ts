@@ -10,10 +10,20 @@ function required(name: string) {
   return value;
 }
 
-async function request(url: string, headers: Record<string, string>) {
-  const response = await fetch(url, { headers });
+async function request(url: string, headers: Record<string, string>, extraHeaders: Record<string, string> = {}) {
+  const response = await fetch(url, { headers: { ...headers, ...extraHeaders } });
   if (!response.ok) throw new Error(`Supabase request failed (${response.status}).`);
   return response.json();
+}
+
+async function requestAll(url: string, headers: Record<string, string>) {
+  const pageSize = 1000;
+  const records: any[] = [];
+  for (let start = 0; ; start += pageSize) {
+    const page = await request(url, headers, { Range: `${start}-${start + pageSize - 1}` }) as any[];
+    records.push(...page);
+    if (page.length < pageSize) return records;
+  }
 }
 
 const number = (value: unknown) => Number(value || 0);
@@ -45,8 +55,8 @@ export default async function handler(req: any, res: any) {
     const [authUsers, wallets, successfulPayments, allFees, walletTransactions, gifts] = await Promise.all([
       request(`${base}/auth/v1/admin/users?page=1&per_page=1000`, adminHeaders) as Promise<{ users?: Array<any> }>,
       request(`${base}/rest/v1/wallets?select=user_id,love_coins_balance,updated_at`, adminHeaders) as Promise<Array<any>>,
-      request(`${base}/rest/v1/payment_events?status=eq.succeeded&select=reference,user_id,amount_naira,credited_coins,fee_coins,settled_at,created_at&order=settled_at.desc`, adminHeaders) as Promise<Array<any>>,
-      request(`${base}/rest/v1/platform_fee_transactions?select=id,source,reference,coins,created_at&order=created_at.desc`, adminHeaders) as Promise<Array<any>>,
+      requestAll(`${base}/rest/v1/payment_events?status=eq.succeeded&select=reference,user_id,amount_naira,credited_coins,fee_coins,settled_at,created_at&order=settled_at.desc`, adminHeaders) as Promise<Array<any>>,
+      requestAll(`${base}/rest/v1/platform_fee_transactions?select=id,source,reference,coins,created_at&order=created_at.desc`, adminHeaders) as Promise<Array<any>>,
       request(`${base}/rest/v1/wallet_transactions?select=id,user_id,kind,coins_delta,reference,created_at&order=created_at.desc&limit=30`, adminHeaders).catch(() => []) as Promise<Array<any>>,
       request(`${base}/rest/v1/gifts?select=id`, adminHeaders).catch(() => []) as Promise<Array<{ id: string }>>,
     ]);
