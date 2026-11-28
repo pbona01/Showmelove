@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, BarChart3, ChevronRight, Coins, CreditCard, Gift,
+  AlertTriangle, Coins, CreditCard,
   LayoutDashboard, LogOut, Menu, RefreshCw, ShieldCheck, Users, Wallet, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -185,7 +185,7 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
 
           {data && (
             <>
-              {(section === 'overview' || section === 'wallet' || section === 'payments' || section === 'accounts') && section === 'overview' && (
+              {section === 'overview' && (
                 <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   {metrics.map(({ label, value, detail, icon: Icon, tone, panel }) => (
                     <button key={label} type="button" onClick={() => selectSection(panel)} className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
