@@ -15,7 +15,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { supabase, isSupabaseAuthConfigured } from '../lib/supabase';
-import { LoveCoinHeartSvg } from './GiftArtwork';
+import { ShowmeloveBrandIcon } from './GiftArtwork';
 import { Button, InputField } from './ui/DesignSystem';
 
 export type AuthMode =
@@ -463,7 +463,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl love-coin-surface shadow-md mx-auto mb-1">
-            <LoveCoinHeartSvg className="w-11 h-11" priority />
+            <ShowmeloveBrandIcon className="w-12 h-12" />
           </div>
           <div className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest text-[#E61472] dark:text-[#FF2385]">
             <Sparkles className="w-3.5 h-3.5" /> Showmelove
