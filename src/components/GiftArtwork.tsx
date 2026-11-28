@@ -98,20 +98,22 @@ function FallbackCoinSvg({ className }: { className: string }) {
  * Official Showmelove Brand Icon (red heart hugging character with black eyes, arms, and cute expression).
  */
 export function ShowmeloveBrandIcon({ className = 'w-8 h-8' }: { className?: string }) {
-  // Never use an uploaded photo as the product mark. The mascot is the
-  // canonical Showmelove logo and is bundled with the app.
   return (
-    <img
-      src={SHOWMELOVE_ASSETS.heartMascot}
-      alt="Showmelove"
-      width={96}
-      height={96}
-      loading="eager"
-      decoding="async"
-      fetchPriority="high"
-      draggable={false}
-      className={`object-contain select-none shrink-0 ${className}`}
-    />
+    <svg
+      viewBox="0 0 128 128"
+      role="img"
+      aria-label="Showmelove"
+      className={`shrink-0 select-none ${className}`}
+    >
+      <rect width="128" height="128" rx="32" fill="#fff" />
+      <path d="M64 112S22 87 22 56c0-16 12-28 28-28 7 0 12 3 14 9 3-6 8-9 15-9 16 0 27 12 27 28 0 31-42 56-42 56Z" fill="#ff0b16" />
+      <path d="M34 82c-13 1-20-6-22-15M94 82c13 1 20-6 22-15M41 90c-9 2-15 8-17 16M87 90c9 2 15 8 17 16" stroke="#17080a" strokeWidth="7" strokeLinecap="round" fill="none" />
+      <circle cx="49" cy="29" r="6" fill="#17080a" />
+      <circle cx="77" cy="29" r="6" fill="#17080a" />
+      <path d="M50 43c7 8 20 8 28 0" stroke="#17080a" strokeWidth="6" strokeLinecap="round" fill="none" />
+      <path d="M95 18l-5 15M110 26l-13 9" stroke="#ff0b16" strokeWidth="7" strokeLinecap="round" />
+      <path d="M37 49c3-7 8-10 13-11" stroke="#ffd1d4" strokeWidth="6" strokeLinecap="round" opacity=".9" />
+    </svg>
   );
 }
 
