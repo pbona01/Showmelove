@@ -98,18 +98,20 @@ function FallbackCoinSvg({ className }: { className: string }) {
  * Official Showmelove Brand Icon (red heart hugging character with black eyes, arms, and cute expression).
  */
 export function ShowmeloveBrandIcon({ className = 'w-8 h-8' }: { className?: string }) {
+  // Never use an uploaded photo as the product mark. The mascot is the
+  // canonical Showmelove logo and is bundled with the app.
   return (
-    <div
-      className={`relative overflow-hidden rounded-full aspect-square flex items-center justify-center shrink-0 bg-white ${className}`}
-      style={{ borderRadius: '9999px' }}
-    >
-      <img
-        src={SHOWMELOVE_ASSETS.brandIcon}
-        alt="Showmelove Icon"
-        className="w-full h-full object-cover object-center rounded-full"
-        loading="eager"
-      />
-    </div>
+    <img
+      src={SHOWMELOVE_ASSETS.heartMascot}
+      alt="Showmelove"
+      width={96}
+      height={96}
+      loading="eager"
+      decoding="async"
+      fetchPriority="high"
+      draggable={false}
+      className={`object-contain select-none shrink-0 ${className}`}
+    />
   );
 }
 
