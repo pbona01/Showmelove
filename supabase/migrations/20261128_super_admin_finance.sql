@@ -39,19 +39,11 @@ alter table public.platform_fee_transactions
   alter column gross_fee_coins set not null,
   alter column net_profit_naira set not null;
 
-do $
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conname = 'platform_fee_transactions_category_check'
-      and conrelid = 'public.platform_fee_transactions'::regclass
-  ) then
-    alter table public.platform_fee_transactions
-      add constraint platform_fee_transactions_category_check
-      check (category in ('coin_funding', 'spray', 'guest_gift', 'account_gift', 'withdrawal_fee', 'other'));
-  end if;
-end;
-$;
+alter table public.platform_fee_transactions
+  drop constraint if exists platform_fee_transactions_category_check;
+alter table public.platform_fee_transactions
+  add constraint platform_fee_transactions_category_check
+  check (category in ('coin_funding', 'spray', 'guest_gift', 'account_gift', 'withdrawal_fee', 'other'));
 
 -- The only way company money leaves the master wallet is an auditable request.
 create table if not exists public.master_wallet_withdrawals (
@@ -180,7 +172,7 @@ begin
     'idempotent', false
   );
 end;
-$$;
+$finance$;
 
 revoke all on function public.settle_paystack_funding(text, uuid, bigint, bigint) from public, anon, authenticated;
 grant execute on function public.settle_paystack_funding(text, uuid, bigint, bigint) to service_role;
