@@ -121,7 +121,7 @@ create function public.settle_paystack_funding(
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $finance$
 declare
   v_credit bigint;
   v_platform_fee bigint;
