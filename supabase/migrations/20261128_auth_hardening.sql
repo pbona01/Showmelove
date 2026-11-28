@@ -77,24 +77,25 @@ from auth.users u
 where not exists (select 1 from public.profiles p where p.id = u.id)
 on conflict (id) do nothing;
 
--- Keep the canonical username from metadata when it is valid and not taken by
--- a different account. This runs separately to preserve existing accounts.
+-- Keep an existing canonical username only when exactly one account claims it.
+-- Duplicated historical usernames keep their generated safe handle and can be
+-- changed later by the affected member.
+with candidates as (
+  select
+    u.id,
+    lower(trim(u.raw_user_meta_data ->> 'username'))::citext as username,
+    count(*) over (
+      partition by lower(trim(u.raw_user_meta_data ->> 'username'))
+    ) as username_count
+  from auth.users u
+  where lower(trim(coalesce(u.raw_user_meta_data ->> 'username', ''))) ~ '^[a-z0-9_]{3,20}$'
+)
 update public.profiles p
 set username = candidate.username,
     updated_at = now()
-from (
-  select
-    u.id,
-    lower(trim(u.raw_user_meta_data ->> 'username'))::citext as username
-  from auth.users u
-  where lower(trim(coalesce(u.raw_user_meta_data ->> 'username', ''))) ~ '^[a-z0-9_]{3,20}$'
-) candidate
+from candidates candidate
 where p.id = candidate.id
-  and not exists (
-    select 1 from public.profiles taken
-    where taken.username = candidate.username
-      and taken.id <> candidate.id
-  );
+  and candidate.username_count = 1;
 
 -- Do not grant anonymous or authenticated write access. Only the protected
 -- auth trigger writes this table.
