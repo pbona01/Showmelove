@@ -16,6 +16,8 @@ async function request(url: string, headers: Record<string, string>) {
   return response.json();
 }
 
+const number = (value: unknown) => Number(value || 0);
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
 
@@ -40,45 +42,73 @@ export default async function handler(req: any, res: any) {
       return json(res, 403, { error: 'This account is not authorised for the admin workspace.' });
     }
 
-    const [authUsers, wallets, payments, fees, gifts] = await Promise.all([
+    const [authUsers, wallets, successfulPayments, allFees, walletTransactions, gifts] = await Promise.all([
       request(`${base}/auth/v1/admin/users?page=1&per_page=1000`, adminHeaders) as Promise<{ users?: Array<any> }>,
-      request(`${base}/rest/v1/wallets?select=user_id,love_coins_balance`, adminHeaders) as Promise<Array<{ love_coins_balance: number }>>,
-      request(`${base}/rest/v1/payment_events?status=eq.succeeded&select=reference,user_id,amount_naira,credited_coins,fee_coins,settled_at&order=settled_at.desc&limit=8`, adminHeaders) as Promise<Array<any>>,
-      request(`${base}/rest/v1/platform_fee_transactions?select=coins`, adminHeaders) as Promise<Array<{ coins: number }>>,
+      request(`${base}/rest/v1/wallets?select=user_id,love_coins_balance,updated_at`, adminHeaders) as Promise<Array<any>>,
+      request(`${base}/rest/v1/payment_events?status=eq.succeeded&select=reference,user_id,amount_naira,credited_coins,fee_coins,settled_at,created_at&order=settled_at.desc`, adminHeaders) as Promise<Array<any>>,
+      request(`${base}/rest/v1/platform_fee_transactions?select=id,source,reference,coins,created_at&order=created_at.desc`, adminHeaders) as Promise<Array<any>>,
+      request(`${base}/rest/v1/wallet_transactions?select=id,user_id,kind,coins_delta,reference,created_at&order=created_at.desc&limit=30`, adminHeaders).catch(() => []) as Promise<Array<any>>,
       request(`${base}/rest/v1/gifts?select=id`, adminHeaders).catch(() => []) as Promise<Array<{ id: string }>>,
     ]);
 
     const users = authUsers.users || [];
     const emailById = new Map(users.map((item: any) => [item.id, String(item.email || '')]));
-    const totals = {
-      users: users.length,
-      confirmedUsers: users.filter((item: any) => Boolean(item.email_confirmed_at)).length,
-      walletCoins: wallets.reduce((sum, item) => sum + Number(item.love_coins_balance || 0), 0),
-      fundedNaira: payments.reduce((sum, item) => sum + Number(item.amount_naira || 0), 0),
-      platformFeeCoins: fees.reduce((sum, item) => sum + Number(item.coins || 0), 0),
-      gifts: gifts.length,
-    };
+    const nameById = new Map(users.map((item: any) => [item.id, String(item.user_metadata?.display_name || item.user_metadata?.full_name || item.user_metadata?.username || item.email || 'Unnamed user')]));
+    const feeBySource = allFees.reduce((result: Record<string, number>, item: any) => {
+      const source = String(item.source || 'other');
+      result[source] = (result[source] || 0) + number(item.coins);
+      return result;
+    }, {});
 
     return json(res, 200, {
       generatedAt: new Date().toISOString(),
-      totals,
+      totals: {
+        users: users.length,
+        confirmedUsers: users.filter((item: any) => Boolean(item.email_confirmed_at)).length,
+        walletCoins: wallets.reduce((sum, item) => sum + number(item.love_coins_balance), 0),
+        fundedNaira: successfulPayments.reduce((sum, item) => sum + number(item.amount_naira), 0),
+        creditedCoins: successfulPayments.reduce((sum, item) => sum + number(item.credited_coins), 0),
+        platformFeeCoins: allFees.reduce((sum, item) => sum + number(item.coins), 0),
+        gifts: gifts.length,
+        fundingCount: successfulPayments.length,
+        walletTransactions: walletTransactions.length,
+      },
+      feeBreakdown: Object.entries(feeBySource).map(([source, coins]) => ({ source, coins })),
       recentUsers: users
         .sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at)))
-        .slice(0, 8)
+        .slice(0, 12)
         .map((item: any) => ({
           id: item.id,
           email: item.email || '',
           name: item.user_metadata?.display_name || item.user_metadata?.full_name || item.user_metadata?.username || item.email || 'Unnamed user',
           createdAt: item.created_at,
           confirmedAt: item.email_confirmed_at || null,
+          lastSignInAt: item.last_sign_in_at || null,
         })),
-      recentPayments: payments.map((item) => ({
+      recentPayments: successfulPayments.slice(0, 20).map((item) => ({
         reference: item.reference,
         email: emailById.get(item.user_id) || '',
-        amountNaira: Number(item.amount_naira || 0),
-        creditedCoins: Number(item.credited_coins || 0),
-        feeCoins: Number(item.fee_coins || 0),
+        name: nameById.get(item.user_id) || '',
+        amountNaira: number(item.amount_naira),
+        creditedCoins: number(item.credited_coins),
+        feeCoins: number(item.fee_coins),
         settledAt: item.settled_at || null,
+      })),
+      recentFees: allFees.slice(0, 20).map((item: any) => ({
+        id: item.id,
+        source: item.source || 'other',
+        reference: item.reference || '',
+        coins: number(item.coins),
+        createdAt: item.created_at || null,
+      })),
+      recentWalletTransactions: walletTransactions.map((item: any) => ({
+        id: item.id,
+        userName: nameById.get(item.user_id) || 'Unknown account',
+        email: emailById.get(item.user_id) || '',
+        kind: item.kind || 'wallet activity',
+        coinsDelta: number(item.coins_delta),
+        reference: item.reference || '',
+        createdAt: item.created_at || null,
       })),
     });
   } catch (error) {
