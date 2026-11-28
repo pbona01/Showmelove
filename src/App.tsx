@@ -18,7 +18,7 @@ import { TransactionHistoryScreen } from './components/TransactionHistoryScreen'
 import { AuthScreen } from './components/AuthScreen';
 import { PaymentVerificationScreen } from './components/PaymentVerificationScreen';
 import { PromiseCardGivingScreen } from './components/PromiseCardGivingScreen';
-import { LoveCoinHeartSvg } from './components/GiftArtwork';
+import { ShowmeloveBrandIcon } from './components/GiftArtwork';
 import { stopAllConfetti } from './utils/confettiEffects';
 import {
   PageTransition,
@@ -387,11 +387,7 @@ function ShowmeloveShell() {
             }}
             className="inline-flex items-center gap-2 font-bold text-[17px] sm:text-lg tracking-tight text-[var(--text-primary)] whitespace-nowrap shrink-0"
           >
-            <LoveCoinHeartSvg
-              className="w-9 h-9 min-w-[36px] min-h-[36px] object-contain"
-              alt="Showmelove heart mascot"
-              priority
-            />
+            <ShowmeloveBrandIcon className="w-9 h-9 min-w-[36px] min-h-[36px]" />
             <span>
               Showme
               <span className="text-[#E61472] dark:text-[#FF2385]">love</span>
