@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, Coins,
-  CreditCard, Gift, LayoutDashboard, LogOut, Menu, RefreshCw, ShieldCheck,
+  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, BarChart3, Banknote,
+  BellRing, ClipboardList, Coins, CreditCard, Gift, LayoutDashboard, LifeBuoy,
+  LogOut, MapPinned, Menu, RefreshCw, Settings, ShieldAlert, ShieldCheck,
   Users, Wallet, X,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -17,7 +18,11 @@ interface AdminOverview {
   recentWalletTransactions: Array<{ id: string; userName: string; email: string; kind: string; coinsDelta: number; reference: string; createdAt: string | null }>;
 }
 interface AdminScreenProps { onLock?: () => void; }
-type AdminSection = 'overview' | 'accounts' | 'funding' | 'wallet' | 'activity';
+type AdminSection =
+  | 'overview' | 'accounts' | 'wallets' | 'top_users'
+  | 'funding' | 'withdrawals' | 'wallet' | 'activity'
+  | 'gifts' | 'regions' | 'broadcasts'
+  | 'security' | 'support' | 'roles' | 'audit' | 'system' | 'settings';
 
 const formatNumber = (value: number) => new Intl.NumberFormat('en-NG').format(value);
 const formatNaira = (value: number) => `₦${formatNumber(value)}`;
@@ -49,11 +54,23 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
   useEffect(() => { void loadOverview(); }, [loadOverview]);
 
   const items = useMemo(() => [
-    { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
-    { id: 'accounts' as const, label: 'Members', icon: Users },
-    { id: 'funding' as const, label: 'Funding', icon: CreditCard },
-    { id: 'wallet' as const, label: 'Master Wallet', icon: Wallet },
-    { id: 'activity' as const, label: 'Activity', icon: Activity },
+    { id: 'overview' as const, label: 'Dashboard', group: 'Overview', icon: LayoutDashboard },
+    { id: 'accounts' as const, label: 'All Users', group: 'Users & Wallets', icon: Users },
+    { id: 'wallets' as const, label: 'Wallet Management', group: 'Users & Wallets', icon: Wallet },
+    { id: 'top_users' as const, label: 'Top Users', group: 'Users & Wallets', icon: BarChart3 },
+    { id: 'funding' as const, label: 'Transactions', group: 'Financial', icon: CreditCard },
+    { id: 'withdrawals' as const, label: 'Withdrawals', group: 'Financial', icon: Banknote },
+    { id: 'wallet' as const, label: 'Revenue & Fees', group: 'Financial', icon: Wallet },
+    { id: 'activity' as const, label: 'Ledger Activity', group: 'Financial', icon: Activity },
+    { id: 'gifts' as const, label: 'Gifts & Emoji Analytics', group: 'Engagement', icon: Gift },
+    { id: 'regions' as const, label: 'Countries & Regions', group: 'Engagement', icon: MapPinned },
+    { id: 'broadcasts' as const, label: 'Notifications & Broadcasts', group: 'Engagement', icon: BellRing },
+    { id: 'security' as const, label: 'Fraud & Security', group: 'Management', icon: ShieldAlert },
+    { id: 'support' as const, label: 'Support & Reports', group: 'Management', icon: LifeBuoy },
+    { id: 'roles' as const, label: 'Admin Roles', group: 'Management', icon: ShieldCheck },
+    { id: 'audit' as const, label: 'Activity Logs', group: 'Management', icon: ClipboardList },
+    { id: 'system' as const, label: 'System Health', group: 'System', icon: Activity },
+    { id: 'settings' as const, label: 'Platform Settings', group: 'System', icon: Settings },
   ], []);
 
   const select = (id: AdminSection) => { setSection(id); setMenuOpen(false); };
@@ -61,8 +78,14 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
 
   const navigation = (mobile = false) => (
     <nav className={mobile ? 'space-y-1 p-3' : 'hidden w-64 shrink-0 lg:block'}>
-      {!mobile && <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[.18em] text-[var(--text-secondary)]">Operations</p>}
-      {items.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => select(id)} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold transition ${section === id ? 'bg-[#7C3AED] text-white shadow-lg shadow-violet-500/20' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] hover:text-[var(--text-primary)]'}`}><Icon className="h-5 w-5" />{label}</button>)}
+      {Array.from(new Set(items.map((item) => item.group))).map((group) => (
+        <div key={group} className="mb-4">
+          <p className="mb-1 mt-3 px-3 text-[10px] font-extrabold uppercase tracking-[.18em] text-[var(--text-secondary)]">{group}</p>
+          {items.filter((item) => item.group === group).map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" onClick={() => select(id)} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-bold transition ${section === id ? 'bg-[#7C3AED] text-white shadow-lg shadow-violet-500/20' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] hover:text-[var(--text-primary)]'}`}><Icon className="h-4 w-4" />{label}</button>
+          ))}
+        </div>
+      ))}
       {!mobile && <div className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4"><ShieldCheck className="h-5 w-5 text-violet-500" /><p className="mt-2 text-xs font-bold text-[var(--text-primary)]">Verified live data</p><p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">This dashboard has no sample customers, transactions or revenue.</p></div>}
     </nav>
   );
@@ -81,7 +104,26 @@ export function AdminScreen({ onLock }: AdminScreenProps = {}) {
       <section className="rounded-3xl bg-gradient-to-br from-violet-700 via-fuchsia-600 to-pink-500 p-6 text-white shadow-xl shadow-fuchsia-500/15 sm:p-8"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-white/75">Restricted workspace</p><h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{items.find((item) => item.id === section)?.label}</h1><p className="mt-2 max-w-xl text-sm leading-6 text-white/85">Operational reporting powered by verified Supabase and Paystack data.</p></div><div className="rounded-2xl border border-white/20 bg-black/10 px-4 py-3 text-right"><p className="text-[10px] font-bold uppercase tracking-widest text-white/70">Data status</p><p className="mt-1 text-sm font-extrabold">{status === 'ready' ? 'Live and verified' : status === 'error' ? 'Needs attention' : 'Loading'}</p></div></div></section>
       {status === 'error' && <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-6 text-center"><AlertTriangle className="mx-auto h-7 w-7 text-amber-500" /><h2 className="mt-3 font-bold text-[var(--text-primary)]">Live data is unavailable</h2><p className="mx-auto mt-2 max-w-xl text-sm text-[var(--text-secondary)]">{error}</p><p className="mt-2 text-xs text-[var(--text-secondary)]">No placeholder figures are displayed.</p></section>}
       {status === 'loading' && !data && <section className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-10 text-center text-sm text-[var(--text-secondary)]">Loading verified platform data…</section>}
-      {data && <>{show('overview') && <><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {data && <>{!['overview', 'accounts', 'funding', 'wallet', 'activity'].includes(section) && (
+        <section className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-sm">
+          <SectionTitle eyebrow="Super Admin workspace" title={items.find((item) => item.id === section)?.label || 'Administration'} description="This area is separated from customer flows and will only display verified operational records." icon={ShieldCheck} />
+          <div className="grid gap-4 p-5 sm:grid-cols-2">
+            <article className="rounded-2xl bg-[var(--bg-raised)] p-5">
+              <p className="text-sm font-extrabold text-[var(--text-primary)]">Live-data protection</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">No sample users, balances, payouts, or revenue figures are displayed in this workspace. Actions appear only after their database ledger and server-side permission are enabled.</p>
+            </article>
+            <article className="rounded-2xl bg-violet-500/10 p-5">
+              <p className="text-sm font-extrabold text-[var(--text-primary)]">Current platform snapshot</p>
+              <div className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+                <p><strong className="text-[var(--text-primary)]">{formatNumber(data.totals.users)}</strong> registered users</p>
+                <p><strong className="text-[var(--text-primary)]">{formatNumber(data.totals.walletCoins)} LC</strong> in gifting wallets</p>
+                <p><strong className="text-[var(--text-primary)]">{formatNaira(data.totals.netProfitNaira)}</strong> net platform profit</p>
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
+      {show('overview') && <><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {[['Registered members',formatNumber(data.totals.users),`${formatNumber(data.totals.confirmedUsers)} verified`,Users,'text-violet-500'],['Wallet Love Coins',formatNumber(data.totals.walletCoins),'Current user balances',Coins,'text-pink-500'],['Funding settled',formatNaira(data.totals.fundedNaira),`${formatNumber(data.totals.fundingCount)} completed payments`,CreditCard,'text-sky-500'],['Coins credited',formatNumber(data.totals.creditedCoins),'After funding fees',ArrowDownRight,'text-emerald-500'],['Master wallet profit',formatNumber(data.totals.platformFeeCoins),'Fees in Love Coins',Wallet,'text-amber-500'],['Gifts created',formatNumber(data.totals.gifts),'All-time live total',Gift,'text-fuchsia-500']].map(([label,value,detail,Icon,tone]) => { const MetricIcon = Icon as typeof Users; return <article key={String(label)} className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-5 shadow-sm"><MetricIcon className={`h-5 w-5 ${tone}`} /><p className="mt-5 text-2xl font-extrabold tabular-nums text-[var(--text-primary)]">{String(value)}</p><p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{String(label)}</p><p className="mt-1 text-xs text-[var(--text-secondary)]">{String(detail)}</p></article>})}
       </section><section className="grid gap-6 xl:grid-cols-2"><div className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-sm"><SectionTitle eyebrow="Members" title="Newest accounts" description="Latest registered members" icon={Users} /><div className="divide-y divide-[var(--border-subtle)]">{data.recentUsers.slice(0,5).map((user) => <div key={user.id} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--text-primary)]">{user.name || 'Unnamed member'}</p><p className="truncate text-xs text-[var(--text-secondary)]">{user.email}</p></div><p className={`shrink-0 text-xs font-bold ${user.confirmedAt ? 'text-emerald-500' : 'text-amber-500'}`}>{user.confirmedAt ? 'Verified' : 'Unverified'}</p></div>)}</div></div><div className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-sm"><SectionTitle eyebrow="Payments" title="Latest funding" description="Recent settled wallet purchases" icon={CreditCard} /><div className="divide-y divide-[var(--border-subtle)]">{data.recentPayments.slice(0,5).map((payment) => <div key={payment.reference} className="flex items-center justify-between gap-3 px-5 py-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--text-primary)]">{payment.name || payment.email || 'Unknown account'}</p><p className="truncate text-xs text-emerald-500">+{formatNumber(payment.creditedCoins)} Love Coins</p></div><p className="shrink-0 text-sm font-extrabold text-emerald-500">{formatNaira(payment.amountNaira)}</p></div>)}</div></div></section></>}
       {show('accounts') && <section className="overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-sm"><SectionTitle eyebrow="Member directory" title="Recent accounts" description={`${formatNumber(data.totals.users)} registered · ${formatNumber(data.totals.confirmedUsers)} verified`} icon={Users} />{data.recentUsers.length === 0 ? <p className="p-6 text-sm text-[var(--text-secondary)]">No accounts yet.</p> : <div className="divide-y divide-[var(--border-subtle)]">{data.recentUsers.map((user) => <div key={user.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:px-6"><div className="min-w-0"><p className="truncate font-bold text-[var(--text-primary)]">{user.name || 'Unnamed member'}</p><p className="truncate text-sm text-[var(--text-secondary)]">{user.email}</p></div><p className="text-xs text-[var(--text-secondary)]">Joined {formatDate(user.createdAt)}</p><span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${user.confirmedAt ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-600'}`}>{user.confirmedAt ? 'Verified' : 'Unverified'}</span></div>)}</div>}</section>}
