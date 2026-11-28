@@ -62,6 +62,17 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   }, [resendCooldown]);
 
   useEffect(() => {
+    const isRecoveryLink =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('reset') === '1';
+
+    if (isRecoveryLink) {
+      setMode('set_new_password');
+      setStatus('idle');
+      setMessage('Choose a new password for your account.');
+      return;
+    }
+
     if (!supabase) return;
     void supabase.auth.getSession().then(({ data }: { data: any }) => {
       if (data.session?.user?.email) {
@@ -301,7 +312,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const handleSendResetCode = async () => {
     if (!supabase || !identifier.trim()) {
       setStatus('error');
-      setMessage('Enter your username or email address to receive a reset code.');
+      setMessage('Enter your username or email address to receive a password-reset link.');
       return;
     }
 
@@ -320,7 +331,11 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       }
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail);
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/sign-in?reset=1`
+        : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, { redirectTo });
 
     if (error) {
       setStatus('error');
@@ -328,12 +343,9 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
       return;
     }
 
-    setPendingEmail(targetEmail);
-    setOtpCode('');
-    setResendCooldown(45);
-    setStatus('idle');
-    setMessage(`We sent a 8-digit security code to ${targetEmail}.`);
-    setMode('verify_reset_code');
+    setStatus('success');
+    setMessage(`We sent a password-reset link to ${targetEmail}. Open that link to choose a new password.`);
+    setMode('sign_in');
   };
 
   // 5. VERIFY RESET PASSWORD CODE (OTP)
@@ -730,7 +742,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="e.g. pbona or you@example.com"
-                  hint="We will send a 8-digit verification code to your email"
+                  hint="We will email you a secure password-reset link"
                 />
 
                 <div className="pt-1 text-center">
@@ -898,7 +910,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
                 </>
               ) : mode === 'forgot_password' ? (
                 <>
-                  <Mail className="w-4 h-4 mr-2" /> Send Verification Code
+                  <Mail className="w-4 h-4 mr-2" /> Send Password-Reset Link
                 </>
               ) : mode === 'verify_reset_code' ? (
                 <>
