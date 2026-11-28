@@ -29,10 +29,18 @@ alter table public.platform_fee_transactions
   add column if not exists net_profit_naira bigint;
 
 update public.platform_fee_transactions
-set category = coalesce(category, source),
-    gross_fee_coins = coalesce(gross_fee_coins, coins),
-    net_profit_naira = coalesce(net_profit_naira, coins - gateway_fee_naira)
-where category is null or gross_fee_coins is null or net_profit_naira is null;
+set
+  category = case
+    when category in ('coin_funding', 'spray', 'guest_gift', 'account_gift', 'withdrawal_fee', 'other') then category
+    when lower(coalesce(source, '')) in ('wallet_funding', 'funding', 'coin_funding') then 'coin_funding'
+    when lower(coalesce(source, '')) in ('guest_gift', 'guest_gifting', 'gifting_without_account') then 'guest_gift'
+    when lower(coalesce(source, '')) in ('spray', 'spraying') then 'spray'
+    when lower(coalesce(source, '')) in ('account_gift', 'in_app_gift', 'gifting_with_account') then 'account_gift'
+    when lower(coalesce(source, '')) in ('withdrawal_fee', 'payout_fee') then 'withdrawal_fee'
+    else 'other'
+  end,
+  gross_fee_coins = coalesce(gross_fee_coins, coins),
+  net_profit_naira = coalesce(net_profit_naira, coins - gateway_fee_naira);
 
 alter table public.platform_fee_transactions
   alter column category set not null,
