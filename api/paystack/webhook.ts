@@ -100,13 +100,14 @@ async function settleFunding(
     idempotent?: boolean;
   };
 
-  if (settlement.status !== 'succeeded' || !Number.isFinite(settlement.credited_coins)) {
+  const creditedCoins = Number(settlement.credited_coins);
+  if (settlement.status !== 'succeeded' || !Number.isFinite(creditedCoins)) {
     throw new Error('Funding settlement returned an invalid result.');
   }
 
   return {
     status: 'succeeded',
-    credited_coins: Number(settlement.credited_coins),
+    credited_coins: creditedCoins,
     idempotent: Boolean(settlement.idempotent),
   };
 }
