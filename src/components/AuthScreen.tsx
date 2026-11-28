@@ -85,58 +85,22 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
     });
   }, []);
 
-  const resolveEmailFromIdentifier = async (id: string): Promise<string | null> => {
-    const clean = id.trim().replace(/^@/, '');
-    if (clean.includes('@')) {
-      return clean.toLowerCase();
-    }
-
-    // Check local storage mapping first
-    try {
-      const rawMap = localStorage.getItem('showmelove_user_map');
-      if (rawMap) {
-        const parsed = JSON.parse(rawMap) as Record<string, string>;
-        if (parsed[clean.toLowerCase()]) return parsed[clean.toLowerCase()];
-      }
-    } catch {
-      // Ignore storage error
-    }
-
-    // Check serverless username resolver
-    try {
-      const res = await fetch(`/api/auth/resolve?username=${encodeURIComponent(clean)}`);
-      if (res.ok) {
-        const data = (await res.json()) as { email?: string };
-        if (data.email) return data.email;
-      }
-    } catch {
-      // Fallback
-    }
-
-
-    return null;
-  };
 
   // 1. SIGN IN
   const handleSignIn = async () => {
     if (!supabase || !identifier.trim() || !password) {
       setStatus('error');
-      setMessage('Enter your username or email and password to sign in.');
+      setMessage('Enter your email and password to sign in.');
       return;
     }
     setStatus('loading');
     setMessage('');
 
-    let targetEmail: string | null = identifier.trim();
+    const targetEmail = identifier.trim().toLowerCase();
     if (!targetEmail.includes('@')) {
-      targetEmail = await resolveEmailFromIdentifier(targetEmail);
-      if (!targetEmail) {
-        setStatus('error');
-        setMessage(
-          `Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address instead.`,
-        );
-        return;
-      }
+      setStatus('error');
+      setMessage('Use the email address connected to your Showmelove account.');
+      return;
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -233,7 +197,12 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
 
     if (error) {
       setStatus('error');
-      setMessage(error.message);
+      const copy = error.message.toLowerCase();
+      setMessage(
+        copy.includes('duplicate') || copy.includes('database')
+          ? 'That email address or username is already in use. Try another one.'
+          : error.message,
+      );
       return;
     }
 
@@ -312,23 +281,18 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
   const handleSendResetCode = async () => {
     if (!supabase || !identifier.trim()) {
       setStatus('error');
-      setMessage('Enter your username or email address to receive a password-reset link.');
+      setMessage('Enter your email address to receive a password-reset link.');
       return;
     }
 
     setStatus('loading');
     setMessage('');
 
-    let targetEmail: string | null = identifier.trim();
+    const targetEmail = identifier.trim().toLowerCase();
     if (!targetEmail.includes('@')) {
-      targetEmail = await resolveEmailFromIdentifier(targetEmail);
-      if (!targetEmail) {
-        setStatus('error');
-        setMessage(
-          `Could not find an account with username @${identifier.trim().replace(/^@/, '')}. Try your email address.`,
-        );
-        return;
-      }
+      setStatus('error');
+      setMessage('Use the email address connected to your Showmelove account.');
+      return;
     }
 
     const redirectTo =
@@ -496,7 +460,7 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
                 Enter the 8-digit verification code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
               </>
             )}
-            {mode === 'forgot_password' && 'Enter your username or email address and we will send you a 8-digit code to reset your password.'}
+            {mode === 'forgot_password' && 'Enter your email address and we will send you a password-reset link.'}
             {mode === 'verify_reset_code' && (
               <>
                 Enter the 8-digit security code sent to <strong className="text-[var(--text-primary)]">{pendingEmail}</strong>.
@@ -557,14 +521,14 @@ export function AuthScreen({ onBack, onAdminRoute }: AuthScreenProps) {
               <>
                 <InputField
                   id="sign-in-identifier"
-                  label="Username or Email"
+                  label="Email Address"
                   type="text"
                   autoComplete="username"
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. pbona or you@example.com"
-                  hint="Enter your @username or email address"
+                  placeholder="you@example.com"
+                  hint="Use the email connected to your account"
                 />
 
                 <div className="space-y-1.5">
