@@ -289,7 +289,10 @@ function ShowmeloveShell() {
         setAdminRole('user');
         setAdminRoleChecked(true);
       }
-      if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+      if (data.session && typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+        window.history.replaceState(null, '', '/sign-in?reset=1');
+        setRoute({ page: 'sign-in' });
+      } else if (data.session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
     });
@@ -305,7 +308,10 @@ function ShowmeloveShell() {
         setAdminRole('user');
         setAdminRoleChecked(true);
       }
-      if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+      if (session && typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+        window.history.replaceState(null, '', '/sign-in?reset=1');
+        setRoute({ page: 'sign-in' });
+      } else if (session && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
     });
