@@ -312,7 +312,20 @@ function ShowmeloveShell() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  if (!authChecked) {
+  const isAuthorizedAdmin = isAdminRole(adminRole);
+
+  useEffect(() => {
+    if (isAuthorizedAdmin && adminRoleChecked && route.page !== 'admin') {
+      navigate({ page: 'admin' });
+    }
+  }, [adminRoleChecked, isAuthorizedAdmin, navigate, route.page]);
+
+  if (!authChecked || (hasLiveSession && !adminRoleChecked)) {
+    return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
+  }
+
+  // An admin never enters the consumer experience, including after a refresh.
+  if (isAuthorizedAdmin && route.page !== 'admin') {
     return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
   }
 
@@ -336,8 +349,6 @@ function ShowmeloveShell() {
   // so a recipient can open a link without creating an account first.
   const isProtectedRoute = route.page !== 'reveal' && route.page !== 'payment-verify';
 
-  const isAuthorizedAdmin = isAdminRole(adminRole);
-
   if (route.page === 'admin' && !isAuthorizedAdmin) {
     if (hasLiveSession && !adminRoleChecked) {
       return <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#FF2385]" /></div>;
@@ -351,6 +362,21 @@ function ShowmeloveShell() {
 
   if ((isSupabaseAuthConfigured && !hasLiveSession && isProtectedRoute) || route.page === 'sign-in') {
     return <AuthScreen onBack={() => navigate({ page: 'home' })} />;
+  }
+
+  // Keep the admin workspace isolated from all consumer navigation and screens.
+  if (isAuthorizedAdmin && route.page === 'admin') {
+    return (
+      <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)]">
+        <AdminScreen
+          onLock={() => {
+            void supabase?.auth.signOut();
+            setAdminRole('user');
+            navigate({ page: 'sign-in' });
+          }}
+        />
+      </div>
+    );
   }
 
   const isHomeTab =
@@ -581,18 +607,6 @@ function ShowmeloveShell() {
                 onSignOut={() => navigate({ page: 'sign-in' })}
                 onSignIn={() => navigate({ page: 'sign-in' })}
               />
-            )}
-
-            {route.page === 'admin' && (
-              isAuthorizedAdmin ? (
-                <AdminScreen
-                  onLock={() => {
-                    void supabase?.auth.signOut();
-                    setAdminRole('user');
-                    navigate({ page: 'home' });
-                  }}
-                />
-              ) : null
             )}
 
             {route.page === 'spray-coins' && (
