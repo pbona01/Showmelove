@@ -69,6 +69,7 @@ async function settleFunding(
   reference: string,
   userId: string,
   amountNaira: number,
+  gatewayFeeNaira: number,
 ): Promise<{ status: string; credited_coins: number; idempotent?: boolean }> {
   // Check idempotency first
   try {
@@ -105,6 +106,7 @@ async function settleFunding(
         p_reference: reference,
         p_user_id: userId,
         p_amount_naira: amountNaira,
+        p_gateway_fee_naira: gatewayFeeNaira,
       }),
     });
     if (rpcRes.ok) {
@@ -136,6 +138,7 @@ async function settleFunding(
       amount_naira: amountNaira,
       credited_coins: v_credit,
       fee_coins: v_fee,
+      gateway_fee_naira: gatewayFeeNaira,
       status: 'succeeded',
       settled_at: new Date().toISOString(),
     }),
@@ -190,8 +193,12 @@ async function settleFunding(
     headers: { ...headers, Prefer: 'resolution=ignore-duplicates' },
     body: JSON.stringify({
       source: 'wallet_funding',
+      category: 'coin_funding',
       reference,
       coins: v_fee,
+      gross_fee_coins: v_fee,
+      gateway_fee_naira: gatewayFeeNaira,
+      net_profit_naira: Math.max(0, v_fee - gatewayFeeNaira),
     }),
   }).catch(() => undefined);
 
@@ -416,6 +423,7 @@ export default async function handler(req: any, res: any) {
         status?: string;
         reference?: string;
         amount?: number;
+        fees?: number;
         metadata?: { showmelove_user_id?: string };
         customer?: { email?: string };
       };
@@ -453,7 +461,15 @@ export default async function handler(req: any, res: any) {
     }
 
     const amountNaira = Math.floor(payment.amount / 100);
-    const settlement = await settleFunding(supabaseUrl, supabaseSecret, payment.reference, userId, amountNaira);
+    const gatewayFeeNaira = Math.max(0, Math.floor(Number(payment.fees || 0) / 100));
+    const settlement = await settleFunding(
+      supabaseUrl,
+      supabaseSecret,
+      payment.reference,
+      userId,
+      amountNaira,
+      gatewayFeeNaira,
+    );
 
     return reply(res, 200, { received: true, settlement });
   } catch (error) {
